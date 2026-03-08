@@ -1,20 +1,88 @@
 """Simulation orchestration entrypoints."""
 
-from bracket_sim.domain.models import SimulationConfig
+from __future__ import annotations
+
+from collections import Counter
+
+import numpy as np
+
+from bracket_sim.domain.bracket_graph import build_bracket_graph
+from bracket_sim.domain.constraints import validate_constraints
+from bracket_sim.domain.models import SimulationConfig, SimulationEntryResult, SimulationResult
+from bracket_sim.domain.scoring import (
+    aggregate_win_shares,
+    build_predicted_wins_matrix,
+    score_entries,
+    validate_entries,
+)
+from bracket_sim.domain.simulator import simulate_tournament
+from bracket_sim.infrastructure.storage.normalized_loader import load_normalized_input
 
 
-class SimulationSummary(dict[str, int]):
-    """Minimal typed summary returned by placeholder simulation use-case."""
+def simulate_pool(config: SimulationConfig) -> SimulationResult:
+    """Load validated inputs, run deterministic simulations, and aggregate entry odds."""
 
+    normalized = load_normalized_input(config.input_dir)
+    graph = build_bracket_graph(teams=normalized.teams, games=normalized.games)
 
-def simulate_pool(config: SimulationConfig) -> SimulationSummary:
-    """Return deterministic placeholder output for Phase 0 scaffolding."""
+    constraints_by_game_id = validate_constraints(
+        constraints=normalized.constraints,
+        graph=graph,
+    )
 
-    checksum = (config.seed * 31 + config.n_sims) % 100_000
-    return SimulationSummary(
-        {
-            "seed": config.seed,
-            "n_sims": config.n_sims,
-            "checksum": checksum,
-        }
+    validate_entries(entries=normalized.entries, graph=graph)
+    _, team_ids, predicted_wins = build_predicted_wins_matrix(
+        entries=normalized.entries,
+        graph=graph,
+    )
+
+    ratings_by_team_name = {record.team: record.rating for record in normalized.ratings.records}
+    ratings_by_team_id: dict[str, float] = {}
+    for team_id in team_ids:
+        team = graph.teams_by_id[team_id]
+        if team.name not in ratings_by_team_name:
+            msg = f"Missing rating for team name '{team.name}'"
+            raise ValueError(msg)
+        ratings_by_team_id[team_id] = ratings_by_team_name[team.name]
+
+    simulation = simulate_tournament(
+        graph=graph,
+        ratings_by_team_id=ratings_by_team_id,
+        constraints_by_game_id=constraints_by_game_id,
+        n_sims=config.n_sims,
+        seed=config.seed,
+        rating_scale=config.rating_scale,
+    )
+
+    scores = score_entries(predicted_wins=predicted_wins, actual_wins=simulation.team_wins)
+    win_shares = aggregate_win_shares(scores)
+
+    entry_results: list[SimulationEntryResult] = []
+    average_scores = np.mean(scores, axis=1)
+    for entry_idx, entry in enumerate(normalized.entries):
+        entry_results.append(
+            SimulationEntryResult(
+                entry_id=entry.entry_id,
+                entry_name=entry.entry_name,
+                win_share=float(win_shares[entry_idx]),
+                average_score=float(average_scores[entry_idx]),
+            )
+        )
+
+    entry_results.sort(
+        key=lambda result: (result.win_share, result.average_score, result.entry_id),
+        reverse=True,
+    )
+
+    champion_counter = Counter(simulation.champions.tolist())
+    champion_counts = {
+        simulation.team_ids[team_idx]: int(count)
+        for team_idx, count in sorted(champion_counter.items(), key=lambda item: item[0])
+    }
+
+    return SimulationResult(
+        n_sims=config.n_sims,
+        seed=config.seed,
+        entry_results=entry_results,
+        champion_counts=champion_counts,
     )

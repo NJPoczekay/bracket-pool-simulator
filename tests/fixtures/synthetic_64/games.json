@@ -1,0 +1,506 @@
+[
+  {
+    "game_id": "g001",
+    "round": 1,
+    "left_team_id": "east-01",
+    "right_team_id": "east-16",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g002",
+    "round": 1,
+    "left_team_id": "east-08",
+    "right_team_id": "east-09",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g003",
+    "round": 1,
+    "left_team_id": "east-05",
+    "right_team_id": "east-12",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g004",
+    "round": 1,
+    "left_team_id": "east-04",
+    "right_team_id": "east-13",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g005",
+    "round": 1,
+    "left_team_id": "east-06",
+    "right_team_id": "east-11",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g006",
+    "round": 1,
+    "left_team_id": "east-03",
+    "right_team_id": "east-14",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g007",
+    "round": 1,
+    "left_team_id": "east-07",
+    "right_team_id": "east-10",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g008",
+    "round": 1,
+    "left_team_id": "east-02",
+    "right_team_id": "east-15",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g009",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g001",
+    "right_game_id": "g002"
+  },
+  {
+    "game_id": "g010",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g003",
+    "right_game_id": "g004"
+  },
+  {
+    "game_id": "g011",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g005",
+    "right_game_id": "g006"
+  },
+  {
+    "game_id": "g012",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g007",
+    "right_game_id": "g008"
+  },
+  {
+    "game_id": "g013",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g009",
+    "right_game_id": "g010"
+  },
+  {
+    "game_id": "g014",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g011",
+    "right_game_id": "g012"
+  },
+  {
+    "game_id": "g015",
+    "round": 4,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g013",
+    "right_game_id": "g014"
+  },
+  {
+    "game_id": "g016",
+    "round": 1,
+    "left_team_id": "west-01",
+    "right_team_id": "west-16",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g017",
+    "round": 1,
+    "left_team_id": "west-08",
+    "right_team_id": "west-09",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g018",
+    "round": 1,
+    "left_team_id": "west-05",
+    "right_team_id": "west-12",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g019",
+    "round": 1,
+    "left_team_id": "west-04",
+    "right_team_id": "west-13",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g020",
+    "round": 1,
+    "left_team_id": "west-06",
+    "right_team_id": "west-11",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g021",
+    "round": 1,
+    "left_team_id": "west-03",
+    "right_team_id": "west-14",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g022",
+    "round": 1,
+    "left_team_id": "west-07",
+    "right_team_id": "west-10",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g023",
+    "round": 1,
+    "left_team_id": "west-02",
+    "right_team_id": "west-15",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g024",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g016",
+    "right_game_id": "g017"
+  },
+  {
+    "game_id": "g025",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g018",
+    "right_game_id": "g019"
+  },
+  {
+    "game_id": "g026",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g020",
+    "right_game_id": "g021"
+  },
+  {
+    "game_id": "g027",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g022",
+    "right_game_id": "g023"
+  },
+  {
+    "game_id": "g028",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g024",
+    "right_game_id": "g025"
+  },
+  {
+    "game_id": "g029",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g026",
+    "right_game_id": "g027"
+  },
+  {
+    "game_id": "g030",
+    "round": 4,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g028",
+    "right_game_id": "g029"
+  },
+  {
+    "game_id": "g031",
+    "round": 1,
+    "left_team_id": "south-01",
+    "right_team_id": "south-16",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g032",
+    "round": 1,
+    "left_team_id": "south-08",
+    "right_team_id": "south-09",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g033",
+    "round": 1,
+    "left_team_id": "south-05",
+    "right_team_id": "south-12",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g034",
+    "round": 1,
+    "left_team_id": "south-04",
+    "right_team_id": "south-13",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g035",
+    "round": 1,
+    "left_team_id": "south-06",
+    "right_team_id": "south-11",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g036",
+    "round": 1,
+    "left_team_id": "south-03",
+    "right_team_id": "south-14",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g037",
+    "round": 1,
+    "left_team_id": "south-07",
+    "right_team_id": "south-10",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g038",
+    "round": 1,
+    "left_team_id": "south-02",
+    "right_team_id": "south-15",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g039",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g031",
+    "right_game_id": "g032"
+  },
+  {
+    "game_id": "g040",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g033",
+    "right_game_id": "g034"
+  },
+  {
+    "game_id": "g041",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g035",
+    "right_game_id": "g036"
+  },
+  {
+    "game_id": "g042",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g037",
+    "right_game_id": "g038"
+  },
+  {
+    "game_id": "g043",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g039",
+    "right_game_id": "g040"
+  },
+  {
+    "game_id": "g044",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g041",
+    "right_game_id": "g042"
+  },
+  {
+    "game_id": "g045",
+    "round": 4,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g043",
+    "right_game_id": "g044"
+  },
+  {
+    "game_id": "g046",
+    "round": 1,
+    "left_team_id": "midwest-01",
+    "right_team_id": "midwest-16",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g047",
+    "round": 1,
+    "left_team_id": "midwest-08",
+    "right_team_id": "midwest-09",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g048",
+    "round": 1,
+    "left_team_id": "midwest-05",
+    "right_team_id": "midwest-12",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g049",
+    "round": 1,
+    "left_team_id": "midwest-04",
+    "right_team_id": "midwest-13",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g050",
+    "round": 1,
+    "left_team_id": "midwest-06",
+    "right_team_id": "midwest-11",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g051",
+    "round": 1,
+    "left_team_id": "midwest-03",
+    "right_team_id": "midwest-14",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g052",
+    "round": 1,
+    "left_team_id": "midwest-07",
+    "right_team_id": "midwest-10",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g053",
+    "round": 1,
+    "left_team_id": "midwest-02",
+    "right_team_id": "midwest-15",
+    "left_game_id": null,
+    "right_game_id": null
+  },
+  {
+    "game_id": "g054",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g046",
+    "right_game_id": "g047"
+  },
+  {
+    "game_id": "g055",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g048",
+    "right_game_id": "g049"
+  },
+  {
+    "game_id": "g056",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g050",
+    "right_game_id": "g051"
+  },
+  {
+    "game_id": "g057",
+    "round": 2,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g052",
+    "right_game_id": "g053"
+  },
+  {
+    "game_id": "g058",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g054",
+    "right_game_id": "g055"
+  },
+  {
+    "game_id": "g059",
+    "round": 3,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g056",
+    "right_game_id": "g057"
+  },
+  {
+    "game_id": "g060",
+    "round": 4,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g058",
+    "right_game_id": "g059"
+  },
+  {
+    "game_id": "g061",
+    "round": 5,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g015",
+    "right_game_id": "g030"
+  },
+  {
+    "game_id": "g062",
+    "round": 5,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g045",
+    "right_game_id": "g060"
+  },
+  {
+    "game_id": "g063",
+    "round": 6,
+    "left_team_id": null,
+    "right_team_id": null,
+    "left_game_id": "g061",
+    "right_game_id": "g062"
+  }
+]

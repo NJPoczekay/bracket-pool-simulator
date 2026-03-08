@@ -1,0 +1,18 @@
+[
+  {
+    "game_id": "g001",
+    "winner_team_id": "east-01"
+  },
+  {
+    "game_id": "g002",
+    "winner_team_id": "east-08"
+  },
+  {
+    "game_id": "g003",
+    "winner_team_id": "east-05"
+  },
+  {
+    "game_id": "g004",
+    "winner_team_id": "east-04"
+  }
+]
