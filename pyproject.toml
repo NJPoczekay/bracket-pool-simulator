@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bracket-pool-simulator"
+version = "0.1.0"
+description = "Deterministic bracket pool simulator"
+readme = "roadmap.md"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27.0",
+  "numpy>=2.2.0",
+  "polars>=1.24.0",
+  "pydantic>=2.10.0",
+  "pydantic-settings>=2.8.0",
+  "structlog>=25.1.0",
+  "typer>=0.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.15.0",
+  "pre-commit>=4.2.0",
+  "pytest>=8.3.0",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.11.0",
+]
+
+[project.scripts]
+bracket-sim = "bracket_sim.infrastructure.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bracket_sim"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN201"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+pretty = true
+show_error_codes = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --cov=bracket_sim --cov-report=term-missing"
