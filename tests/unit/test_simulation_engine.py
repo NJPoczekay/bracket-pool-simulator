@@ -90,3 +90,15 @@ def test_simulation_invariants(
     assert np.all(simulation.team_wins >= 0)
     assert np.all(simulation.team_wins <= 6)
     assert np.all(np.sum(simulation.team_wins, axis=1) == 63)
+
+    champion_indices = simulation.champions.astype(np.intp, copy=False)
+    assert np.all(champion_indices >= 0)
+    assert np.all(champion_indices < simulation.team_wins.shape[1])
+
+    sim_indices = np.arange(simulation.team_wins.shape[0], dtype=np.intp)
+    champion_wins = simulation.team_wins[sim_indices, champion_indices]
+    assert np.all(champion_wins == 6)
+
+    champion_mask = np.zeros_like(simulation.team_wins, dtype=bool)
+    champion_mask[sim_indices, champion_indices] = True
+    assert np.all(simulation.team_wins[~champion_mask] <= 5)

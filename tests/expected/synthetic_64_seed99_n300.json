@@ -1,0 +1,90 @@
+{
+  "n_sims": 300,
+  "seed": 99,
+  "entry_results": [
+    {
+      "entry_id": "entry_chalk",
+      "entry_name": "Chalk Strategy",
+      "win_share": 0.21166666666666667,
+      "average_score": 65.80333333333333
+    },
+    {
+      "entry_id": "entry_balanced",
+      "entry_name": "Balanced Strategy",
+      "win_share": 0.18666666666666668,
+      "average_score": 58.403333333333336
+    },
+    {
+      "entry_id": "entry_west_bias",
+      "entry_name": "West Region Bias",
+      "win_share": 0.16166666666666665,
+      "average_score": 65.65
+    },
+    {
+      "entry_id": "entry_midwest_bias",
+      "entry_name": "Midwest Region Bias",
+      "win_share": 0.13333333333333333,
+      "average_score": 62.25
+    },
+    {
+      "entry_id": "entry_east_bias",
+      "entry_name": "East Region Bias",
+      "win_share": 0.12666666666666668,
+      "average_score": 65.93666666666667
+    },
+    {
+      "entry_id": "entry_upsets",
+      "entry_name": "Upset Hunter",
+      "win_share": 0.11666666666666667,
+      "average_score": 46.35666666666667
+    },
+    {
+      "entry_id": "entry_south_bias",
+      "entry_name": "South Region Bias",
+      "win_share": 0.05333333333333334,
+      "average_score": 62.38333333333333
+    },
+    {
+      "entry_id": "entry_chaos",
+      "entry_name": "Chaos Theory",
+      "win_share": 0.01,
+      "average_score": 30.27
+    }
+  ],
+  "champion_counts": {
+    "east-01": 23,
+    "east-02": 16,
+    "east-03": 11,
+    "east-04": 11,
+    "east-05": 6,
+    "east-06": 2,
+    "east-07": 2,
+    "east-08": 1,
+    "midwest-01": 27,
+    "midwest-02": 13,
+    "midwest-03": 14,
+    "midwest-04": 7,
+    "midwest-05": 9,
+    "midwest-06": 5,
+    "midwest-08": 2,
+    "midwest-09": 1,
+    "south-01": 23,
+    "south-02": 19,
+    "south-03": 11,
+    "south-04": 8,
+    "south-05": 5,
+    "south-06": 5,
+    "south-07": 3,
+    "south-09": 1,
+    "south-10": 2,
+    "west-01": 26,
+    "west-02": 20,
+    "west-03": 12,
+    "west-04": 8,
+    "west-05": 2,
+    "west-06": 2,
+    "west-07": 1,
+    "west-08": 1,
+    "west-09": 1
+  }
+}

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from bracket_sim.domain.bracket_graph import BracketGraph
+from bracket_sim.domain.models import EntryPick
 from bracket_sim.domain.scoring import (
     aggregate_win_shares,
     build_predicted_wins_matrix,
@@ -18,6 +20,23 @@ def test_score_entries_matches_expected_toy_values() -> None:
 
     scores = score_entries(predicted_wins=predicted, actual_wins=actual)
     expected = np.array([[3, 0], [1, 1]], dtype=np.int32)
+
+    assert np.array_equal(scores, expected)
+
+
+def test_score_entries_respects_exponential_round_values() -> None:
+    predicted = np.array([[6], [3], [0]], dtype=np.int16)
+    actual = np.array([[6], [3], [0]], dtype=np.int16)
+
+    scores = score_entries(predicted_wins=predicted, actual_wins=actual)
+    expected = np.array(
+        [
+            [63, 7, 0],
+            [7, 7, 0],
+            [0, 0, 0],
+        ],
+        dtype=np.int32,
+    )
 
     assert np.array_equal(scores, expected)
 
@@ -51,3 +70,33 @@ def test_entry_validation_and_predicted_wins_matrix(
     assert len(team_ids) == 64
     assert predicted_wins.shape == (len(normalized_input.entries), 64)
     assert int(np.max(predicted_wins)) <= 6
+
+
+def test_entry_validation_rejects_inconsistent_upstream_pick(
+    normalized_input: NormalizedInput,
+    graph: BracketGraph,
+) -> None:
+    entry = normalized_input.entries[0]
+    pick_map = {pick.game_id: pick.winner_team_id for pick in entry.picks}
+
+    round_two_game_id = sorted(
+        game.game_id for game in graph.games_by_id.values() if game.round == 2
+    )[0]
+    left_child_id, right_child_id = graph.children_by_game_id[round_two_game_id]
+    upstream_winners = {pick_map[left_child_id], pick_map[right_child_id]}
+    invalid_options = sorted(graph.possible_teams_by_game_id[round_two_game_id] - upstream_winners)
+    assert invalid_options
+
+    pick_map[round_two_game_id] = invalid_options[0]
+    invalid_entry = entry.model_copy(
+        update={
+            "picks": [
+                EntryPick(game_id=game_id, winner_team_id=winner_team_id)
+                for game_id, winner_team_id in sorted(pick_map.items())
+            ]
+        }
+    )
+    entries = [invalid_entry, *normalized_input.entries[1:]]
+
+    with pytest.raises(ValueError, match="inconsistent with its own upstream picks"):
+        validate_entries(entries=entries, graph=graph)
