@@ -3,9 +3,12 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from unittest.mock import Mock
 
+import pytest
 from typer.testing import CliRunner
 
+from bracket_sim.application.refresh_data import RefreshDataSummary
 from bracket_sim.infrastructure.cli.main import app
 
 
@@ -99,3 +102,42 @@ def test_prepare_data_command_surfaces_validation_errors(
 
     assert result.exit_code == 1
     assert "Error:" in result.stderr
+
+
+def test_refresh_data_command_runs_with_monkeypatched_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    fake_summary = RefreshDataSummary(
+        output_dir=tmp_path / "raw",
+        teams=64,
+        games=63,
+        entries=10,
+        skipped_entries=1,
+        constraints=20,
+        ratings=64,
+        aliases=0,
+        retry_attempted=True,
+    )
+    fake_refresh = Mock(return_value=fake_summary)
+    monkeypatch.setattr(cli_main, "refresh_data", fake_refresh)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "refresh-data",
+            "--group-url",
+            "https://fantasy.espn.com/games/mock-challenge-2026/group?id=mock-group-2026",
+            "--raw",
+            str(tmp_path / "raw"),
+            "--min-usable-entries",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Refreshed raw dataset written to:" in result.stdout
+    assert "retry_attempted=True" in result.stdout

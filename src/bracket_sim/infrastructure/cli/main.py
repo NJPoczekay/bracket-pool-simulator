@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
+from bracket_sim.application.refresh_data import RefreshDataSummary, refresh_data
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import SimulationConfig, SimulationResult
 
@@ -86,6 +87,75 @@ def prepare_data_command(
     typer.echo(_format_prepare_summary(summary))
 
 
+@app.command("refresh-data")
+def refresh_data_command(
+    group_url: Annotated[
+        str,
+        typer.Option(
+            "--group-url",
+            help="ESPN Tournament Challenge group URL",
+        ),
+    ],
+    raw_dir: Annotated[
+        Path,
+        typer.Option(
+            "--raw",
+            help="Directory to write canonical raw preparation inputs",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+    ratings_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--ratings-file",
+            help=(
+                "Local ratings CSV path (team,rating,tempo). "
+                "Uses cached raw/ratings.csv if omitted."
+            ),
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
+    kenpom: Annotated[
+        bool,
+        typer.Option(
+            "--kenpom",
+            help=(
+                "Fetch ratings from KenPom using KENPOM_COOKIE "
+                "instead of local file/cached snapshot"
+            ),
+        ),
+    ] = False,
+    min_usable_entries: Annotated[
+        int,
+        typer.Option(
+            "--min-usable-entries",
+            help="Fail if parsed usable entries are below this threshold after retry/skip handling",
+            min=1,
+        ),
+    ] = 1,
+) -> None:
+    """Refresh canonical raw inputs from ESPN + ratings providers."""
+
+    try:
+        summary = refresh_data(
+            group_url=group_url,
+            raw_dir=raw_dir,
+            ratings_file=ratings_file,
+            use_kenpom=kenpom,
+            min_usable_entries=min_usable_entries,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(_format_refresh_summary(summary))
+
+
 def _format_result_table(result: SimulationResult) -> str:
     """Render compact human-readable table output."""
 
@@ -113,6 +183,24 @@ def _format_prepare_summary(summary: PrepareDataSummary) -> str:
             "Counts: "
             f"teams={summary.teams} games={summary.games} entries={summary.entries} "
             f"constraints={summary.constraints} ratings={summary.ratings} aliases={summary.aliases}"
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def _format_refresh_summary(summary: RefreshDataSummary) -> str:
+    """Render human-readable summary for refresh-data command."""
+
+    lines = [
+        f"Refreshed raw dataset written to: {summary.output_dir}",
+        (
+            "Counts: "
+            f"teams={summary.teams} games={summary.games} entries={summary.entries} "
+            f"constraints={summary.constraints} ratings={summary.ratings} aliases={summary.aliases}"
+        ),
+        (
+            "Entry handling: "
+            f"skipped={summary.skipped_entries} retry_attempted={summary.retry_attempted}"
         ),
     ]
     return "\n".join(lines)
