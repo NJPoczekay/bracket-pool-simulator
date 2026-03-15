@@ -15,7 +15,7 @@ The command:
 1. loads canonical raw local files
 2. resolves aliases to canonical team ids
 3. validates bracket, entries, constraints, and rating coverage
-4. writes normalized simulation inputs and cache artifacts atomically
+4. writes normalized simulation inputs atomically
 
 ## Canonical Raw Contract
 
@@ -44,16 +44,7 @@ Optional files under `--raw`:
 - `entries.json`
 - `constraints.json`
 - `ratings.csv`
-
-`--out/cache` contains:
-
-- `teams.parquet`
-- `games.parquet`
-- `entries.parquet`
-- `entry_picks.parquet`
-- `constraints.parquet`
-- `ratings.parquet`
-- `manifest.json`
+  - columns: `team_id,rating,tempo`
 
 ## Validation Defaults
 

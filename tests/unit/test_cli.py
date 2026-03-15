@@ -74,7 +74,7 @@ def test_prepare_data_command_runs(raw_canonical_dir: Path, tmp_path: Path) -> N
     assert result.exit_code == 0
     assert "Prepared dataset written to:" in result.stdout
     assert (out_dir / "teams.json").exists()
-    assert (out_dir / "cache" / "manifest.json").exists()
+    assert (out_dir / "ratings.csv").exists()
 
 
 def test_prepare_data_command_surfaces_validation_errors(

@@ -68,7 +68,7 @@ def prepare_data_command(
         Path,
         typer.Option(
             "--out",
-            help="Directory to write normalized simulation inputs and cache artifacts",
+            help="Directory to write normalized simulation inputs",
             file_okay=False,
             dir_okay=True,
             writable=True,

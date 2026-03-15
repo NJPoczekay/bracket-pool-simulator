@@ -85,7 +85,6 @@ Ship a deterministic, testable CLI that:
 - Validation runbook: `docs/phase2_validation.md`
 - Golden snapshot: `tests/expected/synthetic_64_seed99_n300.json`
 - Golden test: `tests/integration/test_golden_output.py`
-- Legacy parity script: `scripts/check_legacy_parity.py`
 
 ## Phase 3: Data Normalization Pipeline (Week 2)
 

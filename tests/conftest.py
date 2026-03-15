@@ -75,8 +75,15 @@ def raw_canonical_dir(
         encoding="utf-8",
     )
 
-    ratings_text = (synthetic_input_dir / "ratings.csv").read_text(encoding="utf-8")
-    (raw_dir / "ratings.csv").write_text(ratings_text, encoding="utf-8")
+    with (synthetic_input_dir / "ratings.csv").open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        ratings_rows = list(reader)
+
+    with (raw_dir / "ratings.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["team", "rating", "tempo"])
+        for row in ratings_rows:
+            writer.writerow([row["team_id"], row["rating"], row["tempo"]])
 
     return raw_dir
 

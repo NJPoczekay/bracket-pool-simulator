@@ -110,7 +110,7 @@ class RatingRecord(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    team: str = Field(min_length=1)
+    team_id: str = Field(min_length=1)
     rating: float
     tempo: float
 

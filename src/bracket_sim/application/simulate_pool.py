@@ -36,14 +36,11 @@ def simulate_pool(config: SimulationConfig) -> SimulationResult:
         graph=graph,
     )
 
-    ratings_by_team_name = {record.team: record.rating for record in normalized.ratings.records}
-    ratings_by_team_id: dict[str, float] = {}
-    for team_id in team_ids:
-        team = graph.teams_by_id[team_id]
-        if team.name not in ratings_by_team_name:
-            msg = f"Missing rating for team name '{team.name}'"
-            raise ValueError(msg)
-        ratings_by_team_id[team_id] = ratings_by_team_name[team.name]
+    ratings_by_team_id = {record.team_id: record.rating for record in normalized.ratings.records}
+    missing_team_ids = sorted(set(team_ids) - set(ratings_by_team_id))
+    if missing_team_ids:
+        msg = f"Missing rating for team id(s): {missing_team_ids[:5]}"
+        raise ValueError(msg)
 
     simulation = simulate_tournament(
         graph=graph,

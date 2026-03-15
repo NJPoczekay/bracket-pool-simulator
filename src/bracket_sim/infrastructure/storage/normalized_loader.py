@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import csv
 import html
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -20,6 +18,7 @@ from bracket_sim.domain.models import (
     RatingSnapshot,
     Team,
 )
+from bracket_sim.infrastructure.storage._file_io import load_required_csv_rows, load_required_json
 
 
 @dataclass(frozen=True)
@@ -64,12 +63,7 @@ def load_normalized_input(input_dir: Path) -> NormalizedInput:
 def _load_json_list(path: Path, expected_type: type[list[Any]]) -> list[Any]:
     """Read JSON list from disk and validate with pydantic adapters."""
 
-    if not path.exists():
-        msg = f"Required input file is missing: {path.name}"
-        raise ValueError(msg)
-
-    with path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = load_required_json(path, missing_prefix="Required input file is missing")
 
     adapter = TypeAdapter(expected_type)
     return cast(list[Any], adapter.validate_python(payload))
@@ -78,12 +72,7 @@ def _load_json_list(path: Path, expected_type: type[list[Any]]) -> list[Any]:
 def _load_entries(path: Path) -> list[PoolEntry]:
     """Load entries where picks are encoded as game_id -> winner_team_id maps."""
 
-    if not path.exists():
-        msg = f"Required input file is missing: {path.name}"
-        raise ValueError(msg)
-
-    with path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = load_required_json(path, missing_prefix="Required input file is missing")
 
     if not isinstance(payload, list):
         msg = "entries.json must contain a list"
@@ -119,28 +108,22 @@ def _load_entries(path: Path) -> list[PoolEntry]:
 def _load_ratings_csv(path: Path) -> list[RatingRecord]:
     """Load ratings.csv into validated rating records."""
 
-    if not path.exists():
-        msg = f"Required input file is missing: {path.name}"
-        raise ValueError(msg)
+    rows, fieldnames = load_required_csv_rows(path, missing_prefix="Required input file is missing")
 
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        rows = list(reader)
-
-    expected_columns = {"team", "rating", "tempo"}
-    if reader.fieldnames is None or set(reader.fieldnames) != expected_columns:
+    expected_columns = {"team_id", "rating", "tempo"}
+    if set(fieldnames) != expected_columns:
         msg = (
             f"ratings.csv must have columns {sorted(expected_columns)}, got "
-            f"{reader.fieldnames}"
+            f"{fieldnames}"
         )
         raise ValueError(msg)
 
     records: list[RatingRecord] = []
     for row in rows:
-        team_name = html.unescape(str(row["team"]).strip())
+        team_id = html.unescape(str(row["team_id"]).strip())
         records.append(
             RatingRecord(
-                team=team_name,
+                team_id=team_id,
                 rating=float(str(row["rating"]).replace("+", "")),
                 tempo=float(row["tempo"]),
             )

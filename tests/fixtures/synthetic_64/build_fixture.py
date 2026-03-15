@@ -200,13 +200,13 @@ def main() -> None:
     region_offsets = {"east": 1.2, "west": 0.8, "south": 0.4, "midwest": 0.0}
     with (root / "ratings.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["team", "rating", "tempo"])
+        writer.writerow(["team_id", "rating", "tempo"])
         for team in sorted(teams, key=lambda row: str(row["team_id"])):
             seed = int(team["seed"])
             region = str(team["region"])
             rating = 40.0 - (1.4 * seed) + region_offsets[region]
             tempo = 64.0 + ((seed + REGIONS.index(region) * 3) % 11) * 0.9
-            writer.writerow([str(team["name"]), f"{rating:+.2f}", f"{tempo:.1f}"])
+            writer.writerow([str(team["team_id"]), f"{rating:+.2f}", f"{tempo:.1f}"])
 
     for name, payload in (
         ("teams.json", teams),

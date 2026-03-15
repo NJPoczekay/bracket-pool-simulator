@@ -11,8 +11,10 @@ def _ratings_by_team_id(
     normalized_input: NormalizedInput,
     graph: BracketGraph,
 ) -> dict[str, float]:
-    ratings_by_name = {record.team: record.rating for record in normalized_input.ratings.records}
-    return {team_id: ratings_by_name[team.name] for team_id, team in graph.teams_by_id.items()}
+    ratings_by_team_id = {
+        record.team_id: record.rating for record in normalized_input.ratings.records
+    }
+    return {team_id: ratings_by_team_id[team_id] for team_id in graph.teams_by_id}
 
 
 def test_simulation_is_deterministic_for_same_seed(

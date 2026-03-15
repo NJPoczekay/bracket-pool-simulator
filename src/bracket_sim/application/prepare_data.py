@@ -20,7 +20,12 @@ from bracket_sim.infrastructure.storage.prepared_writer import (
     PreparedDataset,
     write_prepared_dataset,
 )
-from bracket_sim.infrastructure.storage.raw_loader import RawConstraint, RawInput, load_raw_input
+from bracket_sim.infrastructure.storage.raw_loader import (
+    RawConstraint,
+    RawInput,
+    RawRatingRecord,
+    load_raw_input,
+)
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,7 @@ def prepare_data(*, raw_dir: Path, out_dir: Path) -> PrepareDataSummary:
         constraints=constraints,
         ratings=ratings,
     )
-    write_prepared_dataset(raw_dir=raw_dir, out_dir=out_dir, dataset=prepared)
+    write_prepared_dataset(out_dir=out_dir, dataset=prepared)
 
     return PrepareDataSummary(
         output_dir=out_dir,
@@ -120,12 +125,12 @@ def _normalize_constraints(
 
 def _normalize_ratings(
     *,
-    ratings: list[RatingRecord],
+    ratings: list[RawRatingRecord],
     teams: list[Team],
     teams_by_id: dict[str, Team],
     resolver: AliasResolver,
 ) -> list[RatingRecord]:
-    ratings_by_team_id: dict[str, RatingRecord] = {}
+    ratings_by_team_id: dict[str, RawRatingRecord] = {}
     for idx, rating in enumerate(ratings, start=1):
         team_id = resolver.resolve_team_id(
             rating.team,
@@ -145,10 +150,10 @@ def _normalize_ratings(
 
     normalized = [
         RatingRecord(
-            team=teams_by_id[team_id].name,
+            team_id=team_id,
             rating=ratings_by_team_id[team_id].rating,
             tempo=ratings_by_team_id[team_id].tempo,
         )
-        for team_id in sorted(expected_team_ids, key=lambda key: teams_by_id[key].name.casefold())
+        for team_id in sorted(expected_team_ids)
     ]
     return normalized

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import shutil
 from pathlib import Path
@@ -38,16 +39,13 @@ def test_prepare_data_generates_simulate_compatible_dataset(
     )
     assert prepared_result.model_dump() == baseline_result.model_dump()
 
-    for cache_file in (
-        "teams.parquet",
-        "games.parquet",
-        "entries.parquet",
-        "entry_picks.parquet",
-        "constraints.parquet",
-        "ratings.parquet",
-        "manifest.json",
-    ):
-        assert (out_dir / "cache" / cache_file).exists()
+    with (out_dir / "ratings.csv").open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        assert reader.fieldnames == ["team_id", "rating", "tempo"]
+        first_row = next(reader)
+        assert first_row["team_id"]
+        assert first_row["rating"]
+        assert first_row["tempo"]
 
 
 def test_prepare_data_is_deterministic(raw_canonical_dir: Path, tmp_path: Path) -> None:
@@ -63,7 +61,6 @@ def test_prepare_data_is_deterministic(raw_canonical_dir: Path, tmp_path: Path) 
         "entries.json",
         "constraints.json",
         "ratings.csv",
-        "cache/manifest.json",
     ):
         assert (out_a / filename).read_text(encoding="utf-8") == (
             out_b / filename

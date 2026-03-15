@@ -1,4 +1,4 @@
-# Phase 2 Validation and Parity
+# Phase 2 Validation
 
 This document describes the validation artifacts and checks added for Phase 2.
 
@@ -16,10 +16,6 @@ This document describes the validation artifacts and checks added for Phase 2.
 - Additional core validation tests:
   - scoring depth behavior and advancement consistency checks
   - champion and feasible-win invariants
-- Legacy parity script:
-  - `scripts/check_legacy_parity.py`
-- Parity script integration tests:
-  - `tests/integration/test_legacy_parity_script.py`
 
 ## Golden Artifact Workflow
 
@@ -42,46 +38,6 @@ uv run --extra dev python -m bracket_sim.infrastructure.cli.main simulate \
 Notes:
 - Regenerate only when changes are intentional.
 - Review the JSON diff in PRs as part of behavior-change validation.
-
-## Legacy Parity Script
-
-Run with defaults (`top_n=10`, `max_delta=0.02`, `n_sims=10000`, `seed=42`):
-
-```bash
-uv run --extra dev python scripts/check_legacy_parity.py \
-  --legacy-json /path/to/legacy_results.json
-```
-
-Override parameters:
-
-```bash
-uv run --extra dev python scripts/check_legacy_parity.py \
-  --legacy-json /path/to/legacy_results.json \
-  --input-dir tests/fixtures/synthetic_64 \
-  --n-sims 10000 \
-  --seed 42 \
-  --top-n 10 \
-  --max-delta 0.02
-```
-
-Expected legacy JSON schema:
-
-```json
-{
-  "entry_win_shares": {
-    "entry_chalk": 0.20,
-    "entry_balanced": 0.17
-  }
-}
-```
-
-Behavior:
-- compares current output against legacy values for the top `N` entries by current ranking
-- prints a table of current share, legacy share, and absolute delta
-- exits with:
-  - `0`: parity within threshold
-  - `1`: one or more deltas exceed threshold
-  - `2`: invalid input or missing/invalid legacy file
 
 ## Full Verification
 
