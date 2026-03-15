@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -53,3 +54,48 @@ def test_simulate_command_json_output_is_stable(synthetic_input_dir: Path) -> No
     assert payload["seed"] == 17
     assert isinstance(payload["entry_results"], list)
     assert isinstance(payload["champion_counts"], dict)
+
+
+def test_prepare_data_command_runs(raw_canonical_dir: Path, tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "prepared_cli"
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare-data",
+            "--raw",
+            str(raw_canonical_dir),
+            "--out",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Prepared dataset written to:" in result.stdout
+    assert (out_dir / "teams.json").exists()
+    assert (out_dir / "cache" / "manifest.json").exists()
+
+
+def test_prepare_data_command_surfaces_validation_errors(
+    raw_canonical_dir: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    raw_dir = tmp_path / "raw_bad"
+    shutil.copytree(raw_canonical_dir, raw_dir)
+    (raw_dir / "teams.csv").unlink()
+
+    result = runner.invoke(
+        app,
+        [
+            "prepare-data",
+            "--raw",
+            str(raw_dir),
+            "--out",
+            str(tmp_path / "prepared_bad"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Error:" in result.stderr

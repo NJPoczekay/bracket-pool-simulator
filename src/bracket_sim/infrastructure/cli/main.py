@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import SimulationConfig, SimulationResult
 
@@ -50,6 +51,41 @@ def simulate_command(
     typer.echo(_format_result_table(result))
 
 
+@app.command("prepare-data")
+def prepare_data_command(
+    raw_dir: Annotated[
+        Path,
+        typer.Option(
+            "--raw",
+            help="Directory containing canonical raw preparation inputs",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            help="Directory to write normalized simulation inputs and cache artifacts",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+) -> None:
+    """Prepare normalized simulation inputs from canonical raw local files."""
+
+    try:
+        summary = prepare_data(raw_dir=raw_dir, out_dir=out_dir)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(_format_prepare_summary(summary))
+
+
 def _format_result_table(result: SimulationResult) -> str:
     """Render compact human-readable table output."""
 
@@ -65,6 +101,20 @@ def _format_result_table(result: SimulationResult) -> str:
             f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} {entry.average_score:>10.2f}"
         )
 
+    return "\n".join(lines)
+
+
+def _format_prepare_summary(summary: PrepareDataSummary) -> str:
+    """Render human-readable summary for prepare-data command."""
+
+    lines = [
+        f"Prepared dataset written to: {summary.output_dir}",
+        (
+            "Counts: "
+            f"teams={summary.teams} games={summary.games} entries={summary.entries} "
+            f"constraints={summary.constraints} ratings={summary.ratings} aliases={summary.aliases}"
+        ),
+    ]
     return "\n".join(lines)
 
 
