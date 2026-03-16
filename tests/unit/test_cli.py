@@ -287,3 +287,36 @@ def test_refresh_national_picks_command_help_mentions_challenge_input() -> None:
     assert result.exit_code == 0
     assert "ESPN bracket URL, group URL, or challenge" in result.stdout
     assert "key" in result.stdout
+
+
+def test_serve_command_invokes_web_server(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    config_path = tmp_path / "pools.toml"
+    config_path.write_text("pools = []\n", encoding="utf-8")
+    fake_serve = Mock()
+    monkeypatch.setattr(cli_main, "serve_web_app", fake_serve)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "serve",
+            "--config",
+            str(config_path),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8123",
+        ],
+    )
+
+    assert result.exit_code == 0
+    fake_serve.assert_called_once_with(
+        config_path=config_path,
+        host="127.0.0.1",
+        port=8123,
+    )

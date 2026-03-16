@@ -33,7 +33,7 @@ uv run python -m bracket_sim.infrastructure.cli.main --help
 
 ## Commands
 
-The CLI exposes six commands:
+The CLI exposes seven commands:
 
 - `refresh-data`: fetch raw bracket data from ESPN plus ratings data
 - `prepare-data`: normalize raw files into validated simulation inputs
@@ -41,6 +41,7 @@ The CLI exposes six commands:
 - `benchmark`: measure simulation and scoring performance against budgets
 - `report`: generate deterministic offline report bundles from normalized inputs
 - `refresh-national-picks`: download ESPN national pick-count snapshots
+- `serve`: start a local browser-based wrapper for multiple configured pools
 
 ## Typical Workflow
 
@@ -221,6 +222,31 @@ Output includes:
 - `national_picks.csv`
 - `metadata.json`
 - `snapshots/challenge.json`
+
+### 7. Run the local multi-pool web wrapper
+
+`serve` starts a local-only dashboard that can trigger the existing refresh/prepare/report
+pipeline for multiple bracket pools from your browser.
+
+Start from the example config:
+
+```bash
+cp config/pools.example.toml config/pools.toml
+```
+
+Paths inside the TOML are resolved relative to the config file, so you can keep the entire setup
+local to one workspace. Each pool needs its own `raw_dir`, `prepared_dir`, and `reports_root`.
+
+Launch the web app:
+
+```bash
+uv run bracket-sim serve \
+  --config config/pools.toml \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
 ## Local Example With Bundled Test Data
 

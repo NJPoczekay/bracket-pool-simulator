@@ -1,0 +1,34 @@
+[[pools]]
+id = "main"
+name = "Main Pool"
+group_url = "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID"
+raw_dir = "data/raw/main"
+prepared_dir = "data/prepared/main"
+reports_root = "reports/main"
+ratings_file = "data/ratings/2026.csv"
+use_kenpom = false
+min_usable_entries = 1
+n_sims = 100000
+seed = 42
+batch_size = 50000
+engine = "numpy"
+
+[pools.schedule]
+enabled = true
+daily_time = "08:00:00"
+timezone = "America/Los_Angeles"
+
+[[pools]]
+id = "friends"
+name = "Friends Pool"
+group_url = "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=ANOTHER_GROUP_ID"
+raw_dir = "data/raw/friends"
+prepared_dir = "data/prepared/friends"
+reports_root = "reports/friends"
+ratings_file = "data/ratings/2026.csv"
+use_kenpom = false
+min_usable_entries = 1
+n_sims = 100000
+seed = 42
+batch_size = 50000
+engine = "numpy"

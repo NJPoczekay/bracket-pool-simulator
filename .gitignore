@@ -8,3 +8,5 @@ htmlcov/
 __pycache__/
 *.pyc
 data/
+reports/
+config/pools.toml

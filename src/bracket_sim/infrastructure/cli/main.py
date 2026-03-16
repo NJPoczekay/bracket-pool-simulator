@@ -25,6 +25,7 @@ from bracket_sim.domain.models import (
     SimulationConfig,
     SimulationResult,
 )
+from bracket_sim.infrastructure.web.app import serve_web_app
 
 app = typer.Typer(no_args_is_help=True, help="Bracket pool simulator CLI")
 
@@ -364,6 +365,37 @@ def refresh_national_picks_command(
         raise typer.Exit(code=1) from exc
 
     typer.echo(_format_refresh_national_picks_summary(summary))
+
+
+@app.command("serve")
+def serve_command(
+    config_path: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            help="Pool config TOML for the local multi-pool web wrapper",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Host interface for the local web server"),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", help="Port for the local web server", min=1, max=65535),
+    ] = 8000,
+) -> None:
+    """Start the minimal local multi-pool web wrapper."""
+
+    try:
+        serve_web_app(config_path=config_path, host=host, port=port)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
 
 
 def _format_result_table(result: SimulationResult) -> str:

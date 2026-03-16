@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bracket Pool Simulator</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4efe5;
+        --card: #fffaf1;
+        --ink: #1c160f;
+        --muted: #66584a;
+        --line: #d9c9b3;
+        --accent: #8a3b12;
+        --accent-soft: #f0d7c7;
+        --error: #8f2323;
+        --error-soft: #fbe1e1;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background: linear-gradient(180deg, #ede3d2 0%, var(--bg) 45%, #f9f5ee 100%);
+        color: var(--ink);
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 32px 20px 56px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p,
+      ul {
+        margin-top: 0;
+      }
+
+      .banner {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        background: var(--accent-soft);
+      }
+
+      .banner.error {
+        background: var(--error-soft);
+        border-color: #e5b5b5;
+        color: var(--error);
+      }
+
+      .pool-grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .pool-card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 14px 40px rgba(76, 49, 20, 0.08);
+      }
+
+      .pool-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+
+      .pool-header a {
+        color: var(--accent);
+        word-break: break-all;
+      }
+
+      form {
+        margin: 0;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font: inherit;
+        background: var(--accent);
+        color: #fffaf5;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .summary-blocks {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+
+      .summary-block {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      .summary-block ul {
+        padding-left: 18px;
+        margin-bottom: 0;
+      }
+
+      .artifact-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        padding-left: 0;
+        list-style: none;
+        margin-bottom: 0;
+      }
+
+      .artifact-list a {
+        color: var(--accent);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Bracket Pool Simulator</h1>
+        <p class="muted">
+          Local multi-pool control panel for refreshing data and generating report bundles.
+        </p>
+        {% if busy %}
+        <p class="muted">Another pool run is currently in progress.</p>
+        {% endif %}
+      </header>
+
+      {% if message %}
+      <section class="banner">{{ message }}</section>
+      {% endif %}
+
+      {% if error %}
+      <section class="banner error">{{ error }}</section>
+      {% endif %}
+
+      <section class="pool-grid">
+        {% for pool in pools %}
+        <article class="pool-card">
+          <div class="pool-header">
+            <div>
+              <h2>{{ pool.name }}</h2>
+              <p>
+                <a href="{{ pool.group_url }}" target="_blank" rel="noreferrer">{{ pool.group_url }}</a>
+              </p>
+            </div>
+            <form method="post" action="/pools/{{ pool.id }}/run">
+              <button type="submit">Run</button>
+            </form>
+          </div>
+
+          {% if pool.latest_report %}
+          <div class="summary-blocks">
+            <section class="summary-block">
+              <h3>Top Entries</h3>
+              <ul>
+                {% for entry in pool.latest_report.summary.top_entries %}
+                <li>
+                  {{ entry.entry_name }}:
+                  {{ "%.4f"|format(entry.win_share) }}
+                  win share,
+                  {{ "%.2f"|format(entry.average_score) }}
+                  avg score
+                </li>
+                {% endfor %}
+              </ul>
+            </section>
+
+            <section class="summary-block">
+              <h3>Top Champions</h3>
+              <ul>
+                {% for champion in pool.latest_report.summary.top_champions %}
+                <li>{{ champion.team_name }}: {{ "%.4f"|format(champion.probability) }}</li>
+                {% endfor %}
+              </ul>
+            </section>
+          </div>
+
+          <section class="summary-block" style="margin-top: 16px;">
+            <h3>Artifacts</h3>
+            <ul class="artifact-list">
+              {% for artifact in pool.latest_report.artifacts.values() %}
+              <li><a href="{{ artifact.url }}">{{ artifact.name }}</a></li>
+              {% endfor %}
+            </ul>
+          </section>
+          {% else %}
+          <p class="muted">No report bundle found yet for this pool.</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+    </main>
+  </body>
+</html>
