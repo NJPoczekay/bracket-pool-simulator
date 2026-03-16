@@ -1,10 +1,14 @@
-"""Typed domain models for bracket simulation and scoring."""
+"""Typed domain models for bracket simulation, scoring, and run artifacts."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+_ALLOWED_ENGINES = {"numpy", "numba"}
+_ALLOWED_LOG_LEVELS = {"debug", "info", "warning", "error"}
 
 
 class Team(BaseModel):
@@ -132,6 +136,104 @@ class SimulationConfig(BaseModel):
     n_sims: int = Field(gt=0)
     seed: int
     rating_scale: float = Field(default=10.0, gt=0)
+    batch_size: int | None = Field(default=None, gt=0)
+    run_dir: Path | None = None
+    resume: bool = False
+    engine: str = Field(default="numpy")
+    log_level: str = Field(default="warning")
+
+    @field_validator("engine")
+    @classmethod
+    def validate_engine(cls, value: str) -> str:
+        """Normalize and validate engine selection."""
+
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_ENGINES:
+            msg = f"Unsupported engine {value!r}; expected one of {sorted(_ALLOWED_ENGINES)}"
+            raise ValueError(msg)
+        return normalized
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, value: str) -> str:
+        """Normalize and validate configured log level."""
+
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_LOG_LEVELS:
+            msg = (
+                f"Unsupported log level {value!r}; expected one of "
+                f"{sorted(_ALLOWED_LOG_LEVELS)}"
+            )
+            raise ValueError(msg)
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_runtime_options(self) -> SimulationConfig:
+        """Reject invalid combinations of batch/resume options."""
+
+        if self.resume and self.run_dir is None:
+            msg = "--resume requires --run-dir so an existing checkpoint can be loaded"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def effective_batch_size(self) -> int:
+        """Return the concrete batch size used for execution."""
+
+        return min(self.batch_size or self.n_sims, self.n_sims)
+
+
+class RunManifest(BaseModel):
+    """Reproducibility metadata persisted alongside run artifacts."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: int = 1
+    run_id: str
+    created_at: datetime
+    code_version: str
+    git_commit: str | None = None
+    input_dir: Path
+    input_hashes: dict[str, str]
+    n_sims: int = Field(gt=0)
+    seed: int
+    rating_scale: float = Field(gt=0)
+    batch_size: int = Field(gt=0)
+    engine: str
+    log_level: str
+    entry_ids: list[str]
+    team_ids: list[str]
+
+
+class RunCheckpoint(BaseModel):
+    """Incremental aggregate state for resumable simulation runs."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: int = 1
+    run_id: str
+    completed_sims: int = Field(ge=0)
+    completed_batches: int = Field(ge=0)
+    win_share_totals: list[float]
+    score_totals: list[int]
+    champion_counts: dict[str, int]
+
+
+class SimulationRunMetadata(BaseModel):
+    """Operational metadata for one simulation execution."""
+
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str
+    engine: str
+    batch_size: int = Field(gt=0)
+    batches_completed: int = Field(ge=0)
+    resumed_from_checkpoint: bool
+    run_dir: Path | None = None
+    manifest_path: Path | None = None
+    checkpoint_path: Path | None = None
+    result_path: Path | None = None
+    log_path: Path | None = None
 
 
 class SimulationEntryResult(BaseModel):
@@ -146,7 +248,7 @@ class SimulationEntryResult(BaseModel):
 
 
 class SimulationResult(BaseModel):
-    """Serializable output for CLI table and JSON rendering."""
+    """Serializable output for CLI table, JSON, and persisted run artifacts."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -154,3 +256,52 @@ class SimulationResult(BaseModel):
     seed: int
     entry_results: list[SimulationEntryResult]
     champion_counts: dict[str, int]
+    run_metadata: SimulationRunMetadata
+
+
+class BenchmarkConfig(BaseModel):
+    """Config for hotspot benchmark runs."""
+
+    model_config = ConfigDict(frozen=True)
+
+    input_dir: Path
+    n_sims: int = Field(gt=0)
+    repeats: int = Field(default=3, gt=0)
+    engine: str = Field(default="numpy")
+    simulation_budget_ms: float = Field(default=1_500.0, gt=0)
+    scoring_budget_ms: float = Field(default=750.0, gt=0)
+    rating_scale: float = Field(default=10.0, gt=0)
+
+    @field_validator("engine")
+    @classmethod
+    def validate_engine(cls, value: str) -> str:
+        """Normalize and validate engine selection."""
+
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_ENGINES:
+            msg = f"Unsupported engine {value!r}; expected one of {sorted(_ALLOWED_ENGINES)}"
+            raise ValueError(msg)
+        return normalized
+
+
+class BenchmarkMeasurement(BaseModel):
+    """One measured benchmark category compared against a budget."""
+
+    model_config = ConfigDict(frozen=True)
+
+    mean_ms: float
+    min_ms: float
+    budget_ms: float
+    within_budget: bool
+
+
+class BenchmarkReport(BaseModel):
+    """Hotspot benchmark summary for simulation and scoring paths."""
+
+    model_config = ConfigDict(frozen=True)
+
+    n_sims: int
+    repeats: int
+    engine: str
+    simulation: BenchmarkMeasurement
+    scoring: BenchmarkMeasurement

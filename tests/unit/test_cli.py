@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bracket_sim.application.refresh_data import RefreshDataSummary
+from bracket_sim.application.refresh_national_picks import RefreshNationalPicksSummary
 from bracket_sim.infrastructure.cli.main import app
 
 
@@ -28,6 +29,7 @@ def test_simulate_command_runs_with_table_output(synthetic_input_dir: Path) -> N
     )
 
     assert result.exit_code == 0
+    assert "Run ID:" in result.stdout
     assert "Win Share" in result.stdout
     assert "Simulations: 100" in result.stdout
 
@@ -57,6 +59,71 @@ def test_simulate_command_json_output_is_stable(synthetic_input_dir: Path) -> No
     assert payload["seed"] == 17
     assert isinstance(payload["entry_results"], list)
     assert isinstance(payload["champion_counts"], dict)
+    assert payload["run_metadata"]["engine"] == "numpy"
+
+
+def test_simulate_command_supports_run_artifact_flags(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    run_dir = tmp_path / "cli_run"
+
+    result = runner.invoke(
+        app,
+        [
+            "simulate",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "90",
+            "--seed",
+            "12",
+            "--batch-size",
+            "30",
+            "--run-dir",
+            str(run_dir),
+            "--log-level",
+            "info",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["run_metadata"]["batch_size"] == 30
+    assert payload["run_metadata"]["run_dir"] == str(run_dir)
+    assert (run_dir / "manifest.json").exists()
+    assert (run_dir / "checkpoint.json").exists()
+    assert (run_dir / "result.json").exists()
+    assert (run_dir / "log.jsonl").exists()
+
+
+def test_benchmark_command_runs_and_emits_json(synthetic_input_dir: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "150",
+            "--repeats",
+            "1",
+            "--simulation-budget-ms",
+            "10000",
+            "--scoring-budget-ms",
+            "10000",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["n_sims"] == 150
+    assert payload["simulation"]["within_budget"] is True
+    assert payload["scoring"]["within_budget"] is True
 
 
 def test_prepare_data_command_runs(raw_canonical_dir: Path, tmp_path: Path) -> None:
@@ -141,3 +208,44 @@ def test_refresh_data_command_runs_with_monkeypatched_app(
     assert result.exit_code == 0
     assert "Refreshed raw dataset written to:" in result.stdout
     assert "retry_attempted=True" in result.stdout
+
+
+def test_refresh_national_picks_command_runs_with_monkeypatched_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    fake_summary = RefreshNationalPicksSummary(
+        output_dir=tmp_path / "national",
+        games=63,
+        rows=384,
+        total_brackets=1_000,
+    )
+    fake_refresh = Mock(return_value=fake_summary)
+    monkeypatch.setattr(cli_main, "refresh_national_picks", fake_refresh)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "refresh-national-picks",
+            "--challenge",
+            "tournament-challenge-bracket-2026",
+            "--out",
+            str(tmp_path / "national"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Refreshed national picks written to:" in result.stdout
+    assert "total_brackets=1000" in result.stdout
+
+
+def test_refresh_national_picks_command_help_mentions_challenge_input() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-national-picks", "--help"])
+
+    assert result.exit_code == 0
+    assert "ESPN bracket URL, group URL, or challenge" in result.stdout
+    assert "key" in result.stdout

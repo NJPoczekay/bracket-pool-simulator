@@ -1,4 +1,4 @@
-"""ESPN Tournament Challenge provider adapter for refresh-data."""
+"""ESPN Tournament Challenge provider adapters."""
 
 from __future__ import annotations
 
@@ -13,9 +13,12 @@ import httpx
 from bracket_sim.infrastructure.providers.contracts import (
     EntriesData,
     EntriesProvider,
+    NationalPicksData,
+    NationalPicksProvider,
     RawConstraintRow,
     RawEntryRow,
     RawGameRow,
+    RawNationalPickRow,
     RawTeamRow,
     ResultsData,
     ResultsProvider,
@@ -26,10 +29,19 @@ _EXPECTED_ROUND_COUNTS: dict[int, int] = {1: 32, 2: 16, 3: 8, 4: 4, 5: 2, 6: 1}
 
 
 @dataclass(frozen=True)
+class EspnChallengeReference:
+    """Parsed ESPN challenge identifier components needed for API requests."""
+
+    challenge_key: str
+    challenge_url: str
+
+
+@dataclass(frozen=True)
 class EspnGroupReference:
     """Parsed ESPN group URL components needed for API requests."""
 
     challenge_key: str
+    challenge_url: str
     group_id: str
     group_url: str
 
@@ -56,18 +68,39 @@ class _ParsedProposition:
     status: str
 
 
-class EspnApiProvider(ResultsProvider, EntriesProvider):
+@dataclass(frozen=True)
+class _ParsedChoiceCounter:
+    outcome_id: str
+    pick_count: int
+    pick_percentage: float
+    scoring_format_id: int
+
+
+class EspnApiProvider(ResultsProvider, EntriesProvider, NationalPicksProvider):
     """HTTP adapter for ESPN challenge and group APIs."""
 
     def __init__(
         self,
         *,
-        group_url: str,
+        group_url: str | None = None,
+        challenge: str | None = None,
         api_base_url: str = "https://gambit-api.fantasy.espn.com",
         timeout_seconds: float = 20.0,
         client: httpx.Client | None = None,
     ) -> None:
-        self._ref = parse_espn_group_url(group_url)
+        if group_url is None and challenge is None:
+            msg = "EspnApiProvider requires either group_url or challenge"
+            raise ValueError(msg)
+
+        self._group_ref = parse_espn_group_url(group_url) if group_url is not None else None
+        if self._group_ref is not None:
+            self._challenge_ref = EspnChallengeReference(
+                challenge_key=self._group_ref.challenge_key,
+                challenge_url=self._group_ref.challenge_url,
+            )
+        else:
+            assert challenge is not None
+            self._challenge_ref = parse_espn_challenge_reference(challenge)
         self._api_base_url = api_base_url.rstrip("/")
         self._client = client or httpx.Client(timeout=timeout_seconds, follow_redirects=True)
         self._owns_client = client is None
@@ -82,9 +115,22 @@ class EspnApiProvider(ResultsProvider, EntriesProvider):
         """Fetch challenge payload and build canonical topology + constraints."""
 
         payload = self._get_json(
-            f"{self._api_base_url}/apis/v1/challenges/{self._ref.challenge_key}?includeAllProps=true"
+            f"{self._api_base_url}/apis/v1/challenges/{self._challenge_ref.challenge_key}"
+            "?includeAllProps=true"
         )
         return _parse_results_payload(payload)
+
+    def fetch_national_picks(self) -> NationalPicksData:
+        """Fetch public national pick counts for the target challenge."""
+
+        payload = self._get_json(
+            f"{self._api_base_url}/apis/v1/challenges/{self._challenge_ref.challenge_key}"
+            "?includeAllProps=true"
+        )
+        return _parse_national_picks_payload(
+            payload,
+            source_url=self._challenge_ref.challenge_url,
+        )
 
     def fetch_entries(
         self,
@@ -94,9 +140,13 @@ class EspnApiProvider(ResultsProvider, EntriesProvider):
     ) -> EntriesData:
         """Fetch group entries and parse picks with retry-once recovery."""
 
+        if self._group_ref is None:
+            msg = "fetch_entries requires provider initialization with group_url"
+            raise ValueError(msg)
+
         group_url = (
-            f"{self._api_base_url}/apis/v1/challenges/{self._ref.challenge_key}"
-            f"/groups/{self._ref.group_id}?view=pagetype_group_picks"
+            f"{self._api_base_url}/apis/v1/challenges/{self._group_ref.challenge_key}"
+            f"/groups/{self._group_ref.group_id}?view=pagetype_group_picks"
         )
         payload = self._get_json(group_url)
 
@@ -211,10 +261,35 @@ class EspnApiProvider(ResultsProvider, EntriesProvider):
         return payload
 
 
+def parse_espn_challenge_reference(challenge: str) -> EspnChallengeReference:
+    """Parse a challenge key from a bracket URL, group URL, or bare key."""
+
+    candidate = challenge.strip()
+    if candidate == "":
+        msg = "Challenge reference cannot be blank"
+        raise ValueError(msg)
+
+    if "://" in candidate:
+        parsed = urlparse(candidate)
+        challenge_key = _parse_challenge_key(parsed.path)
+    else:
+        challenge_key = candidate.strip("/")
+
+    if challenge_key == "":
+        msg = f"Could not parse challenge key from challenge reference: {challenge}"
+        raise ValueError(msg)
+
+    return EspnChallengeReference(
+        challenge_key=challenge_key,
+        challenge_url=f"https://fantasy.espn.com/games/{challenge_key}/bracket",
+    )
+
+
 def parse_espn_group_url(group_url: str) -> EspnGroupReference:
     """Parse challenge key and group id from an ESPN group URL."""
 
     parsed = urlparse(group_url.strip())
+    parts = _path_parts(parsed.path)
     challenge_key = _parse_challenge_key(parsed.path)
     query = parse_qs(parsed.query)
 
@@ -224,24 +299,33 @@ def parse_espn_group_url(group_url: str) -> EspnGroupReference:
     if challenge_key == "":
         msg = f"Could not parse challenge key from group URL: {group_url}"
         raise ValueError(msg)
+    if len(parts) < 3 or parts[2] != "group":
+        msg = f"Could not parse group path from group URL: {group_url}"
+        raise ValueError(msg)
     if group_id == "":
         msg = f"Could not parse group id from group URL: {group_url}"
         raise ValueError(msg)
 
-    return EspnGroupReference(challenge_key=challenge_key, group_id=group_id, group_url=group_url)
+    return EspnGroupReference(
+        challenge_key=challenge_key,
+        challenge_url=f"https://fantasy.espn.com/games/{challenge_key}/bracket",
+        group_id=group_id,
+        group_url=group_url,
+    )
 
 
 def _parse_challenge_key(path: str) -> str:
-    parts = [part for part in path.split("/") if part]
-    if len(parts) < 3:
+    parts = _path_parts(path)
+    if len(parts) < 2:
         return ""
 
-    # Expected shape: /games/{challenge_key}/group
     if parts[0] != "games":
         return ""
-    if parts[2] != "group":
-        return ""
     return parts[1].strip()
+
+
+def _path_parts(path: str) -> list[str]:
+    return [part for part in path.split("/") if part]
 
 
 def _parse_results_payload(payload: dict[str, Any]) -> ResultsData:
@@ -266,17 +350,7 @@ def _parse_results_payload(payload: dict[str, Any]) -> ResultsData:
         )
         propositions.append(parsed)
 
-    if len(propositions) != 63:
-        msg = f"Expected 63 propositions, got {len(propositions)}"
-        raise ValueError(msg)
-
-    round_counts = Counter(proposition.round_number for proposition in propositions)
-    if dict(round_counts) != _EXPECTED_ROUND_COUNTS:
-        msg = (
-            "Unexpected proposition round distribution: "
-            f"{dict(round_counts)}, expected {_EXPECTED_ROUND_COUNTS}"
-        )
-        raise ValueError(msg)
+    _validate_proposition_round_counts(propositions)
 
     games = _build_games_from_propositions(propositions)
     constraints = _build_constraints(
@@ -333,6 +407,190 @@ def _parse_results_payload(payload: dict[str, Any]) -> ResultsData:
         },
         raw_snapshot=payload,
     )
+
+
+def _parse_national_picks_payload(
+    payload: dict[str, Any],
+    *,
+    source_url: str,
+) -> NationalPicksData:
+    proposition_payloads = payload.get("propositions")
+    if not isinstance(proposition_payloads, list):
+        msg = "Challenge payload missing required list field 'propositions'"
+        raise ValueError(msg)
+
+    parsed_propositions: list[_ParsedProposition] = []
+    rows: list[RawNationalPickRow] = []
+    total_brackets: int | None = None
+
+    for proposition_payload in proposition_payloads:
+        if not isinstance(proposition_payload, dict):
+            msg = "Challenge payload contains non-object proposition"
+            raise ValueError(msg)
+
+        proposition_id = _required_text(proposition_payload, "id", context="proposition")
+        round_number = _required_int(
+            proposition_payload,
+            "scoringPeriodId",
+            context=f"proposition {proposition_id}",
+        )
+        display_order = _required_int(
+            proposition_payload,
+            "displayOrder",
+            context=f"proposition {proposition_id}",
+        )
+
+        possible_outcomes_payload = proposition_payload.get("possibleOutcomes")
+        if not isinstance(possible_outcomes_payload, list) or len(possible_outcomes_payload) == 0:
+            msg = (
+                f"Proposition {proposition_id} missing required non-empty "
+                "'possibleOutcomes' list"
+            )
+            raise ValueError(msg)
+
+        proposition_total = 0
+        possible_team_ids: set[str] = set()
+        round_one_ordered_team_ids: list[str] = []
+
+        ordered_outcomes: list[_ParsedOutcome] = []
+        for outcome_payload in possible_outcomes_payload:
+            if not isinstance(outcome_payload, dict):
+                msg = f"Proposition {proposition_id} contains non-object outcome"
+                raise ValueError(msg)
+
+            parsed_outcome = _parse_outcome(
+                proposition_id=proposition_id,
+                outcome_payload=outcome_payload,
+            )
+            choice_counter = _parse_choice_counter(
+                proposition_id=proposition_id,
+                outcome_id=parsed_outcome.outcome_id,
+                outcome_payload=outcome_payload,
+            )
+
+            proposition_total += choice_counter.pick_count
+            possible_team_ids.add(parsed_outcome.team_id)
+            ordered_outcomes.append(parsed_outcome)
+
+            rows.append(
+                RawNationalPickRow(
+                    game_id=proposition_id,
+                    round=round_number,
+                    display_order=display_order,
+                    outcome_id=parsed_outcome.outcome_id,
+                    team_id=parsed_outcome.team_id,
+                    team_name=parsed_outcome.team_name,
+                    seed=parsed_outcome.seed,
+                    region=parsed_outcome.region,
+                    matchup_position=parsed_outcome.matchup_position,
+                    pick_count=choice_counter.pick_count,
+                    pick_percentage=choice_counter.pick_percentage,
+                )
+            )
+
+        ordered_outcomes.sort(
+            key=lambda outcome: (
+                outcome.matchup_position,
+                outcome.display_order,
+                outcome.outcome_id,
+            )
+        )
+        seen_round_one_teams: set[str] = set()
+        for outcome in ordered_outcomes:
+            if outcome.team_id in seen_round_one_teams:
+                continue
+            seen_round_one_teams.add(outcome.team_id)
+            round_one_ordered_team_ids.append(outcome.team_id)
+
+        parsed_propositions.append(
+            _ParsedProposition(
+                proposition_id=proposition_id,
+                round_number=round_number,
+                display_order=display_order,
+                possible_team_ids=possible_team_ids,
+                round_one_ordered_team_ids=round_one_ordered_team_ids,
+                correct_outcome_ids=[],
+                status=_clean_text(proposition_payload.get("status")) or "UNKNOWN",
+            )
+        )
+
+        if total_brackets is None:
+            total_brackets = proposition_total
+        elif proposition_total != total_brackets:
+            msg = (
+                f"Proposition {proposition_id} total picks {proposition_total} do not match "
+                f"expected total {total_brackets}"
+            )
+            raise ValueError(msg)
+
+    round_counts = _validate_proposition_round_counts(parsed_propositions)
+
+    first_proposition = proposition_payloads[0] if proposition_payloads else {}
+    first_outcome = (
+        first_proposition["possibleOutcomes"][0]
+        if isinstance(first_proposition, dict)
+        and isinstance(first_proposition.get("possibleOutcomes"), list)
+        and first_proposition["possibleOutcomes"]
+        else {}
+    )
+    first_choice_counter = (
+        first_outcome["choiceCounters"][0]
+        if isinstance(first_outcome, dict)
+        and isinstance(first_outcome.get("choiceCounters"), list)
+        and first_outcome["choiceCounters"]
+        else {}
+    )
+
+    challenge_id = _optional_int(payload.get("id"))
+    challenge_key = _clean_text(payload.get("key")) or None
+    challenge_name = _clean_text(payload.get("name")) or None
+    challenge_state = _clean_text(payload.get("state")) or None
+    proposition_lock_date = _optional_int(payload.get("propositionLockDate"))
+    proposition_lock_date_passed = _optional_bool(payload.get("propositionLockDatePassed"))
+
+    return NationalPicksData(
+        rows=sorted(
+            rows,
+            key=lambda row: (
+                row.round,
+                row.display_order,
+                row.matchup_position,
+                row.outcome_id,
+            ),
+        ),
+        total_brackets=total_brackets or 0,
+        round_counts=dict(sorted(round_counts.items())),
+        challenge_id=challenge_id,
+        challenge_key=challenge_key,
+        challenge_name=challenge_name,
+        challenge_state=challenge_state,
+        proposition_lock_date=proposition_lock_date,
+        proposition_lock_date_passed=proposition_lock_date_passed,
+        source_url=source_url,
+        api_shape_hints={
+            "challenge_keys": _sorted_dict_keys(payload),
+            "proposition_keys": _sorted_dict_keys(first_proposition),
+            "outcome_keys": _sorted_dict_keys(first_outcome),
+            "choice_counter_keys": _sorted_dict_keys(first_choice_counter),
+        },
+        raw_snapshot=payload,
+    )
+
+
+def _validate_proposition_round_counts(propositions: list[_ParsedProposition]) -> dict[int, int]:
+    if len(propositions) != 63:
+        msg = f"Expected 63 propositions, got {len(propositions)}"
+        raise ValueError(msg)
+
+    round_counts = Counter(proposition.round_number for proposition in propositions)
+    if dict(round_counts) != _EXPECTED_ROUND_COUNTS:
+        msg = (
+            "Unexpected proposition round distribution: "
+            f"{dict(round_counts)}, expected {_EXPECTED_ROUND_COUNTS}"
+        )
+        raise ValueError(msg)
+
+    return dict(round_counts)
 
 
 def _build_games_from_propositions(propositions: list[_ParsedProposition]) -> list[RawGameRow]:
@@ -589,9 +847,19 @@ def _parse_outcome(*, proposition_id: str, outcome_payload: dict[str, Any]) -> _
 
     team_id = _clean_text(mapping_by_type.get("COMPETITOR_ID"))
     if team_id == "":
+        team_id = _clean_text(outcome_payload.get("entityId"))
+    if team_id == "":
+        placeholder_name = (
+            _clean_text(outcome_payload.get("abbrev"))
+            or _clean_text(outcome_payload.get("name"))
+            or _clean_text(outcome_payload.get("description"))
+        )
+        if placeholder_name != "":
+            team_id = _placeholder_team_id(placeholder_name)
+    if team_id == "":
         msg = (
             f"Proposition {proposition_id} outcome {outcome_id} missing required "
-            "COMPETITOR_ID mapping"
+            "team identifier"
         )
         raise ValueError(msg)
 
@@ -630,6 +898,78 @@ def _parse_outcome(*, proposition_id: str, outcome_payload: dict[str, Any]) -> _
         region=region,
         matchup_position=matchup_position,
         display_order=display_order,
+    )
+
+
+def _parse_choice_counter(
+    *,
+    proposition_id: str,
+    outcome_id: str,
+    outcome_payload: dict[str, Any],
+) -> _ParsedChoiceCounter:
+    choice_counters_payload = outcome_payload.get("choiceCounters")
+    if not isinstance(choice_counters_payload, list) or len(choice_counters_payload) != 1:
+        msg = (
+            f"Proposition {proposition_id} outcome {outcome_id} must contain exactly one "
+            "choiceCounter"
+        )
+        raise ValueError(msg)
+
+    choice_counter_payload = choice_counters_payload[0]
+    if not isinstance(choice_counter_payload, dict):
+        msg = f"Proposition {proposition_id} outcome {outcome_id} has invalid choiceCounter"
+        raise ValueError(msg)
+
+    counter_outcome_id = _required_text(
+        choice_counter_payload,
+        "outcomeId",
+        context=f"proposition {proposition_id} outcome {outcome_id} choiceCounter",
+    )
+    if counter_outcome_id != outcome_id:
+        msg = (
+            f"Proposition {proposition_id} outcome {outcome_id} choiceCounter references "
+            f"mismatched outcome {counter_outcome_id}"
+        )
+        raise ValueError(msg)
+
+    pick_count = _required_int(
+        choice_counter_payload,
+        "count",
+        context=f"proposition {proposition_id} outcome {outcome_id} choiceCounter",
+    )
+    if pick_count < 0:
+        msg = f"Proposition {proposition_id} outcome {outcome_id} has negative pick count"
+        raise ValueError(msg)
+
+    pick_percentage = _required_float(
+        choice_counter_payload,
+        "percentage",
+        context=f"proposition {proposition_id} outcome {outcome_id} choiceCounter",
+    )
+    if pick_percentage < 0.0 or pick_percentage > 1.0:
+        msg = (
+            f"Proposition {proposition_id} outcome {outcome_id} has invalid pick percentage "
+            f"{pick_percentage}"
+        )
+        raise ValueError(msg)
+
+    scoring_format_id = _required_int(
+        choice_counter_payload,
+        "scoringFormatId",
+        context=f"proposition {proposition_id} outcome {outcome_id} choiceCounter",
+    )
+    if scoring_format_id != 5:
+        msg = (
+            f"Proposition {proposition_id} outcome {outcome_id} choiceCounter has unsupported "
+            f"scoringFormatId {scoring_format_id}"
+        )
+        raise ValueError(msg)
+
+    return _ParsedChoiceCounter(
+        outcome_id=counter_outcome_id,
+        pick_count=pick_count,
+        pick_percentage=pick_percentage,
+        scoring_format_id=scoring_format_id,
     )
 
 
@@ -854,10 +1194,51 @@ def _required_int(payload: dict[str, Any], key: str, *, context: str) -> int:
     return value
 
 
+def _required_float(payload: dict[str, Any], key: str, *, context: str) -> float:
+    value = _optional_float(payload.get(key))
+    if value is None:
+        msg = f"{context} missing required numeric field '{key}'"
+        raise ValueError(msg)
+    return value
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = _clean_text(value)
+    if text == "":
+        return None
+
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _optional_bool(value: object) -> bool | None:
+    if isinstance(value, bool):
+        return value
+
+    text = _clean_text(value).casefold()
+    if text == "true":
+        return True
+    if text == "false":
+        return False
+    return None
+
+
 def _optional_int(value: object) -> int | None:
     if value is None:
         return None
 
+    if isinstance(value, bool):
+        return None
     if isinstance(value, int):
         return value
 
@@ -875,6 +1256,12 @@ def _clean_text(value: object) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _placeholder_team_id(name: str) -> str:
+    normalized = "".join(char if char.isalnum() else "-" for char in name.casefold())
+    collapsed = "-".join(part for part in normalized.split("-") if part != "")
+    return f"placeholder-{collapsed}" if collapsed != "" else "placeholder-team"
 
 
 def _sorted_dict_keys(value: object) -> list[str]:

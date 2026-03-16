@@ -113,8 +113,10 @@ Ship a deterministic, testable CLI that:
   - pool entries
   - completed game results
   - ratings snapshot
+  - public national pick counts
 - Refresh workflow:
   - `refresh-data` then `prepare-data`
+  - `refresh-national-picks` for acquisition-only national snapshots
 
 ### Issues
 - Implement provider interface contracts.
@@ -152,16 +154,30 @@ Ship a deterministic, testable CLI that:
 
 ### Deliverables
 - Rich reports (team advancement odds, sensitivity analysis)
+- Report bundle artifacts (CSV/JSON outputs, summary manifest)
+- Deterministic offline report generation from normalized inputs
+
+### Issues
+- Add report generation module and templates.
+- Define report schemas and output artifact layout.
+- Add CLI/report command for deterministic report generation.
+
+### Exit Criteria
+- Non-CLI-consumable report artifacts are viable without manual analysis.
+
+## Phase 7: Self-Serve Access + Automation (Optional)
+
+### Deliverables
 - Lightweight API/UI for non-CLI users
 - Scheduled refresh + report generation
 
 ### Issues
-- Add report generation module and templates.
 - Add API endpoint(s) for run + fetch results.
+- Add minimal UI flow for non-technical users.
 - Add scheduler/job automation.
 
 ### Exit Criteria
-- Non-technical user flow is viable without manual file editing.
+- Non-technical users can trigger refreshes and consume results without manual file editing.
 
 ## MVP Scope Lock (What We Build First)
 
@@ -179,6 +195,7 @@ Do not block MVP on live scraping, UI, or advanced optimization.
 - Milestone D: Data pipeline complete
 - Milestone E: Live provider integration complete
 - Milestone F: Performance and observability complete
+- Milestone G: Self-serve access and automation complete
 
 ## Immediate Next 5 Tickets
 

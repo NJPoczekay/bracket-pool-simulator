@@ -37,7 +37,8 @@ def test_prepare_data_generates_simulate_compatible_dataset(
     baseline_result = simulate_pool(
         SimulationConfig(input_dir=synthetic_input_dir, n_sims=250, seed=21, rating_scale=10.0)
     )
-    assert prepared_result.model_dump() == baseline_result.model_dump()
+    assert prepared_result.entry_results == baseline_result.entry_results
+    assert prepared_result.champion_counts == baseline_result.champion_counts
 
     with (out_dir / "ratings.csv").open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
