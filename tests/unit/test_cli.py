@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bracket_sim.application.refresh_data import RefreshDataSummary
+from bracket_sim.application.refresh_national_picks import RefreshNationalPicksSummary
 from bracket_sim.infrastructure.cli.main import app
 
 
@@ -141,3 +142,44 @@ def test_refresh_data_command_runs_with_monkeypatched_app(
     assert result.exit_code == 0
     assert "Refreshed raw dataset written to:" in result.stdout
     assert "retry_attempted=True" in result.stdout
+
+
+def test_refresh_national_picks_command_runs_with_monkeypatched_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    fake_summary = RefreshNationalPicksSummary(
+        output_dir=tmp_path / "national",
+        games=63,
+        rows=384,
+        total_brackets=1_000,
+    )
+    fake_refresh = Mock(return_value=fake_summary)
+    monkeypatch.setattr(cli_main, "refresh_national_picks", fake_refresh)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "refresh-national-picks",
+            "--challenge",
+            "tournament-challenge-bracket-2026",
+            "--out",
+            str(tmp_path / "national"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Refreshed national picks written to:" in result.stdout
+    assert "total_brackets=1000" in result.stdout
+
+
+def test_refresh_national_picks_command_help_mentions_challenge_input() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-national-picks", "--help"])
+
+    assert result.exit_code == 0
+    assert "ESPN bracket URL, group URL, or challenge" in result.stdout
+    assert "key" in result.stdout

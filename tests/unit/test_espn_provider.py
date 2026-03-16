@@ -8,7 +8,11 @@ import httpx
 import pytest
 from tests.helpers.mock_espn_payloads import build_mock_payloads
 
-from bracket_sim.infrastructure.providers.espn_api import EspnApiProvider, parse_espn_group_url
+from bracket_sim.infrastructure.providers.espn_api import (
+    EspnApiProvider,
+    parse_espn_challenge_reference,
+    parse_espn_group_url,
+)
 
 
 def _build_provider(
@@ -53,6 +57,32 @@ def test_parse_espn_group_url_requires_group_id() -> None:
 
 
 @pytest.mark.parametrize(
+    ("challenge", "expected_key"),
+    [
+        (
+            "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/bracket",
+            "tournament-challenge-bracket-2026",
+        ),
+        (
+            "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/"
+            "group?id=test-group",
+            "tournament-challenge-bracket-2026",
+        ),
+        ("tournament-challenge-bracket-2026", "tournament-challenge-bracket-2026"),
+    ],
+)
+def test_parse_espn_challenge_reference_accepts_urls_and_keys(
+    challenge: str,
+    expected_key: str,
+) -> None:
+    ref = parse_espn_challenge_reference(challenge)
+    assert ref.challenge_key == expected_key
+    assert ref.challenge_url == (
+        f"https://fantasy.espn.com/games/{expected_key}/bracket"
+    )
+
+
+@pytest.mark.parametrize(
     ("completed_round_cutoff", "expected_constraints"),
     [
         (0, 0),
@@ -85,6 +115,67 @@ def test_fetch_results_extracts_constraints_by_correct_outcomes(
     assert len(results.constraints) == expected_constraints
     assert len(results.games) == 63
     assert len(results.teams) == 64
+
+
+def test_fetch_national_picks_extracts_all_round_rows(synthetic_input_dir: Path) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    provider = _build_provider(
+        challenge_payload=challenge_payload,
+        group_payloads=[group_payload],
+    )
+
+    national_picks = provider.fetch_national_picks()
+
+    assert len(national_picks.rows) == 384
+    assert national_picks.total_brackets == 1_000
+    assert national_picks.round_counts == {1: 32, 2: 16, 3: 8, 4: 4, 5: 2, 6: 1}
+    assert national_picks.challenge_key == "mock-challenge-2026"
+    assert national_picks.challenge_name == "Mock Challenge 2026"
+    assert national_picks.source_url == "https://fantasy.espn.com/games/mock-challenge-2026/bracket"
+
+    championship_rows = [row for row in national_picks.rows if row.round == 6]
+    assert len(championship_rows) == 64
+    assert sum(row.pick_count for row in championship_rows) == 1_000
+
+
+def test_fetch_national_picks_falls_back_for_placeholder_team_ids(
+    synthetic_input_dir: Path,
+) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    assert isinstance(broken_payload["propositions"][0], dict)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"], list)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"][0], dict)
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["name"] = "M-OH/SMU"
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["description"] = "M-OH/SMU"
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["abbrev"] = "M-OH/SMU"
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["mappings"] = [
+        mapping
+        for mapping in broken_payload["propositions"][0]["possibleOutcomes"][0]["mappings"]
+        if not (
+            isinstance(mapping, dict)
+            and mapping.get("type") == "COMPETITOR_ID"
+        )
+    ]
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    national_picks = provider.fetch_national_picks()
+    placeholder_rows = [row for row in national_picks.rows if row.team_name == "M-OH/SMU"]
+    assert placeholder_rows
+    assert all(row.team_id == "placeholder-m-oh-smu" for row in placeholder_rows)
 
 
 def test_fetch_entries_retry_recovers_from_transient_entry_issue(synthetic_input_dir: Path) -> None:
@@ -138,6 +229,111 @@ def test_fetch_entries_retry_then_skip(synthetic_input_dir: Path) -> None:
     assert len(entries.entries) == len(group_payload["entries"]) - 1
     assert len(entries.skipped_entries) == 1
     assert entries.skipped_entries[0].entry_id == group_payload["entries"][0]["id"]
+
+
+def test_fetch_national_picks_requires_choice_counter(synthetic_input_dir: Path) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    assert isinstance(broken_payload["propositions"][0], dict)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"], list)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"][0], dict)
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"] = []
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    with pytest.raises(ValueError, match="choiceCounter"):
+        provider.fetch_national_picks()
+
+
+def test_fetch_national_picks_requires_bracket_scoring_format(synthetic_input_dir: Path) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    assert isinstance(broken_payload["propositions"][0], dict)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"], list)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"][0], dict)
+    assert isinstance(
+        broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"],
+        list,
+    )
+    assert isinstance(
+        broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"][0],
+        dict,
+    )
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"][0][
+        "scoringFormatId"
+    ] = 6
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    with pytest.raises(ValueError, match="scoringFormatId"):
+        provider.fetch_national_picks()
+
+
+def test_fetch_national_picks_rejects_inconsistent_totals(synthetic_input_dir: Path) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    assert isinstance(broken_payload["propositions"][0], dict)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"], list)
+    assert isinstance(broken_payload["propositions"][0]["possibleOutcomes"][0], dict)
+    assert isinstance(
+        broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"],
+        list,
+    )
+    assert isinstance(
+        broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"][0],
+        dict,
+    )
+    broken_payload["propositions"][0]["possibleOutcomes"][0]["choiceCounters"][0]["count"] = 9999
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    with pytest.raises(ValueError, match="total picks"):
+        provider.fetch_national_picks()
+
+
+def test_fetch_national_picks_rejects_unexpected_proposition_structure(
+    synthetic_input_dir: Path,
+) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    broken_payload["propositions"].pop()
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    with pytest.raises(ValueError, match="Expected 63 propositions"):
+        provider.fetch_national_picks()
 
 
 def _load_games(fixture_dir: Path) -> list[dict[str, object]]:

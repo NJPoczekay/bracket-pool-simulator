@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+_NATIONAL_PICK_TOTAL = 1_000
+
 
 def build_mock_payloads(
     *,
@@ -64,10 +66,15 @@ def build_mock_payloads(
                 possible_team_ids = [game["left_team_id"], game["right_team_id"]]
 
             possible_outcomes: list[dict[str, Any]] = []
+            national_pick_counts = _build_choice_counts(
+                possible_team_ids=possible_team_ids,
+                teams_by_id=teams_by_id,
+            )
             for matchup_position, team_id in enumerate(possible_team_ids, start=1):
                 team = teams_by_id[team_id]
                 outcome_id = f"{game_id}:{team_id}"
                 outcome_id_by_game_team[(game_id, team_id)] = outcome_id
+                pick_count = national_pick_counts[team_id]
                 possible_outcomes.append(
                     {
                         "id": outcome_id,
@@ -76,6 +83,14 @@ def build_mock_payloads(
                         "matchupPosition": matchup_position,
                         "regionId": team["region"],
                         "regionSeed": team["seed"],
+                        "choiceCounters": [
+                            {
+                                "count": pick_count,
+                                "outcomeId": outcome_id,
+                                "percentage": pick_count / _NATIONAL_PICK_TOTAL,
+                                "scoringFormatId": 5,
+                            }
+                        ],
                         "mappings": [
                             {"type": "COMPETITOR_ID", "value": team_id},
                             {"type": "SEED", "value": str(team["seed"])},
@@ -100,8 +115,12 @@ def build_mock_payloads(
             )
 
     challenge_payload = {
+        "id": 277,
         "key": "mock-challenge-2026",
+        "name": "Mock Challenge 2026",
         "state": "IN_PROGRESS",
+        "propositionLockDate": 1773936900000,
+        "propositionLockDatePassed": False,
         "scoringStatus": "LIVE",
         "propositions": propositions,
     }
@@ -137,3 +156,32 @@ def build_mock_payloads(
     }
 
     return challenge_payload, group_payload, outcome_id_by_game_team
+
+
+def _build_choice_counts(
+    *,
+    possible_team_ids: list[str],
+    teams_by_id: dict[str, dict[str, Any]],
+) -> dict[str, int]:
+    weights: list[int] = []
+    for idx, team_id in enumerate(possible_team_ids, start=1):
+        team = teams_by_id[team_id]
+        seed = int(team["seed"])
+        weights.append((20 - seed) * 100 + (len(possible_team_ids) - idx + 1))
+
+    total_weight = sum(weights)
+    raw_counts = [_NATIONAL_PICK_TOTAL * weight / total_weight for weight in weights]
+    floor_counts = [int(value) for value in raw_counts]
+    remainder = _NATIONAL_PICK_TOTAL - sum(floor_counts)
+    order = sorted(
+        range(len(possible_team_ids)),
+        key=lambda idx: (raw_counts[idx] - floor_counts[idx], weights[idx], -idx),
+        reverse=True,
+    )
+    for idx in order[:remainder]:
+        floor_counts[idx] += 1
+
+    return {
+        team_id: floor_counts[idx]
+        for idx, team_id in enumerate(possible_team_ids)
+    }

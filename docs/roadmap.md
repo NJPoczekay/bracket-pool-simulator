@@ -113,8 +113,10 @@ Ship a deterministic, testable CLI that:
   - pool entries
   - completed game results
   - ratings snapshot
+  - public national pick counts
 - Refresh workflow:
   - `refresh-data` then `prepare-data`
+  - `refresh-national-picks` for acquisition-only national snapshots
 
 ### Issues
 - Implement provider interface contracts.
