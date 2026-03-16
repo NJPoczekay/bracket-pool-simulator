@@ -101,6 +101,7 @@ def test_simulate_pool_writes_manifest_checkpoint_result_and_logs(
 
     assert manifest_payload["run_id"] == result.run_metadata.run_id
     assert manifest_payload["batch_size"] == 50
+    assert len(manifest_payload["dataset_hash"]) == 64
     assert manifest_payload["input_hashes"]["teams.json"]
     assert checkpoint_payload["completed_sims"] == 120
     assert checkpoint_payload["completed_batches"] == 3

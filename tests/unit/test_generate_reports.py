@@ -45,6 +45,7 @@ def test_generate_reports_writes_deterministic_bundle(
 
     assert manifest_payload["report_id"] == result.summary.report_id
     assert manifest_payload["batch_size"] == 40
+    assert len(manifest_payload["dataset_hash"]) == 64
     assert len(manifest_payload["artifacts"]) == 4
     assert summary_payload["report_id"] == result.summary.report_id
     assert summary_payload["n_sims"] == 120

@@ -19,6 +19,7 @@ from bracket_sim.domain.models import (
     ReportSummary,
     TeamAdvancementOddsRow,
 )
+from bracket_sim.infrastructure.storage.cache_keys import capture_dataset_hash
 from bracket_sim.infrastructure.storage.run_artifacts import (
     capture_input_hashes,
     read_git_commit,
@@ -111,6 +112,7 @@ def build_report_manifest(
         code_version=__version__,
         git_commit=read_git_commit(),
         input_dir=config.input_dir,
+        dataset_hash=capture_dataset_hash(config.input_dir),
         input_hashes=capture_input_hashes(config.input_dir),
         output_dir=config.output_dir,
         n_sims=config.n_sims,

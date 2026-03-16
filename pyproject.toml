@@ -35,6 +35,7 @@ numba = [
 
 [project.scripts]
 bracket-sim = "bracket_sim.infrastructure.cli.main:main"
+bracket-web = "bracket_sim.infrastructure.web.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bracket_sim"]

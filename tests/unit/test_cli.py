@@ -297,8 +297,8 @@ def test_serve_command_invokes_web_server(
 
     config_path = tmp_path / "pools.toml"
     config_path.write_text("pools = []\n", encoding="utf-8")
-    fake_serve = Mock()
-    monkeypatch.setattr(cli_main, "serve_web_app", fake_serve)
+    fake_run_server = Mock()
+    monkeypatch.setattr(cli_main, "run_server", fake_run_server)
 
     runner = CliRunner()
     result = runner.invoke(
@@ -315,8 +315,9 @@ def test_serve_command_invokes_web_server(
     )
 
     assert result.exit_code == 0
-    fake_serve.assert_called_once_with(
-        config_path=config_path,
+    fake_run_server.assert_called_once_with(
         host="127.0.0.1",
         port=8123,
+        reload=False,
+        config_path=config_path,
     )
