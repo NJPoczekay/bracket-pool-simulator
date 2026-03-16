@@ -183,6 +183,37 @@ class SimulationConfig(BaseModel):
         return min(self.batch_size or self.n_sims, self.n_sims)
 
 
+class ReportConfig(BaseModel):
+    """Config for deterministic offline report generation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    input_dir: Path
+    output_dir: Path
+    n_sims: int = Field(gt=0)
+    seed: int
+    rating_scale: float = Field(default=10.0, gt=0)
+    batch_size: int | None = Field(default=None, gt=0)
+    engine: str = Field(default="numpy")
+
+    @field_validator("engine")
+    @classmethod
+    def validate_engine(cls, value: str) -> str:
+        """Normalize and validate engine selection."""
+
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_ENGINES:
+            msg = f"Unsupported engine {value!r}; expected one of {sorted(_ALLOWED_ENGINES)}"
+            raise ValueError(msg)
+        return normalized
+
+    @property
+    def effective_batch_size(self) -> int:
+        """Return the concrete batch size used for execution."""
+
+        return min(self.batch_size or self.n_sims, self.n_sims)
+
+
 class RunManifest(BaseModel):
     """Reproducibility metadata persisted alongside run artifacts."""
 
@@ -257,6 +288,127 @@ class SimulationResult(BaseModel):
     entry_results: list[SimulationEntryResult]
     champion_counts: dict[str, int]
     run_metadata: SimulationRunMetadata
+
+
+class ReportArtifact(BaseModel):
+    """One persisted report artifact inside an output bundle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(min_length=1)
+    path: Path
+    kind: str = Field(min_length=1)
+    sha256: str = Field(min_length=64, max_length=64)
+    row_count: int | None = Field(default=None, ge=0)
+
+
+class ReportBundleManifest(BaseModel):
+    """Reproducibility metadata for a generated report bundle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: int = 1
+    report_id: str
+    created_at: datetime
+    code_version: str
+    git_commit: str | None = None
+    input_dir: Path
+    input_hashes: dict[str, str]
+    output_dir: Path
+    n_sims: int = Field(gt=0)
+    seed: int
+    rating_scale: float = Field(gt=0)
+    batch_size: int = Field(gt=0)
+    engine: str
+    entry_ids: list[str]
+    team_ids: list[str]
+    artifacts: list[ReportArtifact]
+
+
+class TeamAdvancementOddsRow(BaseModel):
+    """Round-by-round advancement probabilities for one team."""
+
+    model_config = ConfigDict(frozen=True)
+
+    team_id: str = Field(min_length=1)
+    team_name: str = Field(min_length=1)
+    seed: int = Field(ge=1, le=16)
+    region: str = Field(min_length=1)
+    reach_round_of_32: float = Field(ge=0.0, le=1.0)
+    reach_sweet_16: float = Field(ge=0.0, le=1.0)
+    reach_elite_8: float = Field(ge=0.0, le=1.0)
+    reach_final_four: float = Field(ge=0.0, le=1.0)
+    reach_title_game: float = Field(ge=0.0, le=1.0)
+    win_championship: float = Field(ge=0.0, le=1.0)
+
+
+class EntryReportRow(BaseModel):
+    """Summary metrics for one entry in a report bundle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    rank: int = Field(ge=1)
+    entry_id: str = Field(min_length=1)
+    entry_name: str = Field(min_length=1)
+    win_share: float = Field(ge=0.0, le=1.0)
+    average_score: float
+
+
+class ChampionOddsRow(BaseModel):
+    """Champion probability summary for one team."""
+
+    model_config = ConfigDict(frozen=True)
+
+    rank: int = Field(ge=1)
+    team_id: str = Field(min_length=1)
+    team_name: str = Field(min_length=1)
+    probability: float = Field(ge=0.0, le=1.0)
+
+
+class ChampionSensitivityRow(BaseModel):
+    """Entry performance conditioned on a specific champion outcome."""
+
+    model_config = ConfigDict(frozen=True)
+
+    champion_team_id: str = Field(min_length=1)
+    champion_team_name: str = Field(min_length=1)
+    champion_probability: float = Field(ge=0.0, le=1.0)
+    champion_simulations: int = Field(ge=1)
+    entry_rank: int = Field(ge=1)
+    entry_id: str = Field(min_length=1)
+    entry_name: str = Field(min_length=1)
+    baseline_win_share: float = Field(ge=0.0, le=1.0)
+    conditional_win_share: float = Field(ge=0.0, le=1.0)
+    win_share_delta: float
+    baseline_average_score: float
+    conditional_average_score: float
+    average_score_delta: float
+
+
+class ReportSummary(BaseModel):
+    """Compact JSON summary for a generated report bundle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    report_id: str
+    output_dir: Path
+    n_sims: int = Field(gt=0)
+    seed: int
+    engine: str
+    batch_size: int = Field(gt=0)
+    entry_count: int = Field(ge=0)
+    team_count: int = Field(ge=0)
+    top_entries: list[EntryReportRow]
+    top_champions: list[ChampionOddsRow]
+
+
+class ReportBundleResult(BaseModel):
+    """In-memory result returned after writing a report bundle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    manifest: ReportBundleManifest
+    summary: ReportSummary
 
 
 class BenchmarkConfig(BaseModel):

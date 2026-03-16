@@ -33,12 +33,13 @@ uv run python -m bracket_sim.infrastructure.cli.main --help
 
 ## Commands
 
-The CLI exposes five commands:
+The CLI exposes six commands:
 
 - `refresh-data`: fetch raw bracket data from ESPN plus ratings data
 - `prepare-data`: normalize raw files into validated simulation inputs
 - `simulate`: run deterministic pool simulations
 - `benchmark`: measure simulation and scoring performance against budgets
+- `report`: generate deterministic offline report bundles from normalized inputs
 - `refresh-national-picks`: download ESPN national pick-count snapshots
 
 ## Typical Workflow
@@ -177,7 +178,33 @@ uv run bracket-sim benchmark \
   --scoring-budget-ms 750
 ```
 
-### 5. Refresh national pick counts
+### 5. Generate offline report bundles
+
+`report` turns a prepared dataset into machine-friendly artifacts for downstream analysis without requiring manual CLI inspection.
+
+```bash
+uv run bracket-sim report \
+  --input data/prepared/2026 \
+  --out reports/2026-main \
+  --n-sims 100000 \
+  --seed 42
+```
+
+Useful options:
+
+- `--batch-size`: split deterministic report generation into batches
+- `--engine`: `numpy` or `numba`
+- `--json`: print the summary bundle metadata as JSON
+
+Output includes:
+
+- `manifest.json`
+- `summary.json`
+- `team_advancement_odds.csv`
+- `entry_summary.csv`
+- `champion_sensitivity.csv`
+
+### 6. Refresh national pick counts
 
 This command downloads the public ESPN challenge payload and stores national pick-count artifacts for later analysis.
 

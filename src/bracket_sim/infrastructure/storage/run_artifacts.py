@@ -84,9 +84,9 @@ def build_run_manifest(
 
     return RunManifest(
         run_id=run_id,
-        created_at=_utc_now(),
+        created_at=utc_now(),
         code_version=__version__,
-        git_commit=_read_git_commit(),
+        git_commit=read_git_commit(),
         input_dir=config.input_dir,
         input_hashes=capture_input_hashes(config.input_dir),
         n_sims=config.n_sims,
@@ -111,7 +111,7 @@ def verify_run_manifest(
 
     mismatches: list[str] = []
     expected_hashes = capture_input_hashes(config.input_dir)
-    current_git_commit = _read_git_commit()
+    current_git_commit = read_git_commit()
 
     comparisons = {
         "code_version": (manifest.code_version, __version__),
@@ -138,40 +138,40 @@ def verify_run_manifest(
 def load_run_manifest(path: Path) -> RunManifest:
     """Read a persisted run manifest from disk."""
 
-    return RunManifest.model_validate(_load_json(path))
+    return RunManifest.model_validate(load_json(path))
 
 
 def write_run_manifest(path: Path, manifest: RunManifest) -> None:
     """Persist a run manifest atomically."""
 
-    _write_json_atomic(path=path, payload=manifest.model_dump(mode="json"))
+    write_json_atomic(path=path, payload=manifest.model_dump(mode="json"))
 
 
 def load_run_checkpoint(path: Path) -> RunCheckpoint:
     """Read a persisted run checkpoint from disk."""
 
-    return RunCheckpoint.model_validate(_load_json(path))
+    return RunCheckpoint.model_validate(load_json(path))
 
 
 def write_run_checkpoint(path: Path, checkpoint: RunCheckpoint) -> None:
     """Persist a run checkpoint atomically."""
 
-    _write_json_atomic(path=path, payload=checkpoint.model_dump(mode="json"))
+    write_json_atomic(path=path, payload=checkpoint.model_dump(mode="json"))
 
 
 def write_simulation_result(path: Path, result: SimulationResult) -> None:
     """Persist a completed simulation result atomically."""
 
-    _write_json_atomic(path=path, payload=result.model_dump(mode="json"))
+    write_json_atomic(path=path, payload=result.model_dump(mode="json"))
 
 
 def load_simulation_result(path: Path) -> SimulationResult:
     """Read a previously persisted simulation result from disk."""
 
-    return SimulationResult.model_validate(_load_json(path))
+    return SimulationResult.model_validate(load_json(path))
 
 
-def _write_json_atomic(*, path: Path, payload: object) -> None:
+def write_json_atomic(*, path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     staging_path = path.parent / f".{path.name}.tmp-{uuid4().hex}"
 
@@ -182,7 +182,7 @@ def _write_json_atomic(*, path: Path, payload: object) -> None:
     staging_path.replace(path)
 
 
-def _load_json(path: Path) -> object:
+def load_json(path: Path) -> object:
     if not path.exists():
         msg = f"Run artifact is missing: {path}"
         raise ValueError(msg)
@@ -195,11 +195,11 @@ def _load_json(path: Path) -> object:
             raise ValueError(msg) from exc
 
 
-def _utc_now() -> datetime:
+def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def _read_git_commit() -> str | None:
+def read_git_commit() -> str | None:
     project_root = _find_project_root()
     if project_root is None:
         return None

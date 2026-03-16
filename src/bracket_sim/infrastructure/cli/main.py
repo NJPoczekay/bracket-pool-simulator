@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from bracket_sim.application.benchmark_hotspots import benchmark_hotspots
+from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
 from bracket_sim.application.refresh_data import RefreshDataSummary, refresh_data
 from bracket_sim.application.refresh_national_picks import (
@@ -19,6 +20,8 @@ from bracket_sim.domain.models import (
     BenchmarkConfig,
     BenchmarkMeasurement,
     BenchmarkReport,
+    ReportBundleResult,
+    ReportConfig,
     SimulationConfig,
     SimulationResult,
 )
@@ -161,6 +164,71 @@ def benchmark_command(
 
     if not (report.simulation.within_budget and report.scoring.within_budget):
         raise typer.Exit(code=1)
+
+
+@app.command("report")
+def report_command(
+    input_dir: Annotated[
+        Path,
+        typer.Option(
+            "--input",
+            help="Directory containing normalized simulation inputs",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            help="Directory to write report bundle artifacts",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+    n_sims: Annotated[int, typer.Option(help="Number of simulations to run")] = 100_000,
+    seed: Annotated[int, typer.Option(help="Deterministic random seed")] = 42,
+    batch_size: Annotated[
+        int | None,
+        typer.Option(
+            "--batch-size",
+            help="Optional simulations per batch for deterministic report generation",
+            min=1,
+        ),
+    ] = None,
+    engine: Annotated[
+        str,
+        typer.Option("--engine", help="Simulation engine to use: numpy or numba"),
+    ] = "numpy",
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit bundle summary JSON instead of text output"),
+    ] = False,
+) -> None:
+    """Generate deterministic offline report artifacts from normalized local inputs."""
+
+    try:
+        config = ReportConfig(
+            input_dir=input_dir,
+            output_dir=out_dir,
+            n_sims=n_sims,
+            seed=seed,
+            batch_size=batch_size,
+            engine=engine,
+        )
+        result = generate_reports(config)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        typer.echo(result.summary.model_dump_json(indent=2))
+        return
+
+    typer.echo(_format_report_summary(result))
 
 
 @app.command("prepare-data")
@@ -352,6 +420,46 @@ def _format_benchmark_row(name: str, measurement: BenchmarkMeasurement) -> str:
         f"{name:<12} {measurement.mean_ms:>10.3f} {measurement.min_ms:>10.3f} "
         f"{measurement.budget_ms:>10.3f} {status:>8}"
     )
+
+
+def _format_report_summary(result: ReportBundleResult) -> str:
+    """Render human-readable report bundle output."""
+
+    lines = [
+        f"Report bundle written to: {result.summary.output_dir}",
+        (
+            f"Report ID: {result.summary.report_id}  Engine: {result.summary.engine}  "
+            f"Simulations: {result.summary.n_sims}  Seed: {result.summary.seed}  "
+            f"Batch Size: {result.summary.batch_size}"
+        ),
+        (
+            f"Artifacts: {len(result.manifest.artifacts)} files  "
+            f"Entries: {result.summary.entry_count}  Teams: {result.summary.team_count}"
+        ),
+    ]
+
+    if result.summary.top_entries:
+        lines.extend(
+            [
+                "",
+                f"{'Top Entries':<24} {'Win Share':>10} {'Avg Score':>10}",
+                f"{'-' * 24} {'-' * 10} {'-' * 10}",
+            ]
+        )
+        for entry in result.summary.top_entries:
+            lines.append(
+                f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} "
+                f"{entry.average_score:>10.2f}"
+            )
+
+    if result.summary.top_champions:
+        lines.extend(["", "Top Champions"])
+        for champion in result.summary.top_champions:
+            lines.append(
+                f"{champion.rank:>2}. {champion.team_name} ({champion.probability:.4f})"
+            )
+
+    return "\n".join(lines)
 
 
 def _format_prepare_summary(summary: PrepareDataSummary) -> str:

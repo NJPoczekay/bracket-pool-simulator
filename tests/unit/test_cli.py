@@ -126,6 +126,44 @@ def test_benchmark_command_runs_and_emits_json(synthetic_input_dir: Path) -> Non
     assert payload["scoring"]["within_budget"] is True
 
 
+def test_report_command_writes_bundle_and_emits_json(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "report_cli"
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            "--input",
+            str(synthetic_input_dir),
+            "--out",
+            str(out_dir),
+            "--n-sims",
+            "120",
+            "--seed",
+            "7",
+            "--batch-size",
+            "40",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["n_sims"] == 120
+    assert payload["seed"] == 7
+    assert payload["batch_size"] == 40
+    assert payload["entry_count"] == 8
+    assert (out_dir / "manifest.json").exists()
+    assert (out_dir / "summary.json").exists()
+    assert (out_dir / "team_advancement_odds.csv").exists()
+    assert (out_dir / "entry_summary.csv").exists()
+    assert (out_dir / "champion_sensitivity.csv").exists()
+
+
 def test_prepare_data_command_runs(raw_canonical_dir: Path, tmp_path: Path) -> None:
     runner = CliRunner()
     out_dir = tmp_path / "prepared_cli"
