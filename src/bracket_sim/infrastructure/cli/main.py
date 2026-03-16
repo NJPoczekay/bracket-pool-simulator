@@ -9,6 +9,10 @@ import typer
 
 from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
 from bracket_sim.application.refresh_data import RefreshDataSummary, refresh_data
+from bracket_sim.application.refresh_national_picks import (
+    RefreshNationalPicksSummary,
+    refresh_national_picks,
+)
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import SimulationConfig, SimulationResult
 
@@ -156,6 +160,37 @@ def refresh_data_command(
     typer.echo(_format_refresh_summary(summary))
 
 
+@app.command("refresh-national-picks")
+def refresh_national_picks_command(
+    challenge: Annotated[
+        str,
+        typer.Option(
+            "--challenge",
+            help="ESPN bracket URL, group URL, or challenge key",
+        ),
+    ],
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            help="Directory to write national pick-count artifacts",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+) -> None:
+    """Download canonical ESPN national pick counts into a local snapshot."""
+
+    try:
+        summary = refresh_national_picks(challenge=challenge, out_dir=out_dir)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(_format_refresh_national_picks_summary(summary))
+
+
 def _format_result_table(result: SimulationResult) -> str:
     """Render compact human-readable table output."""
 
@@ -201,6 +236,19 @@ def _format_refresh_summary(summary: RefreshDataSummary) -> str:
         (
             "Entry handling: "
             f"skipped={summary.skipped_entries} retry_attempted={summary.retry_attempted}"
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def _format_refresh_national_picks_summary(summary: RefreshNationalPicksSummary) -> str:
+    """Render human-readable summary for refresh-national-picks command."""
+
+    lines = [
+        f"Refreshed national picks written to: {summary.output_dir}",
+        (
+            "Counts: "
+            f"games={summary.games} rows={summary.rows} total_brackets={summary.total_brackets}"
         ),
     ]
     return "\n".join(lines)

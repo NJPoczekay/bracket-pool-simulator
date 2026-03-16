@@ -63,6 +63,23 @@ class RawAliasRow:
 
 
 @dataclass(frozen=True)
+class RawNationalPickRow:
+    """Canonical national pick row written to national_picks.csv."""
+
+    game_id: str
+    round: int
+    display_order: int
+    outcome_id: str
+    team_id: str
+    team_name: str
+    seed: int
+    region: str
+    matchup_position: int
+    pick_count: int
+    pick_percentage: float
+
+
+@dataclass(frozen=True)
 class SkippedEntry:
     """Skipped entry diagnostics captured in metadata."""
 
@@ -110,6 +127,24 @@ class RatingsData:
     source: str
 
 
+@dataclass(frozen=True)
+class NationalPicksData:
+    """Normalized national pick payload sourced from challenge APIs."""
+
+    rows: list[RawNationalPickRow]
+    total_brackets: int
+    round_counts: dict[int, int]
+    challenge_id: int | None
+    challenge_key: str | None
+    challenge_name: str | None
+    challenge_state: str | None
+    proposition_lock_date: int | None
+    proposition_lock_date_passed: bool | None
+    source_url: str
+    api_shape_hints: dict[str, Any]
+    raw_snapshot: dict[str, Any]
+
+
 class ResultsProvider(Protocol):
     """Provider interface for bracket topology and definitive winners."""
 
@@ -134,3 +169,10 @@ class RatingsProvider(Protocol):
 
     def fetch_ratings(self, *, teams: list[RawTeamRow]) -> RatingsData:
         """Fetch and normalize team ratings for the current field."""
+
+
+class NationalPicksProvider(Protocol):
+    """Provider interface for national pick count snapshots."""
+
+    def fetch_national_picks(self) -> NationalPicksData:
+        """Fetch and normalize public national pick counts."""

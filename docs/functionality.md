@@ -24,6 +24,11 @@ This project simulates NCAA tournament outcomes and estimates each ESPN bracket 
   - If local entry files are not present, the tool visits the ESPN group page, collects bracket links, opens each entry, and saves the HTML locally.
   - This creates a reusable local cache of pool entries under `html_sources/<groupID>/`.
 
+- National pick-count snapshots
+  - A standalone `refresh-national-picks` command downloads ESPN's public challenge payload and stores national pick counts in a local snapshot.
+  - The output is acquisition-only in v1, so it can be reused later for modeling without changing simulation inputs today.
+  - The parser is API-first and fails loudly if ESPN changes the payload shape; there is no browser fallback in this version.
+
 - Team name normalization
   - A mapping file reconciles naming differences across ESPN pages, KenPom files, and scoreboard files.
   - This avoids mismatches during scoring and simulation.
