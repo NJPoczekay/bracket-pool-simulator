@@ -112,8 +112,8 @@ def score_entries(
     return scores
 
 
-def aggregate_win_shares(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
-    """Compute tie-split first-place shares for each entry."""
+def aggregate_win_share_totals(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
+    """Compute raw tie-split first-place share totals for each entry."""
 
     if scores.ndim != 2:
         msg = "Scores must be a 2D array"
@@ -124,5 +124,11 @@ def aggregate_win_shares(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float6
     tie_counts = np.sum(winners, axis=0)
 
     shares = winners / tie_counts
-    result = np.sum(shares, axis=1) / scores.shape[1]
-    return cast(npt.NDArray[np.float64], result)
+    return cast(npt.NDArray[np.float64], np.sum(shares, axis=1))
+
+
+def aggregate_win_shares(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
+    """Compute tie-split first-place shares for each entry."""
+
+    share_totals = aggregate_win_share_totals(scores)
+    return cast(npt.NDArray[np.float64], share_totals / scores.shape[1])

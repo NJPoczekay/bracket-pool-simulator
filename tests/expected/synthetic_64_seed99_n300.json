@@ -86,5 +86,17 @@
     "west-07": 1,
     "west-08": 1,
     "west-09": 1
+  },
+  "run_metadata": {
+    "run_id": "fc4be464eca6fb3b",
+    "engine": "numpy",
+    "batch_size": 300,
+    "batches_completed": 1,
+    "resumed_from_checkpoint": false,
+    "run_dir": null,
+    "manifest_path": null,
+    "checkpoint_path": null,
+    "result_path": null,
+    "log_path": null
   }
 }
