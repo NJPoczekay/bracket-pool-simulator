@@ -1,19 +1,20 @@
-# Bracket Pool Simulator Rewrite: Recommended Architecture
+# Bracket Pool Simulator Architecture
 
 ## Objectives
 
 - Deterministic, reproducible simulations.
-- Clear separation between data ingestion, simulation logic, and scoring.
+- Clear separation between data ingestion, simulation logic, scoring, and interface adapters.
 - Easy year-to-year updates with minimal code changes.
 - Testable core logic independent of scraping and external websites.
 - Fast enough to run large simulation counts locally and in CI.
+- Stable product-facing contracts for the staged web analyzer/optimizer roadmap.
 
-## Core Architectural Decisions
+## Layered Design
 
 1. Use a layered architecture with strict boundaries:
-   - `domain`: pure business objects and rules (teams, games, entries, scoring).
-   - `application`: orchestration use-cases (simulate tournament, score pool, report odds).
-   - `infrastructure`: ESPN/KenPom/result providers, file/db storage, CLI/API adapters.
+   - `domain`: pure business objects and rules (`models.py`, `product_models.py`, bracket graph, scoring, constraints).
+   - `application`: orchestration use-cases and product bootstrap services (`simulate_pool.py`, `generate_reports.py`, `product_foundation.py`).
+   - `infrastructure`: providers, file storage, observability, CLI presentation, and web/API adapters.
 2. Keep the simulation engine pure and side-effect free:
    - Inputs: immutable tournament state + model parameters + RNG seed.
    - Outputs: typed result arrays/tables.
@@ -26,6 +27,9 @@
 5. Treat completed games as constraints:
    - Hard-lock known outcomes before simulation.
    - Validate that constraints are bracket-consistent before running.
+6. Keep presentation-specific formatting out of reusable services:
+   - CLI text rendering lives under `infrastructure/cli/presenter.py`.
+   - FastAPI routes return typed models from the application layer.
 
 ## Proposed Stack (Python)
 
@@ -34,6 +38,7 @@
 - Numerical engine: `numpy`
 - Optional speed-up: `numba` for hot loops (behind a feature flag)
 - Tabular/reporting: `polars`
+- Web/API surface: `fastapi` + `uvicorn`
 - Scraping/API access:
   - Preferred: direct HTTP (`httpx`) + structured endpoints if available
   - Fallback: browser automation (`playwright`) only when necessary
@@ -51,43 +56,75 @@ src/
   bracket_sim/
     domain/
       models.py
+      product_models.py
       bracket_graph.py
       scoring.py
       probability_model.py
+      constraints.py
     application/
       simulate_pool.py
-      update_data.py
       generate_reports.py
+      prepare_data.py
+      refresh_data.py
+      refresh_national_picks.py
+      product_foundation.py
     infrastructure/
       providers/
-        espn_provider.py
-        kenpom_provider.py
-        results_provider.py
-      parsing/
-        espn_parser.py
-        name_normalizer.py
+        espn_api.py
+        ratings.py
+        contracts.py
       storage/
-        cache_repo.py
-        run_repo.py
+        cache_keys.py
+        run_artifacts.py
+        report_bundle.py
+        normalized_loader.py
+        prepared_writer.py
+        raw_loader.py
       cli/
         main.py
+        presenter.py
+      web/
+        main.py
+        shell.py
 tests/
   unit/
   integration/
   fixtures/
 ```
 
-## Data Contracts
+## Product Foundation (Phase 0)
 
-Define typed schemas for:
+Phase 0 adds the contracts and adapters needed for later browser features without implementing analyzer or optimizer logic yet:
 
-- `Team`, `Game`, `Bracket`, `EntryPick`, `PoolEntry`
-- `CompletedGameConstraint`
-- `RatingSnapshot` (source, effective date, values)
-- `SimulationConfig` (n_sims, seed, scoring rules, lock policy)
-- `SimulationResult` (team outcomes, entry scores, pool win shares)
+- Shared product-facing models live in `domain/product_models.py`.
+- The local FastAPI app lives in `infrastructure/web/main.py`.
+- The minimal frontend shell lives in `infrastructure/web/shell.py`.
+- Product bootstrap metadata comes from `application/product_foundation.py`.
+- CLI rendering is isolated in `infrastructure/cli/presenter.py` so service results stay reusable.
 
-These contracts should be versioned. Breaking schema changes should force migration scripts.
+The new product contracts cover:
+
+- bracket editing: `BracketEditPick`, `EditableBracket`
+- pool/scoring setup: `PoolSettings`, `ScoringSystem`, `ScoringSystemKey`
+- completion setup: `CompletionMode`, `CompletionModeOption`
+- future analyzer payloads: `PickDiagnostic`, `BracketAnalysis`
+- future optimizer payloads: `OptimizationAlternative`, `OptimizationResult`
+
+These contracts should remain versioned and stable enough for future API endpoints.
+
+## Cache And Manifest Strategy
+
+Reusable simulation-derived artifacts now share a common identity model:
+
+1. `dataset_hash`
+   - Hash every top-level `.json`, `.csv`, and `.parquet` file in a prepared dataset directory.
+   - Sort by filename, hash file contents, then hash the resulting file-hash manifest.
+2. `cache_key`
+   - Hash the artifact kind plus the `dataset_hash` plus the JSON-serialized settings payload.
+   - Planned first-class artifact kinds are `analysis` and `optimization`.
+3. Manifests
+   - Run and report manifests persist both `dataset_hash` and `input_hashes`.
+   - This keeps coarse cache identity and per-file reproducibility metadata aligned.
 
 ## Simulation and Scoring Design
 
@@ -101,20 +138,6 @@ These contracts should be versioned. Breaking schema changes should force migrat
 7. Compute tie-split winner shares per simulation.
 8. Persist both summary metrics and optional detailed traces.
 
-## Tooling to Add
-
-- Package/dependency management: `uv`
-- Lint/format:
-  - `ruff` (lint + import sort)
-- Type checking: `mypy` (strict on domain + application layers)
-- Tests: `pytest` + `pytest-cov`
-- Pre-commit hooks: `pre-commit` with lint/type/test gates
-- CI: GitHub Actions
-  - Matrix: Python versions
-  - Steps: lint, type-check, unit tests, integration tests (with fixtures)
-- Task runner: `just` or `make` for common commands
-- Optional benchmarking: `pytest-benchmark` for sim/scoring hotspots
-
 ## Testing Strategy
 
 - Unit tests:
@@ -122,6 +145,8 @@ These contracts should be versioned. Breaking schema changes should force migrat
   - Constraint application
   - Probability function sanity and bounds
   - Scoring correctness for known toy brackets
+  - Product model validation and cache-key determinism
+  - Web/API bootstrap contract coverage
 - Property tests (optional `hypothesis`):
   - Exactly one champion per simulation
   - No team exceeds feasible wins
@@ -133,23 +158,17 @@ These contracts should be versioned. Breaking schema changes should force migrat
 ## Observability and Operations
 
 - Structured logs with run IDs and source snapshot IDs.
-- Persist run manifest:
+- Persist run/report manifests with:
   - code version
+  - git commit
   - config
   - seed
-  - input data hashes
+  - dataset hash
+  - per-file input hashes
 - Add lightweight data quality checks:
   - missing teams
   - duplicate aliases
   - impossible completed-game constraints
-
-## Migration Plan (Suggested)
-
-1. Build new domain + scoring engine first using fixture data.
-2. Add explicit bracket graph + completed-game constraint layer.
-3. Add new data ingestion adapters and parsers.
-4. Validate outputs against current system on historical tournaments.
-5. Add CLI/reporting and deprecate legacy scripts.
 
 ## Practical Defaults
 
@@ -157,3 +176,4 @@ These contracts should be versioned. Breaking schema changes should force migrat
 - Require explicit `--refresh-data` to hit external sources.
 - Require explicit seed in production runs (or auto-generate and persist).
 - Keep scraping as a replaceable adapter, not core logic.
+- Keep the web shell thin and route all product logic through typed application services.

@@ -9,22 +9,24 @@ import typer
 
 from bracket_sim.application.benchmark_hotspots import benchmark_hotspots
 from bracket_sim.application.generate_reports import generate_reports
-from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
-from bracket_sim.application.refresh_data import RefreshDataSummary, refresh_data
-from bracket_sim.application.refresh_national_picks import (
-    RefreshNationalPicksSummary,
-    refresh_national_picks,
-)
+from bracket_sim.application.prepare_data import prepare_data
+from bracket_sim.application.refresh_data import refresh_data
+from bracket_sim.application.refresh_national_picks import refresh_national_picks
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import (
     BenchmarkConfig,
-    BenchmarkMeasurement,
-    BenchmarkReport,
-    ReportBundleResult,
     ReportConfig,
     SimulationConfig,
-    SimulationResult,
 )
+from bracket_sim.infrastructure.cli.presenter import (
+    format_benchmark_report,
+    format_prepare_summary,
+    format_refresh_national_picks_summary,
+    format_refresh_summary,
+    format_report_summary,
+    format_result_table,
+)
+from bracket_sim.infrastructure.web.main import run_server
 
 app = typer.Typer(no_args_is_help=True, help="Bracket pool simulator CLI")
 
@@ -106,7 +108,7 @@ def simulate_command(
         typer.echo(result.model_dump_json(indent=2))
         return
 
-    typer.echo(_format_result_table(result))
+    typer.echo(format_result_table(result))
 
 
 @app.command("benchmark")
@@ -160,7 +162,7 @@ def benchmark_command(
     if as_json:
         typer.echo(report.model_dump_json(indent=2))
     else:
-        typer.echo(_format_benchmark_report(report))
+        typer.echo(format_benchmark_report(report))
 
     if not (report.simulation.within_budget and report.scoring.within_budget):
         raise typer.Exit(code=1)
@@ -228,7 +230,7 @@ def report_command(
         typer.echo(result.summary.model_dump_json(indent=2))
         return
 
-    typer.echo(_format_report_summary(result))
+    typer.echo(format_report_summary(result))
 
 
 @app.command("prepare-data")
@@ -263,7 +265,7 @@ def prepare_data_command(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    typer.echo(_format_prepare_summary(summary))
+    typer.echo(format_prepare_summary(summary))
 
 
 @app.command("refresh-data")
@@ -332,7 +334,7 @@ def refresh_data_command(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    typer.echo(_format_refresh_summary(summary))
+    typer.echo(format_refresh_summary(summary))
 
 
 @app.command("refresh-national-picks")
@@ -363,148 +365,27 @@ def refresh_national_picks_command(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    typer.echo(_format_refresh_national_picks_summary(summary))
+    typer.echo(format_refresh_national_picks_summary(summary))
 
 
-def _format_result_table(result: SimulationResult) -> str:
-    """Render compact human-readable table output."""
+@app.command("serve")
+def serve_command(
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Host interface for the local web/API server"),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", help="TCP port for the local web/API server", min=1, max=65535),
+    ] = 8000,
+    reload: Annotated[
+        bool,
+        typer.Option("--reload", help="Enable auto-reload for development"),
+    ] = False,
+) -> None:
+    """Run the local web/API surface."""
 
-    lines = [
-        (
-            "Run ID: "
-            f"{result.run_metadata.run_id}  Engine: {result.run_metadata.engine}  "
-            f"Batch Size: {result.run_metadata.batch_size}  "
-            f"Batches: {result.run_metadata.batches_completed}"
-        ),
-        f"Simulations: {result.n_sims}  Seed: {result.seed}",
-    ]
-
-    if result.run_metadata.resumed_from_checkpoint:
-        lines.append("Resumed: yes")
-    if result.run_metadata.run_dir is not None:
-        lines.append(f"Artifacts: {result.run_metadata.run_dir}")
-
-    lines.extend(
-        [
-            "",
-            f"{'Entry':<24} {'Win Share':>10} {'Avg Score':>10}",
-            f"{'-' * 24} {'-' * 10} {'-' * 10}",
-        ]
-    )
-
-    for entry in result.entry_results:
-        lines.append(
-            f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} {entry.average_score:>10.2f}"
-        )
-
-    return "\n".join(lines)
-
-
-def _format_benchmark_report(report: BenchmarkReport) -> str:
-    """Render human-readable benchmark output."""
-
-    lines = [
-        f"Engine: {report.engine}  Simulations/Repeat: {report.n_sims}  Repeats: {report.repeats}",
-        "",
-        f"{'Hotspot':<12} {'Mean (ms)':>10} {'Min (ms)':>10} {'Budget':>10} {'Status':>8}",
-        f"{'-' * 12} {'-' * 10} {'-' * 10} {'-' * 10} {'-' * 8}",
-        _format_benchmark_row("simulation", report.simulation),
-        _format_benchmark_row("scoring", report.scoring),
-    ]
-    return "\n".join(lines)
-
-
-def _format_benchmark_row(name: str, measurement: BenchmarkMeasurement) -> str:
-    status = "PASS" if measurement.within_budget else "FAIL"
-    return (
-        f"{name:<12} {measurement.mean_ms:>10.3f} {measurement.min_ms:>10.3f} "
-        f"{measurement.budget_ms:>10.3f} {status:>8}"
-    )
-
-
-def _format_report_summary(result: ReportBundleResult) -> str:
-    """Render human-readable report bundle output."""
-
-    lines = [
-        f"Report bundle written to: {result.summary.output_dir}",
-        (
-            f"Report ID: {result.summary.report_id}  Engine: {result.summary.engine}  "
-            f"Simulations: {result.summary.n_sims}  Seed: {result.summary.seed}  "
-            f"Batch Size: {result.summary.batch_size}"
-        ),
-        (
-            f"Artifacts: {len(result.manifest.artifacts)} files  "
-            f"Entries: {result.summary.entry_count}  Teams: {result.summary.team_count}"
-        ),
-    ]
-
-    if result.summary.top_entries:
-        lines.extend(
-            [
-                "",
-                f"{'Top Entries':<24} {'Win Share':>10} {'Avg Score':>10}",
-                f"{'-' * 24} {'-' * 10} {'-' * 10}",
-            ]
-        )
-        for entry in result.summary.top_entries:
-            lines.append(
-                f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} "
-                f"{entry.average_score:>10.2f}"
-            )
-
-    if result.summary.top_champions:
-        lines.extend(["", "Top Champions"])
-        for champion in result.summary.top_champions:
-            lines.append(
-                f"{champion.rank:>2}. {champion.team_name} ({champion.probability:.4f})"
-            )
-
-    return "\n".join(lines)
-
-
-def _format_prepare_summary(summary: PrepareDataSummary) -> str:
-    """Render human-readable summary for prepare-data command."""
-
-    lines = [
-        f"Prepared dataset written to: {summary.output_dir}",
-        (
-            "Counts: "
-            f"teams={summary.teams} games={summary.games} entries={summary.entries} "
-            f"constraints={summary.constraints} ratings={summary.ratings} aliases={summary.aliases}"
-        ),
-    ]
-    return "\n".join(lines)
-
-
-def _format_refresh_summary(summary: RefreshDataSummary) -> str:
-    """Render human-readable summary for refresh-data command."""
-
-    lines = [
-        f"Refreshed raw dataset written to: {summary.output_dir}",
-        (
-            "Counts: "
-            f"teams={summary.teams} games={summary.games} entries={summary.entries} "
-            f"constraints={summary.constraints} ratings={summary.ratings} aliases={summary.aliases}"
-        ),
-        (
-            "Entry handling: "
-            f"skipped={summary.skipped_entries} retry_attempted={summary.retry_attempted}"
-        ),
-    ]
-    return "\n".join(lines)
-
-
-def _format_refresh_national_picks_summary(summary: RefreshNationalPicksSummary) -> str:
-    """Render human-readable summary for refresh-national-picks command."""
-
-    lines = [
-        f"Refreshed national picks written to: {summary.output_dir}",
-        (
-            "Counts: "
-            f"games={summary.games} rows={summary.rows} total_brackets={summary.total_brackets}"
-        ),
-    ]
-    return "\n".join(lines)
+    run_server(host=host, port=port, reload=reload)
 
 
 def main() -> None:

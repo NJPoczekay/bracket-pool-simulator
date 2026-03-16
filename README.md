@@ -1,6 +1,6 @@
-# Bracket Pool Simulator CLI
+# Bracket Pool Simulator
 
-`bracket-pool-simulator` is a command-line tool for refreshing NCAA bracket pool data, normalizing it into simulation-ready inputs, and running deterministic Monte Carlo simulations against an ESPN-style pool.
+`bracket-pool-simulator` now supports both the original CLI workflow and a phase-0 local web/API surface. The project refreshes NCAA bracket pool data, normalizes it into simulation-ready inputs, and runs deterministic Monte Carlo simulations against an ESPN-style pool while laying the groundwork for browser-based analysis and optimization tools.
 
 ## Requirements
 
@@ -31,9 +31,26 @@ uv run bracket-sim --help
 uv run python -m bracket_sim.infrastructure.cli.main --help
 ```
 
+You can run the local web/API surface in either of these ways:
+
+```bash
+uv run bracket-web --reload
+```
+
+```bash
+uv run bracket-sim serve --reload
+```
+
+By default the server runs on [http://127.0.0.1:8000](http://127.0.0.1:8000) and exposes:
+
+- `/`: a minimal frontend shell for the staged product surface
+- `/api/health`: a health/version probe
+- `/api/foundation`: shared product metadata for scoring systems, completion modes, and cache rules
+- `/api/cache-key`: deterministic cache-key preview endpoint for future analysis/optimization settings
+
 ## Commands
 
-The CLI exposes six commands:
+The CLI exposes seven commands:
 
 - `refresh-data`: fetch raw bracket data from ESPN plus ratings data
 - `prepare-data`: normalize raw files into validated simulation inputs
@@ -41,6 +58,7 @@ The CLI exposes six commands:
 - `benchmark`: measure simulation and scoring performance against budgets
 - `report`: generate deterministic offline report bundles from normalized inputs
 - `refresh-national-picks`: download ESPN national pick-count snapshots
+- `serve`: run the local web/API surface
 
 ## Typical Workflow
 
@@ -105,6 +123,12 @@ Expected prepared directory contents:
 - `entries.json`
 - `constraints.json` when completed games exist
 - `ratings.csv`
+
+Prepared datasets now participate in a shared identity scheme for future browser features:
+
+- `dataset_hash`: SHA-256 over the sorted top-level `.json`/`.csv`/`.parquet` file hashes
+- `input_hashes`: per-file hashes persisted into run and report manifests
+- future analysis/optimization cache keys: SHA-256 over artifact kind + dataset hash + settings payload
 
 ### 3. Run simulations
 
@@ -222,6 +246,16 @@ Output includes:
 - `metadata.json`
 - `snapshots/challenge.json`
 
+### 7. Run the local web/API surface
+
+Phase 0 adds a small FastAPI app and static frontend shell alongside the CLI:
+
+```bash
+uv run bracket-sim serve --host 127.0.0.1 --port 8000 --reload
+```
+
+The frontend is intentionally lightweight for now. It exists to prove the application layering, publish shared typed product contracts, and keep future analyzer/optimizer logic out of the UI.
+
 ## Local Example With Bundled Test Data
 
 The repository includes a prepared synthetic dataset under `tests/fixtures/synthetic_64`, so you can try the simulator immediately:
@@ -248,3 +282,4 @@ uv run bracket-sim simulate \
 - `simulate` and `benchmark` require normalized input files, not raw refresh outputs.
 - `prepare-data` is the bridge between acquisition (`refresh-data`) and simulation (`simulate`).
 - `refresh-national-picks` is acquisition-only; it does not change simulation inputs by itself.
+- `serve` currently exposes product foundation metadata rather than full analysis or optimization flows.

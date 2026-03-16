@@ -12,8 +12,10 @@ from uuid import uuid4
 
 from bracket_sim import __version__
 from bracket_sim.domain.models import RunCheckpoint, RunManifest, SimulationConfig, SimulationResult
-
-_INPUT_FILENAMES = ("teams.json", "games.json", "entries.json", "constraints.json", "ratings.csv")
+from bracket_sim.infrastructure.storage.cache_keys import (
+    capture_dataset_file_hashes,
+    capture_dataset_hash,
+)
 
 
 @dataclass(frozen=True)
@@ -63,14 +65,7 @@ def generate_run_id(*, config: SimulationConfig) -> str:
 def capture_input_hashes(input_dir: Path) -> dict[str, str]:
     """Hash normalized input artifacts for reproducibility checks."""
 
-    hashes: dict[str, str] = {}
-    for filename in _INPUT_FILENAMES:
-        path = input_dir / filename
-        if not path.exists():
-            continue
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        hashes[filename] = digest
-    return hashes
+    return capture_dataset_file_hashes(input_dir)
 
 
 def build_run_manifest(
@@ -88,6 +83,7 @@ def build_run_manifest(
         code_version=__version__,
         git_commit=read_git_commit(),
         input_dir=config.input_dir,
+        dataset_hash=capture_dataset_hash(config.input_dir),
         input_hashes=capture_input_hashes(config.input_dir),
         n_sims=config.n_sims,
         seed=config.seed,
@@ -116,6 +112,7 @@ def verify_run_manifest(
     comparisons = {
         "code_version": (manifest.code_version, __version__),
         "git_commit": (manifest.git_commit, current_git_commit),
+        "dataset_hash": (manifest.dataset_hash, capture_dataset_hash(config.input_dir)),
         "n_sims": (manifest.n_sims, config.n_sims),
         "seed": (manifest.seed, config.seed),
         "rating_scale": (manifest.rating_scale, config.rating_scale),

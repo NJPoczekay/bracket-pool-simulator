@@ -225,6 +225,7 @@ class RunManifest(BaseModel):
     code_version: str
     git_commit: str | None = None
     input_dir: Path
+    dataset_hash: str = Field(min_length=64, max_length=64)
     input_hashes: dict[str, str]
     n_sims: int = Field(gt=0)
     seed: int
@@ -313,6 +314,7 @@ class ReportBundleManifest(BaseModel):
     code_version: str
     git_commit: str | None = None
     input_dir: Path
+    dataset_hash: str = Field(min_length=64, max_length=64)
     input_hashes: dict[str, str]
     output_dir: Path
     n_sims: int = Field(gt=0)
