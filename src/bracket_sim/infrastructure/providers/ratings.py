@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import difflib
 import html
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -105,17 +104,15 @@ class LocalRatingsProvider(RatingsProvider):
 
 
 class KenPomRatingSourceProvider(RatingSourceProvider):
-    """Fetch raw rating rows from KenPom with an authenticated session cookie."""
+    """Fetch raw rating rows from KenPom's public ratings page."""
 
     def __init__(
         self,
         *,
-        cookie_env_var: str = "KENPOM_COOKIE",
         url: str = "https://kenpom.com/",
         timeout_seconds: float = 20.0,
         client: httpx.Client | None = None,
     ) -> None:
-        self._cookie_env_var = cookie_env_var
         self._url = url
         self._client = client or httpx.Client(timeout=timeout_seconds, follow_redirects=True)
         self._owns_client = client is None
@@ -127,22 +124,17 @@ class KenPomRatingSourceProvider(RatingSourceProvider):
             self._client.close()
 
     def fetch_rating_source(self) -> RatingSourceData:
-        cookie_value = os.getenv(self._cookie_env_var, "").strip()
-        if cookie_value == "":
-            msg = (
-                f"{self._cookie_env_var} is required when KenPom ratings are enabled. "
-                "Set it to your authenticated KenPom cookie string."
-            )
-            raise ValueError(msg)
-
         try:
-            response = self._client.get(self._url, headers={"Cookie": cookie_value})
+            response = self._client.get(self._url)
         except httpx.HTTPError as exc:
             msg = f"Failed KenPom request: {exc}"
             raise ValueError(msg) from exc
 
         if response.status_code in {401, 403}:
-            msg = "KenPom authentication failed (401/403). Refresh KENPOM_COOKIE and retry."
+            msg = (
+                "KenPom request was rejected (401/403). "
+                "The public ratings page may have changed or become unavailable."
+            )
             raise ValueError(msg)
 
         try:
@@ -158,18 +150,16 @@ class KenPomRatingSourceProvider(RatingSourceProvider):
 
 
 class KenPomRatingsProvider(RatingsProvider):
-    """Fetch ratings from KenPom with an authenticated session cookie."""
+    """Fetch ratings from KenPom's public ratings page."""
 
     def __init__(
         self,
         *,
-        cookie_env_var: str = "KENPOM_COOKIE",
         url: str = "https://kenpom.com/",
         timeout_seconds: float = 20.0,
         client: httpx.Client | None = None,
     ) -> None:
         self._source_provider = KenPomRatingSourceProvider(
-            cookie_env_var=cookie_env_var,
             url=url,
             timeout_seconds=timeout_seconds,
             client=client,

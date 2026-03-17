@@ -82,8 +82,6 @@ uv run bracket-sim refresh-bracket-lab-data \
 Or fetch the KenPom source rows directly:
 
 ```bash
-export KENPOM_COOKIE="your authenticated cookie string"
-
 uv run bracket-sim refresh-bracket-lab-data \
   --challenge tournament-challenge-bracket-2026 \
   --raw data/bracket-lab/raw/2026 \
@@ -140,8 +138,6 @@ By default the command expects ratings from either:
 You can also fetch ratings from KenPom instead:
 
 ```bash
-export KENPOM_COOKIE="your authenticated cookie string"
-
 uv run bracket-sim refresh-data \
   --group-url "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID" \
   --raw data/raw/2026 \
@@ -152,7 +148,7 @@ Useful options:
 
 - `--min-usable-entries`: fail if too many ESPN entries are skipped during parsing
 - `--ratings-file`: read a local CSV with columns `team,rating,tempo` or `team_id,rating,tempo`
-- `--kenpom`: fetch ratings from KenPom using `KENPOM_COOKIE`
+- `--kenpom`: fetch public ratings from KenPom
 
 Expected raw directory contents after a successful refresh:
 

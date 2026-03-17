@@ -87,31 +87,45 @@ def test_normalize_rating_rows_supports_manual_aliases_for_play_in_candidates() 
     assert aliases == [RawAliasRow(alias="Miami OH", team_id="playin-m-oh")]
 
 
-def test_kenpom_provider_requires_cookie(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("KENPOM_COOKIE", raising=False)
-    provider = KenPomRatingsProvider(
-        client=httpx.Client(transport=httpx.MockTransport(_ok_handler))
-    )
-
-    with pytest.raises(ValueError, match="KENPOM_COOKIE"):
-        provider.fetch_ratings(teams=[RawTeamRow(team_id="a", name="A", seed=1, region="x")])
-
-
-def test_kenpom_provider_surfaces_auth_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_kenpom_provider_uses_public_request_without_cookie(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("KENPOM_COOKIE", "session=abc")
 
+    html_payload = """
+    <table id="ratings-table">
+      <tr>
+        <th>Rk</th><th>Team</th><th>Conf</th><th>W-L</th><th>AdjEM</th>
+        <th>AdjO</th><th>AdjD</th><th>AdjEM.1</th><th>AdjT</th>
+      </tr>
+      <tr>
+        <td>1</td><td>A</td><td>X</td><td>1-0</td><td>30.1</td>
+        <td>1</td><td>2</td><td>1</td><td>66.2</td>
+      </tr>
+    </table>
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "cookie" not in request.headers
+        return httpx.Response(200, text=html_payload)
+
+    provider = KenPomRatingsProvider(client=httpx.Client(transport=httpx.MockTransport(handler)))
+    ratings = provider.fetch_ratings(teams=[RawTeamRow(team_id="a", name="A", seed=1, region="x")])
+
+    assert [row.team for row in ratings.ratings] == ["a"]
+
+
+def test_kenpom_provider_surfaces_auth_failure() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, text="forbidden")
 
     provider = KenPomRatingsProvider(client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-    with pytest.raises(ValueError, match="authentication failed"):
+    with pytest.raises(ValueError, match="rejected"):
         provider.fetch_ratings(teams=[RawTeamRow(team_id="a", name="A", seed=1, region="x")])
 
 
-def test_kenpom_provider_surfaces_parse_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KENPOM_COOKIE", "session=abc")
-
+def test_kenpom_provider_surfaces_parse_failure() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, text="<html><body>no table here</body></html>")
 
@@ -121,9 +135,7 @@ def test_kenpom_provider_surfaces_parse_failure(monkeypatch: pytest.MonkeyPatch)
         provider.fetch_ratings(teams=[RawTeamRow(team_id="a", name="A", seed=1, region="x")])
 
 
-def test_kenpom_provider_parses_minimal_table(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KENPOM_COOKIE", "session=abc")
-
+def test_kenpom_provider_parses_minimal_table() -> None:
     html_payload = """
     <table id="ratings-table">
       <tr>
@@ -155,10 +167,7 @@ def test_kenpom_provider_parses_minimal_table(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_kenpom_rating_source_provider_returns_raw_team_names(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("KENPOM_COOKIE", "session=abc")
-
     html_payload = """
     <table id="ratings-table">
       <tr>
@@ -181,7 +190,3 @@ def test_kenpom_rating_source_provider_returns_raw_team_names(
     source = provider.fetch_rating_source()
 
     assert [row.team for row in source.ratings] == ["Miami OH"]
-
-
-def _ok_handler(request: httpx.Request) -> httpx.Response:
-    return httpx.Response(200, text="<html></html>")
