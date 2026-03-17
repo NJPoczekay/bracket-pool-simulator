@@ -12,8 +12,8 @@ from tests.helpers.mock_espn_payloads import build_mock_payloads
 from bracket_sim.application.run_pool_pipeline import PoolPipelineResult, run_pool_pipeline
 from bracket_sim.infrastructure.providers.espn_api import EspnApiProvider
 from bracket_sim.infrastructure.providers.ratings import LocalRatingsProvider
-from bracket_sim.infrastructure.web.app import create_app
 from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
+from bracket_sim.infrastructure.web.main import create_app
 from bracket_sim.infrastructure.web.service import PoolService
 
 
@@ -89,6 +89,8 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert (report_dir / "summary.json").exists()
     assert (report_dir / "manifest.json").exists()
     assert (report_dir / "entry_summary.csv").exists()
+    assert "Bracket Lab" in dashboard_response.text
+    assert "Pool Tracker" in dashboard_response.text
     assert "Top Entries" in dashboard_response.text
     assert "Top Champions" in dashboard_response.text
 

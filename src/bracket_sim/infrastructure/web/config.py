@@ -1,4 +1,4 @@
-"""Configuration loading for the local multi-pool web wrapper."""
+"""Configuration loading for the Pool Tracker portion of the integrated web app."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class PoolSchedule(BaseModel):
 
 
 class PoolProfile(PoolPipelineConfig):
-    """One configured bracket pool exposed by the web wrapper."""
+    """One configured tracker pool exposed by the integrated web app."""
 
     schedule: PoolSchedule | None = None
 
@@ -63,7 +63,7 @@ class PoolProfile(PoolPipelineConfig):
 
 
 class PoolRegistry(BaseModel):
-    """Collection wrapper for all configured web pools."""
+    """Collection wrapper for all configured tracker pools."""
 
     model_config = ConfigDict(frozen=True)
 

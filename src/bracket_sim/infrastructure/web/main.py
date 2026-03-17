@@ -1,12 +1,16 @@
-"""FastAPI entrypoint for the local web/API surface."""
+"""FastAPI entrypoint for the integrated Bracket Lab and Pool Tracker app."""
 
 from __future__ import annotations
 
 import argparse
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from bracket_sim import __version__
 from bracket_sim.application.product_foundation import (
@@ -18,24 +22,67 @@ from bracket_sim.domain.product_models import (
     CacheKeyPreviewRequest,
     ProductFoundation,
 )
-from bracket_sim.infrastructure.web.app import create_app as create_pool_app
-from bracket_sim.infrastructure.web.shell import build_frontend_shell
+from bracket_sim.infrastructure.web.app import PoolScheduler
+from bracket_sim.infrastructure.web.config import PoolProfile, load_pool_registry
+from bracket_sim.infrastructure.web.service import (
+    REPORT_ARTIFACT_FILENAMES,
+    LatestReport,
+    PoolRunBusyError,
+    PoolService,
+    UnknownPoolError,
+)
+
+_TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
 
-def create_app() -> FastAPI:
-    """Build the FastAPI application for local development."""
+def create_app(
+    *,
+    config_path: Path | None = None,
+    service: PoolService | None = None,
+    enable_scheduler: bool = True,
+    scheduler_poll_seconds: float = 60.0,
+) -> FastAPI:
+    """Build the integrated local web/API application."""
+
+    pool_service = service
+    if pool_service is None and config_path is not None:
+        pool_service = PoolService(load_pool_registry(config_path))
+
+    foundation = build_product_foundation(tracker_enabled=pool_service is not None)
+    scheduler = (
+        PoolScheduler(pool_service, poll_seconds=scheduler_poll_seconds)
+        if pool_service is not None
+        else None
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.product_foundation = foundation
+        app.state.pool_service = pool_service
+        app.state.pool_scheduler = scheduler
+        if enable_scheduler and scheduler is not None:
+            scheduler.start()
+        try:
+            yield
+        finally:
+            if scheduler is not None:
+                scheduler.stop()
 
     app = FastAPI(
         title="Bracket Pool Simulator",
         version=__version__,
-        summary="Phase-0 web/API foundation for bracket tools.",
+        summary="Integrated Bracket Lab and Pool Tracker surface.",
+        lifespan=lifespan,
     )
+    app.state.product_foundation = foundation
+    app.state.pool_service = pool_service
+    app.state.pool_scheduler = scheduler
 
     @app.get("/", response_class=HTMLResponse)
-    def index() -> str:
-        """Serve the minimal frontend shell."""
+    def index(request: Request) -> HTMLResponse:
+        """Render the integrated product shell."""
 
-        return build_frontend_shell()
+        return _render_home(request, status_code=200)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -44,16 +91,121 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": __version__}
 
     @app.get("/api/foundation", response_model=ProductFoundation)
-    def foundation() -> ProductFoundation:
-        """Return phase-0 product metadata for the web shell."""
+    def foundation_api(request: Request) -> ProductFoundation:
+        """Return integrated product metadata for the shared app shell."""
 
-        return build_product_foundation()
+        return _product_foundation(request)
 
     @app.post("/api/cache-key", response_model=CacheKeyPreview)
     def cache_key_preview(request: CacheKeyPreviewRequest) -> CacheKeyPreview:
         """Preview the shared cache-key strategy for future workflows."""
 
         return preview_cache_key(request)
+
+    @app.get("/api/pools")
+    def list_pools_api(request: Request) -> dict[str, object]:
+        """Return configured tracker pools, or an empty list when tracking is not configured."""
+
+        return {"pools": _serialized_pools(request)}
+
+    @app.post("/pools/{pool_id}/run", response_class=HTMLResponse)
+    def run_pool_html(pool_id: str, request: Request) -> HTMLResponse:
+        """Run one tracker pool and re-render the integrated shell."""
+
+        service = _pool_service_or_404(request, pool_id)
+        try:
+            pool = service.get_pool(pool_id)
+            service.run_pool(pool_id)
+        except UnknownPoolError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
+        except PoolRunBusyError as exc:
+            return _render_home(request, error=str(exc), status_code=409)
+        except ValueError as exc:
+            return _render_home(request, error=str(exc), status_code=400)
+        except Exception as exc:  # pragma: no cover - defensive guardrail
+            return _render_home(request, error=f"Unexpected error: {exc}", status_code=500)
+
+        return _render_home(
+            request,
+            message=f"Ran {pool.name}.",
+            status_code=200,
+        )
+
+    @app.post("/api/pools/{pool_id}/run")
+    def run_pool_api(pool_id: str, request: Request) -> dict[str, object]:
+        """Run one configured tracker pool and return its latest report metadata."""
+
+        service = _pool_service_or_404(request, pool_id)
+        try:
+            pool = service.get_pool(pool_id)
+            result = service.run_pool(pool_id)
+        except UnknownPoolError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
+        except PoolRunBusyError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        latest_report = service.get_latest_report(pool_id)
+        return {
+            "pool": _serialize_pool(request, pool=pool, latest_report=latest_report),
+            "report_dir": str(result.report_dir),
+        }
+
+    @app.get("/api/pools/{pool_id}/latest-report")
+    def latest_report_api(pool_id: str, request: Request) -> dict[str, object]:
+        """Return the newest tracker report bundle for one configured pool."""
+
+        service = _pool_service_or_404(request, pool_id)
+        try:
+            pool = service.get_pool(pool_id)
+        except UnknownPoolError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
+
+        latest_report = service.get_latest_report(pool_id)
+        if latest_report is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No report bundle found for pool {pool_id!r}",
+            )
+
+        return _serialize_pool(request, pool=pool, latest_report=latest_report)
+
+    @app.get(
+        "/pools/{pool_id}/artifacts/{artifact_name}",
+        name="download_latest_artifact",
+    )
+    def download_latest_artifact(
+        pool_id: str,
+        artifact_name: str,
+        request: Request,
+    ) -> FileResponse:
+        """Download one artifact from the newest report bundle for a configured pool."""
+
+        if artifact_name not in REPORT_ARTIFACT_FILENAMES:
+            raise HTTPException(status_code=404, detail=f"Unknown artifact {artifact_name!r}")
+
+        service = _pool_service_or_404(request, pool_id)
+        try:
+            service.get_pool(pool_id)
+        except UnknownPoolError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
+
+        latest_report = service.get_latest_report(pool_id)
+        if latest_report is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No report bundle found for pool {pool_id!r}",
+            )
+
+        artifact_path = latest_report.artifact_paths.get(artifact_name)
+        if artifact_path is None or not artifact_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Artifact {artifact_name!r} is not available for pool {pool_id!r}",
+            )
+
+        return FileResponse(path=artifact_path, filename=artifact_name)
 
     return app
 
@@ -68,7 +220,7 @@ def run_server(
     reload: bool = False,
     config_path: Path | None = None,
 ) -> None:
-    """Run the local web/API server."""
+    """Run the integrated local web/API server."""
 
     import uvicorn
 
@@ -78,7 +230,7 @@ def run_server(
             raise ValueError(msg)
 
         uvicorn.run(
-            create_pool_app(config_path=config_path),
+            create_app(config_path=config_path),
             host=host,
             port=port,
             reload=False,
@@ -101,13 +253,113 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        help="Optional pool config TOML for the multi-pool wrapper",
+        help="Optional pool config TOML to enable live pool tracking data",
     )
     parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind")
     parser.add_argument("--port", type=int, default=8000, help="TCP port to bind")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
     args = parser.parse_args()
     run_server(host=args.host, port=args.port, reload=args.reload, config_path=args.config)
+
+
+def _product_foundation(request: Request) -> ProductFoundation:
+    return cast(ProductFoundation, request.app.state.product_foundation)
+
+
+def _pool_service(request: Request) -> PoolService | None:
+    return cast(PoolService | None, request.app.state.pool_service)
+
+
+def _pool_service_or_404(request: Request, pool_id: str) -> PoolService:
+    service = _pool_service(request)
+    if service is None:
+        raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}")
+    return service
+
+
+def _render_home(
+    request: Request,
+    *,
+    message: str | None = None,
+    error: str | None = None,
+    status_code: int,
+) -> HTMLResponse:
+    foundation = _product_foundation(request).model_dump(mode="json")
+    workflow_by_key = {workflow["key"]: workflow for workflow in foundation["workflows"]}
+    service = _pool_service(request)
+    context = {
+        "request": request,
+        "version": __version__,
+        "foundation": foundation,
+        "workflow_by_key": workflow_by_key,
+        "message": message,
+        "error": error,
+        "busy": service.is_busy() if service is not None else False,
+        "tracker_configured": service is not None,
+        "tracker_setup_path": "config/pools.example.toml",
+        "pools": _serialized_pools(request),
+    }
+    return _TEMPLATES.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context=context,
+        status_code=status_code,
+    )
+
+
+def _serialized_pools(request: Request) -> list[dict[str, object]]:
+    service = _pool_service(request)
+    if service is None:
+        return []
+
+    return [
+        _serialize_pool(
+            request,
+            pool=pool,
+            latest_report=service.get_latest_report(pool.id),
+        )
+        for pool in service.list_pools()
+    ]
+
+
+def _serialize_pool(
+    request: Request,
+    *,
+    pool: PoolProfile,
+    latest_report: LatestReport | None,
+) -> dict[str, object]:
+    return {
+        "id": pool.id,
+        "name": pool.name,
+        "group_url": pool.group_url,
+        "latest_report": _serialize_latest_report(request, latest_report),
+    }
+
+
+def _serialize_latest_report(
+    request: Request,
+    latest_report: LatestReport | None,
+) -> dict[str, object] | None:
+    if latest_report is None:
+        return None
+
+    return {
+        "report_dir": str(latest_report.report_dir),
+        "summary": latest_report.summary.model_dump(mode="json"),
+        "artifacts": {
+            filename: {
+                "name": filename,
+                "url": str(
+                    request.url_for(
+                        "download_latest_artifact",
+                        pool_id=latest_report.pool_id,
+                        artifact_name=filename,
+                    )
+                ),
+            }
+            for filename in latest_report.artifact_paths
+        },
+    }
 
 
 if __name__ == "__main__":

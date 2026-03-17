@@ -2,6 +2,19 @@
 
 This project simulates NCAA tournament outcomes and estimates each ESPN bracket entry's chance to win a specific pool.
 
+## Product Shape
+
+The app now presents two adjacent workflows in one local web shell:
+
+1. `Bracket Lab`
+   - Pre-tournament planning only.
+   - Intended for bracket completion, analyzer, and optimizer workflows before picks lock.
+   - Uses exploratory assumptions and does not share mutable state with tracked pools.
+2. `Pool Tracker`
+   - In-tournament odds tracking for real, locked pool entries.
+   - Uses the existing refresh, prepare, simulate/report pipeline to keep live pool summaries current.
+   - Reads tracker-only config from `config/pools.toml` when enabled.
+
 ## Core Logic
 
 1. Build the current tournament state from three sources:
@@ -71,3 +84,8 @@ This project simulates NCAA tournament outcomes and estimates each ESPN bracket 
 - Team-level diagnostic reporting
   - A separate simulation report can show team outcome distributions (for example, odds of at least N wins).
   - This is useful for validating the tournament model independently of pool scoring.
+
+- Integrated web surface
+  - The FastAPI app always renders both `Bracket Lab` and `Pool Tracker`.
+  - Without tracker config, the `Pool Tracker` section stays in a setup state and `/api/pools` returns an empty list.
+  - With tracker config, the same app exposes live pool runs, latest report metadata, and report artifact downloads.

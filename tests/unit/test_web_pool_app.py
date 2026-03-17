@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 
 from bracket_sim.application.run_pool_pipeline import PoolPipelineResult, create_report_output_dir
 from bracket_sim.domain.models import ChampionOddsRow, EntryReportRow, ReportSummary
-from bracket_sim.infrastructure.web.app import create_app
 from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
+from bracket_sim.infrastructure.web.main import create_app
 from bracket_sim.infrastructure.web.service import PoolService
 
 
@@ -107,6 +107,8 @@ def test_dashboard_renders_multiple_pools_and_request_local_error(tmp_path: Path
         failed_run = client.post("/pools/alpha/run")
 
     assert dashboard.status_code == 200
+    assert "Bracket Lab" in dashboard.text
+    assert "Pool Tracker" in dashboard.text
     assert "Alpha Pool" in dashboard.text
     assert "Beta Pool" in dashboard.text
     assert "Entry One" in dashboard.text

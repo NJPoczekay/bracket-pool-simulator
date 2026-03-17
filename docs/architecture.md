@@ -85,32 +85,36 @@ src/
         presenter.py
       web/
         main.py
-        shell.py
+        app.py
 tests/
   unit/
   integration/
   fixtures/
 ```
 
-## Product Foundation (Phase 0)
+## Product Foundation And Integrated App Surface
 
-Phase 0 adds the contracts and adapters needed for later browser features without implementing analyzer or optimizer logic yet:
+Phase 0 established the contracts and adapters needed for later browser features. The integrated web app now uses that same foundation to host two adjacent workflows without merging their state:
+
+- `Bracket Lab`: pre-tournament planning and future analyzer/optimizer work
+- `Pool Tracker`: locked-entry odds tracking and report automation
 
 - Shared product-facing models live in `domain/product_models.py`.
 - The local FastAPI app lives in `infrastructure/web/main.py`.
-- The minimal frontend shell lives in `infrastructure/web/shell.py`.
+- Scheduler helpers for tracker pools live in `infrastructure/web/app.py`.
 - Product bootstrap metadata comes from `application/product_foundation.py`.
 - CLI rendering is isolated in `infrastructure/cli/presenter.py` so service results stay reusable.
 
-The new product contracts cover:
+The product contracts cover:
 
+- top-level workflow metadata for the integrated app shell
 - bracket editing: `BracketEditPick`, `EditableBracket`
 - pool/scoring setup: `PoolSettings`, `ScoringSystem`, `ScoringSystemKey`
 - completion setup: `CompletionMode`, `CompletionModeOption`
 - future analyzer payloads: `PickDiagnostic`, `BracketAnalysis`
 - future optimizer payloads: `OptimizationAlternative`, `OptimizationResult`
 
-These contracts should remain versioned and stable enough for future API endpoints.
+These contracts should remain versioned and stable enough for future API endpoints. `PoolSettings` intentionally stays separate from tracker pool configuration because Bracket Lab is pre-lock and Pool Tracker is post-lock.
 
 ## Cache And Manifest Strategy
 
@@ -176,4 +180,4 @@ Reusable simulation-derived artifacts now share a common identity model:
 - Require explicit `--refresh-data` to hit external sources.
 - Require explicit seed in production runs (or auto-generate and persist).
 - Keep scraping as a replaceable adapter, not core logic.
-- Keep the web shell thin and route all product logic through typed application services.
+- Keep the integrated web shell thin and route all product logic through typed application services.

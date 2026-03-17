@@ -44,6 +44,21 @@ class CacheArtifactKind(StrEnum):
     OPTIMIZATION = "optimization"
 
 
+class WorkflowState(StrEnum):
+    """Lifecycle state for one top-level product workflow."""
+
+    PLANNED = "planned"
+    SETUP_REQUIRED = "setup_required"
+    LIVE = "live"
+
+
+class WorkflowKey(StrEnum):
+    """Stable identifiers for the integrated app workflows."""
+
+    BRACKET_LAB = "bracket_lab"
+    POOL_TRACKER = "pool_tracker"
+
+
 class ScoringSystem(BaseModel):
     """Definition for one supported pool scoring system."""
 
@@ -211,13 +226,27 @@ class CachePolicy(BaseModel):
     artifact_kinds: list[CacheArtifactKind]
 
 
+class ProductWorkflow(BaseModel):
+    """One top-level workflow shown in the integrated web app."""
+
+    model_config = ConfigDict(frozen=True)
+
+    key: WorkflowKey
+    label: str = Field(min_length=1)
+    timing: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    sequence: int = Field(ge=1)
+    state: WorkflowState
+
+
 class ProductFoundation(BaseModel):
-    """Bootstrap payload for the phase-0 web shell."""
+    """Bootstrap payload for the integrated web shell."""
 
     model_config = ConfigDict(frozen=True)
 
     app_name: str = Field(min_length=1)
     roadmap_phase: str = Field(min_length=1)
+    workflows: list[ProductWorkflow]
     scoring_systems: list[ScoringSystem]
     completion_modes: list[CompletionModeOption]
     cache_policy: CachePolicy

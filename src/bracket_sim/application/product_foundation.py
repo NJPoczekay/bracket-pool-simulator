@@ -1,4 +1,4 @@
-"""Shared phase-0 product metadata for the web/API layer."""
+"""Shared product metadata for the integrated web/API layer."""
 
 from __future__ import annotations
 
@@ -10,18 +10,22 @@ from bracket_sim.domain.product_models import (
     CompletionMode,
     CompletionModeOption,
     ProductFoundation,
+    ProductWorkflow,
     ScoringSystem,
     ScoringSystemKey,
+    WorkflowKey,
+    WorkflowState,
 )
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key
 
 
-def build_product_foundation() -> ProductFoundation:
-    """Return the shared product metadata exposed by the phase-0 API."""
+def build_product_foundation(*, tracker_enabled: bool = False) -> ProductFoundation:
+    """Return the shared product metadata exposed by the integrated app."""
 
     return ProductFoundation(
         app_name="Bracket Pool Simulator",
-        roadmap_phase="phase_0_foundation",
+        roadmap_phase="integrated_bracket_lab_and_tracker",
+        workflows=_workflows(tracker_enabled=tracker_enabled),
         scoring_systems=_scoring_systems(),
         completion_modes=_completion_modes(),
         cache_policy=CachePolicy(
@@ -66,26 +70,53 @@ def _scoring_systems() -> list[ScoringSystem]:
             label="ESPN",
             round_values=(1, 2, 4, 8, 16, 32),
             implemented=True,
-            description="Current simulator scoring and the phase-0 default.",
+            description="Current simulator scoring and the baseline for both workflows.",
         ),
         ScoringSystem(
             key=ScoringSystemKey.LINEAR,
             label="Linear",
             round_values=(1, 2, 3, 4, 5, 6),
-            description="Planned for phase 2 analyzer support.",
+            description="Planned for Bracket Lab analysis and optimization support.",
         ),
         ScoringSystem(
             key=ScoringSystemKey.FIBONACCI,
             label="Fibonacci",
             round_values=(2, 3, 5, 8, 13, 21),
-            description="Planned for phase 2 analyzer support.",
+            description="Planned for Bracket Lab analysis and optimization support.",
         ),
         ScoringSystem(
             key=ScoringSystemKey.ROUND_PLUS_SEED,
             label="Round Plus Seed",
             round_values=(1, 2, 3, 4, 5, 6),
             seed_bonus=True,
-            description="Planned for phase 2 analyzer support with a seed bonus overlay.",
+            description="Planned for Bracket Lab analysis with a seed bonus overlay.",
+        ),
+    ]
+
+
+def _workflows(*, tracker_enabled: bool) -> list[ProductWorkflow]:
+    return [
+        ProductWorkflow(
+            key=WorkflowKey.BRACKET_LAB,
+            label="Bracket Lab",
+            timing="Pre-tournament",
+            description=(
+                "Plan brackets before lock with future completion, analysis, and optimizer "
+                "workflows."
+            ),
+            sequence=1,
+            state=WorkflowState.PLANNED,
+        ),
+        ProductWorkflow(
+            key=WorkflowKey.POOL_TRACKER,
+            label="Pool Tracker",
+            timing="In-tournament",
+            description=(
+                "Refresh live pool data, rerun simulations, and track odds once real entries are "
+                "locked."
+            ),
+            sequence=2,
+            state=WorkflowState.LIVE if tracker_enabled else WorkflowState.SETUP_REQUIRED,
         ),
     ]
 

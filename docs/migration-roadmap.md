@@ -15,6 +15,15 @@ Ship a deterministic, testable CLI that:
 - Require reproducibility (seed + input hashes + config).
 - Prefer small, verifiable increments with regression tests.
 
+## Integration Note
+
+The local web product is now one app shell with two adjacent workflows:
+
+- `Bracket Lab` for pre-tournament planning and future optimizer work
+- `Pool Tracker` for post-lock odds tracking on real pool entries
+
+Phase 7 covers the `Pool Tracker` half of that integrated app. It should not absorb Bracket Lab assumptions or become the source of truth for pre-lock optimizer inputs.
+
 ## Phase 0: Foundation (1-2 days)
 
 ### Deliverables
@@ -168,16 +177,17 @@ Ship a deterministic, testable CLI that:
 ## Phase 7: Self-Serve Access + Automation (Optional)
 
 ### Deliverables
-- Lightweight API/UI for non-CLI users
+- `Pool Tracker` section inside the integrated API/UI for non-CLI users
 - Scheduled refresh + report generation
 
 ### Issues
 - Add API endpoint(s) for run + fetch results.
-- Add minimal UI flow for non-technical users.
+- Add minimal Pool Tracker UI flow for non-technical users inside the shared app shell.
 - Add scheduler/job automation.
+- Keep live tracker pool config separate from pre-tournament optimizer/planning state.
 
 ### Exit Criteria
-- Non-technical users can trigger refreshes and consume results without manual file editing.
+- Non-technical users can trigger live pool refreshes and consume results without manual file editing.
 
 ## MVP Scope Lock (What We Build First)
 

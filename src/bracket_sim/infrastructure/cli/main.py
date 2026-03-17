@@ -374,7 +374,7 @@ def serve_command(
         Path | None,
         typer.Option(
             "--config",
-            help="Optional pool config TOML for the multi-pool web wrapper",
+            help="Optional pool config TOML to enable live pool tracking data",
             exists=True,
             file_okay=True,
             dir_okay=False,

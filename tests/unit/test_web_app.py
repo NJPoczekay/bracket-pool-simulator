@@ -22,7 +22,13 @@ def test_foundation_endpoint_exposes_phase_zero_contracts() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["roadmap_phase"] == "phase_0_foundation"
+    assert payload["roadmap_phase"] == "integrated_bracket_lab_and_tracker"
+    assert [workflow["key"] for workflow in payload["workflows"]] == [
+        "bracket_lab",
+        "pool_tracker",
+    ]
+    assert payload["workflows"][0]["state"] == "planned"
+    assert payload["workflows"][1]["state"] == "setup_required"
     assert any(
         system["key"] == "1-2-4-8-16-32" and system["implemented"] is True
         for system in payload["scoring_systems"]
@@ -61,4 +67,19 @@ def test_root_serves_frontend_shell() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Bracket tools, staged for the browser." in response.text
+    assert "Build Brackets, then Track Pool Odds." in response.text
+    assert "Bracket Lab" in response.text
+    assert "Pool Tracker" in response.text
+
+
+def test_root_and_pools_api_show_tracker_setup_state_without_config() -> None:
+    client = TestClient(create_app())
+
+    root_response = client.get("/")
+    pools_response = client.get("/api/pools")
+
+    assert root_response.status_code == 200
+    assert "Tracker Setup Required" in root_response.text
+    assert "config/pools.example.toml" in root_response.text
+    assert pools_response.status_code == 200
+    assert pools_response.json() == {"pools": []}

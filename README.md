@@ -1,6 +1,9 @@
 # Bracket Pool Simulator
 
-`bracket-pool-simulator` now supports both the original CLI workflow and a phase-0 local web/API surface. The project refreshes NCAA bracket pool data, normalizes it into simulation-ready inputs, and runs deterministic Monte Carlo simulations against an ESPN-style pool while laying the groundwork for browser-based analysis and optimization tools.
+`bracket-pool-simulator` supports the original CLI workflow plus one integrated local web/API app. The project refreshes NCAA bracket pool data, normalizes it into simulation-ready inputs, runs deterministic Monte Carlo simulations against an ESPN-style pool, and now presents two adjacent browser workflows in one shell:
+
+- `Bracket Lab`: pre-tournament planning and future optimizer/analyzer flows
+- `Pool Tracker`: live pool refresh/report/odds tracking once real entries are locked
 
 ## Requirements
 
@@ -43,10 +46,11 @@ uv run bracket-sim serve --reload
 
 By default the server runs on [http://127.0.0.1:8000](http://127.0.0.1:8000) and exposes:
 
-- `/`: a minimal frontend shell for the staged product surface
+- `/`: the integrated Bracket Lab + Pool Tracker shell
 - `/api/health`: a health/version probe
-- `/api/foundation`: shared product metadata for scoring systems, completion modes, and cache rules
+- `/api/foundation`: shared product metadata for workflows, scoring systems, completion modes, and cache rules
 - `/api/cache-key`: deterministic cache-key preview endpoint for future analysis/optimization settings
+- `/api/pools`: live tracker pool metadata, or an empty list when tracking is not configured
 
 ## Commands
 
@@ -58,7 +62,7 @@ The CLI exposes seven commands:
 - `benchmark`: measure simulation and scoring performance against budgets
 - `report`: generate deterministic offline report bundles from normalized inputs
 - `refresh-national-picks`: download ESPN national pick-count snapshots
-- `serve`: run the local web/API surface, or pass `--config` to use the multi-pool browser wrapper
+- `serve`: run the integrated local web/API surface, or pass `--config` to enable live pool tracking data
 
 ## Typical Workflow
 
@@ -248,15 +252,18 @@ Output includes:
 
 ### 7. Run the local web/API surface
 
-Phase 0 adds a small FastAPI app and static frontend shell alongside the CLI:
+The web app now keeps both browser-facing workflows in one place:
+
+- `Bracket Lab` comes first and stays focused on pre-lock planning and future optimizer flows
+- `Pool Tracker` comes second and stays focused on locked-entry pool odds tracking
 
 ```bash
 uv run bracket-sim serve --host 127.0.0.1 --port 8000 --reload
 ```
 
-The frontend is intentionally lightweight for now. It exists to prove the application layering, publish shared typed product contracts, and keep future analyzer/optimizer logic out of the UI.
+Without `--config`, the app still renders both sections, but `Pool Tracker` stays in a setup state and `/api/pools` returns an empty list.
 
-Pass `--config` to switch the same command into the local multi-pool dashboard. This mode runs the existing `refresh-data -> prepare-data -> report` pipeline synchronously for each configured pool and keeps report bundles separated by pool.
+Pass `--config` to enable live pool tracking data. This mode runs the existing `refresh-data -> prepare-data -> report` pipeline synchronously for each configured pool and keeps report bundles separated by pool.
 
 Start from the example config:
 
@@ -266,7 +273,9 @@ cp config/pools.example.toml config/pools.toml
 
 Paths inside the TOML are resolved relative to the config file, so each pool can stay self-contained inside one workspace. Each pool needs its own `raw_dir`, `prepared_dir`, and `reports_root`.
 
-Launch the multi-pool wrapper:
+The tracker config is intentionally tracker-only. Keep pre-lock optimizer assumptions out of this file because Bracket Lab and Pool Tracker do not share mutable state.
+
+Launch the integrated app with live tracker data:
 
 ```bash
 uv run bracket-sim serve \
@@ -275,7 +284,7 @@ uv run bracket-sim serve \
   --port 8000
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser. `--reload` is only supported for the default phase-0 surface, not for `--config` mode.
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser. `--reload` is only supported without `--config`.
 
 ## Local Example With Bundled Test Data
 
@@ -303,4 +312,4 @@ uv run bracket-sim simulate \
 - `simulate` and `benchmark` require normalized input files, not raw refresh outputs.
 - `prepare-data` is the bridge between acquisition (`refresh-data`) and simulation (`simulate`).
 - `refresh-national-picks` is acquisition-only; it does not change simulation inputs by itself.
-- `serve` defaults to the phase-0 web/API surface. Pass `--config` to use the local multi-pool wrapper.
+- `serve` always runs the same integrated app. Pass `--config` only to enable live Pool Tracker data.

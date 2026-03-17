@@ -7,28 +7,50 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f4efe5;
-        --card: #fffaf1;
-        --ink: #1c160f;
-        --muted: #66584a;
-        --line: #d9c9b3;
+        --bg: #f3efe5;
+        --paper: rgba(255, 251, 245, 0.9);
+        --paper-strong: #fffaf2;
+        --ink: #1d180f;
+        --muted: #66594d;
+        --line: rgba(77, 54, 24, 0.18);
         --accent: #8a3b12;
-        --accent-soft: #f0d7c7;
+        --accent-soft: rgba(138, 59, 18, 0.1);
+        --olive: #37543a;
+        --olive-soft: rgba(55, 84, 58, 0.12);
+        --sand: #a36e2a;
+        --sand-soft: rgba(163, 110, 42, 0.12);
         --error: #8f2323;
         --error-soft: #fbe1e1;
+        --shadow: 0 20px 50px rgba(50, 32, 13, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
-        font-family: Georgia, "Times New Roman", serif;
-        background: linear-gradient(180deg, #ede3d2 0%, var(--bg) 45%, #f9f5ee 100%);
+        font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
         color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(138, 59, 18, 0.12), transparent 32%),
+          radial-gradient(circle at top right, rgba(55, 84, 58, 0.12), transparent 28%),
+          linear-gradient(180deg, #ede2cf 0%, var(--bg) 42%, #fbf7f1 100%);
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code {
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.92em;
       }
 
       main {
-        max-width: 980px;
+        max-width: 1120px;
         margin: 0 auto;
-        padding: 32px 20px 56px;
+        padding: 28px 18px 60px;
       }
 
       h1,
@@ -39,17 +61,178 @@
         margin-top: 0;
       }
 
+      .hero,
+      .panel,
+      .pool-card,
+      .setup-card {
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 28px;
+        border-radius: 30px;
+        background: linear-gradient(135deg, rgba(255, 251, 245, 0.95), rgba(247, 238, 224, 0.92));
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(29, 24, 15, 0.06);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.8rem;
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        max-width: 13ch;
+        font-size: clamp(2.6rem, 7vw, 5.2rem);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
+      }
+
+      .lede {
+        max-width: 58rem;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.65;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        margin-top: 22px;
+      }
+
+      .timeline-card,
+      .panel,
+      .pool-card,
+      .setup-card {
+        border-radius: 24px;
+        background: var(--paper);
+      }
+
+      .timeline-card {
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+      }
+
+      .timeline-step {
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.8rem;
+      }
+
+      .status-badge,
+      .mini-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .status-badge {
+        padding: 6px 10px;
+        font-size: 0.68rem;
+      }
+
+      .mini-badge {
+        padding: 4px 8px;
+        font-size: 0.64rem;
+      }
+
+      .state-live,
+      .implemented-live {
+        background: var(--olive-soft);
+        color: var(--olive);
+      }
+
+      .state-planned,
+      .implemented-planned {
+        background: var(--sand-soft);
+        color: var(--sand);
+      }
+
+      .state-setup_required {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .section {
+        margin-top: 26px;
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 14px;
+      }
+
+      .section-subtitle {
+        max-width: 46rem;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .section-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .panel {
+        padding: 22px;
+      }
+
+      .panel-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .panel-list li + li {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .panel-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .panel-item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
       .banner {
         border: 1px solid var(--line);
-        border-radius: 14px;
+        border-radius: 18px;
         padding: 14px 16px;
-        margin-bottom: 20px;
+        margin-top: 18px;
         background: var(--accent-soft);
       }
 
       .banner.error {
         background: var(--error-soft);
-        border-color: #e5b5b5;
+        border-color: rgba(143, 35, 35, 0.18);
         color: var(--error);
       }
 
@@ -58,12 +241,9 @@
         gap: 18px;
       }
 
-      .pool-card {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 18px;
+      .pool-card,
+      .setup-card {
         padding: 22px;
-        box-shadow: 0 14px 40px rgba(76, 49, 20, 0.08);
       }
 
       .pool-header {
@@ -74,9 +254,8 @@
         margin-bottom: 16px;
       }
 
-      .pool-header a {
-        color: var(--accent);
-        word-break: break-all;
+      .pool-header p {
+        margin-bottom: 0;
       }
 
       form {
@@ -106,8 +285,8 @@
 
       .summary-block {
         padding: 14px 16px;
-        border-radius: 14px;
-        background: #fff;
+        border-radius: 16px;
+        background: var(--paper-strong);
         border: 1px solid var(--line);
       }
 
@@ -125,26 +304,59 @@
         margin-bottom: 0;
       }
 
-      .artifact-list a {
-        color: var(--accent);
-      }
+      @media (max-width: 760px) {
+        main {
+          padding-inline: 14px;
+        }
 
-      .muted {
-        color: var(--muted);
+        .hero,
+        .timeline-card,
+        .panel,
+        .pool-card,
+        .setup-card {
+          border-radius: 20px;
+        }
+
+        .section-header,
+        .pool-header,
+        .panel-item {
+          display: block;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <header>
-        <h1>Bracket Pool Simulator</h1>
-        <p class="muted">
-          Local multi-pool control panel for refreshing data and generating report bundles.
+      <section class="hero">
+        <div class="eyebrow">
+          <span>{{ foundation.app_name }}</span>
+          <span>v{{ version }}</span>
+        </div>
+        <h1>Build Brackets, then Track Pool Odds.</h1>
+        <p class="lede">
+          One local app, two adjacent workflows: Bracket Lab for pre-tournament planning and Pool
+          Tracker for live odds once real entries are locked. The planning and tracking states stay
+          separate on purpose, but they now live in the same product shell.
         </p>
-        {% if busy %}
-        <p class="muted">Another pool run is currently in progress.</p>
-        {% endif %}
-      </header>
+
+        <div class="timeline">
+          {% for workflow in foundation.workflows %}
+          <article class="timeline-card">
+            <div class="timeline-step">Step {{ workflow.sequence }}</div>
+            <div class="panel-item">
+              <div>
+                <strong>{{ workflow.label }}</strong>
+                <div class="muted">{{ workflow.timing }}</div>
+              </div>
+              <span class="status-badge state-{{ workflow.state }}">
+                {{ workflow.state|replace("_", " ") }}
+              </span>
+            </div>
+            <p class="muted" style="margin-bottom: 0;">{{ workflow.description }}</p>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
 
       {% if message %}
       <section class="banner">{{ message }}</section>
@@ -154,61 +366,167 @@
       <section class="banner error">{{ error }}</section>
       {% endif %}
 
-      <section class="pool-grid">
-        {% for pool in pools %}
-        <article class="pool-card">
-          <div class="pool-header">
-            <div>
-              <h2>{{ pool.name }}</h2>
-              <p>
-                <a href="{{ pool.group_url }}" target="_blank" rel="noreferrer">{{ pool.group_url }}</a>
-              </p>
-            </div>
-            <form method="post" action="/pools/{{ pool.id }}/run">
-              <button type="submit">Run</button>
-            </form>
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Bracket Lab</h2>
+            <p class="section-subtitle">
+              Foundation-first scaffolding for analyzer and optimizer workflows. This area is where
+              users will complete brackets, compare scoring systems, and explore pre-lock strategy
+              inputs before any live pool entries matter.
+            </p>
           </div>
+          <span class="status-badge state-{{ workflow_by_key['bracket_lab'].state }}">
+            {{ workflow_by_key["bracket_lab"].state|replace("_", " ") }}
+          </span>
+        </div>
 
-          {% if pool.latest_report %}
-          <div class="summary-blocks">
-            <section class="summary-block">
-              <h3>Top Entries</h3>
-              <ul>
-                {% for entry in pool.latest_report.summary.top_entries %}
-                <li>
-                  {{ entry.entry_name }}:
-                  {{ "%.4f"|format(entry.win_share) }}
-                  win share,
-                  {{ "%.2f"|format(entry.average_score) }}
-                  avg score
-                </li>
-                {% endfor %}
-              </ul>
-            </section>
-
-            <section class="summary-block">
-              <h3>Top Champions</h3>
-              <ul>
-                {% for champion in pool.latest_report.summary.top_champions %}
-                <li>{{ champion.team_name }}: {{ "%.4f"|format(champion.probability) }}</li>
-                {% endfor %}
-              </ul>
-            </section>
-          </div>
-
-          <section class="summary-block" style="margin-top: 16px;">
-            <h3>Artifacts</h3>
-            <ul class="artifact-list">
-              {% for artifact in pool.latest_report.artifacts.values() %}
-              <li><a href="{{ artifact.url }}">{{ artifact.name }}</a></li>
+        <div class="section-grid">
+          <article class="panel">
+            <h3>Scoring Systems</h3>
+            <ul class="panel-list">
+              {% for system in foundation.scoring_systems %}
+              <li>
+                <div class="panel-item">
+                  <div>
+                    <strong>{{ system.label }}</strong>
+                    <div class="muted">{{ system.description }}</div>
+                    <div><code>{{ system.key }} -> {{ system.round_values|join(", ") }}</code></div>
+                  </div>
+                  <span class="mini-badge implemented-{{ 'live' if system.implemented else 'planned' }}">
+                    {{ 'live' if system.implemented else 'planned' }}
+                  </span>
+                </div>
+              </li>
               {% endfor %}
             </ul>
+          </article>
+
+          <article class="panel">
+            <h3>Completion Modes</h3>
+            <ul class="panel-list">
+              {% for mode in foundation.completion_modes %}
+              <li>
+                <div class="panel-item">
+                  <div>
+                    <strong>{{ mode.label }}</strong>
+                    <div class="muted">{{ mode.description }}</div>
+                    <div><code>{{ mode.mode }}</code></div>
+                  </div>
+                  <span class="mini-badge implemented-{{ 'live' if mode.implemented else 'planned' }}">
+                    {{ 'live' if mode.implemented else 'planned' }}
+                  </span>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+          </article>
+
+          <article class="panel">
+            <h3>Cache Strategy</h3>
+            <p class="muted">{{ foundation.cache_policy.dataset_hash_rule }}</p>
+            <p class="muted">{{ foundation.cache_policy.cache_key_rule }}</p>
+            <p style="margin-bottom: 0;">
+              <code>
+                {{ foundation.cache_policy.artifact_kinds|join(", ") }} -> dataset hash + pool
+                settings + completion mode
+              </code>
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Pool Tracker</h2>
+            <p class="section-subtitle">
+              Live pool odds tracking for real, locked entries. This section keeps the existing
+              refresh, prepare, report, and artifact download workflow, but now sits beside Bracket
+              Lab instead of behind a different server mode.
+            </p>
+          </div>
+          <span class="status-badge state-{{ workflow_by_key['pool_tracker'].state }}">
+            {{ workflow_by_key["pool_tracker"].state|replace("_", " ") }}
+          </span>
+        </div>
+
+        {% if busy %}
+        <p class="muted">Another pool run is currently in progress.</p>
+        {% endif %}
+
+        {% if tracker_configured %}
+          <section class="pool-grid">
+            {% for pool in pools %}
+            <article class="pool-card">
+              <div class="pool-header">
+                <div>
+                  <h3>{{ pool.name }}</h3>
+                  <p>
+                    <a href="{{ pool.group_url }}" target="_blank" rel="noreferrer">{{ pool.group_url }}</a>
+                  </p>
+                </div>
+                <form method="post" action="/pools/{{ pool.id }}/run">
+                  <button type="submit">Run</button>
+                </form>
+              </div>
+
+              {% if pool.latest_report %}
+              <div class="summary-blocks">
+                <section class="summary-block">
+                  <h3>Top Entries</h3>
+                  <ul>
+                    {% for entry in pool.latest_report.summary.top_entries %}
+                    <li>
+                      {{ entry.entry_name }}:
+                      {{ "%.4f"|format(entry.win_share) }}
+                      win share,
+                      {{ "%.2f"|format(entry.average_score) }}
+                      avg score
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </section>
+
+                <section class="summary-block">
+                  <h3>Top Champions</h3>
+                  <ul>
+                    {% for champion in pool.latest_report.summary.top_champions %}
+                    <li>{{ champion.team_name }}: {{ "%.4f"|format(champion.probability) }}</li>
+                    {% endfor %}
+                  </ul>
+                </section>
+              </div>
+
+              <section class="summary-block" style="margin-top: 16px;">
+                <h3>Artifacts</h3>
+                <ul class="artifact-list">
+                  {% for artifact in pool.latest_report.artifacts.values() %}
+                  <li><a href="{{ artifact.url }}">{{ artifact.name }}</a></li>
+                  {% endfor %}
+                </ul>
+              </section>
+              {% else %}
+              <p class="muted">No report bundle found yet for this pool.</p>
+              {% endif %}
+            </article>
+            {% endfor %}
           </section>
-          {% else %}
-          <p class="muted">No report bundle found yet for this pool.</p>
-          {% endif %}
-        </article>
-        {% endfor %}
+        {% else %}
+          <article class="setup-card">
+            <h3>Tracker Setup Required</h3>
+            <p class="muted">
+              Pool Tracker stays separate from Bracket Lab on purpose. To enable live pool odds
+              tracking, start the server with a tracker-only config file.
+            </p>
+            <p><code>cp {{ tracker_setup_path }} config/pools.toml</code></p>
+            <p><code>uv run bracket-sim serve --config config/pools.toml</code></p>
+            <p class="muted" style="margin-bottom: 0;">
+              Keep optimizer assumptions out of this file. It is only for locked-entry tracking
+              workspaces.
+            </p>
+          </article>
+        {% endif %}
       </section>
     </main>
   </body>

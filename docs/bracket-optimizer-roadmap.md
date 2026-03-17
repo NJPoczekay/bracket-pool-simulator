@@ -17,22 +17,32 @@ Ship BracketVoodoo-style bracket tools in manageable stages on top of the curren
 - Standalone year-round rankings/projections product: out of scope
 - Tournament-specific bracket tools: in scope
 
+## Integration Note
+
+`Bracket Lab` now lives inside the same local app shell as `Pool Tracker`, but the two workflows intentionally keep separate state:
+
+- `Bracket Lab` is pre-tournament and exploratory.
+- `Pool Tracker` is post-lock and tied to real pool entries.
+- Tracker configuration is not the source of truth for optimizer assumptions such as eventual pool size.
+
 ## Phase 0: Product Foundation
 
 ### Deliverables
-- Web/API architecture added alongside the existing CLI
+- Integrated web/API architecture added alongside the existing CLI
 - Shared typed models for bracket editing, pool settings, scoring systems, analysis results, and optimization results
 - Consistent cache and manifest strategy for reusable simulation artifacts
+- Workflow metadata so the app can present `Bracket Lab` first and `Pool Tracker` second
 - Updated docs describing app layers and the new staged roadmap
 
 ### Issues
-- Add a lightweight server entrypoint and a minimal frontend shell
+- Add a lightweight server entrypoint and integrated app shell
 - Define `PoolSettings`, `ScoringSystem`, `CompletionMode`, `BracketAnalysis`, `PickDiagnostic`, and `OptimizationResult`
 - Separate reusable engine services from CLI formatting concerns
 - Define dataset hash and cache key rules for analysis and optimization
+- Keep optimizer/planning state separate from live pool-tracker configuration
 
 ### Exit Criteria
-- Repo supports CLI plus a running local web/API surface
+- Repo supports CLI plus a running local web/API surface with Bracket Lab and Pool Tracker side by side
 - New types and service boundaries are stable enough for later phases
 - No product logic is trapped in the UI layer
 
@@ -71,7 +81,7 @@ Ship BracketVoodoo-style bracket tools in manageable stages on top of the curren
   - pick-level survival probability
   - `probWinIf` and `deltaWinIf`
   - tags for `bestPick`, `worstPick`, and `mostImportant`
-- Build a simple bracket page with pool-size and scoring controls plus analyze action
+- Build a simple Bracket Lab page with pool-size and scoring controls plus analyze action
 
 ### Exit Criteria
 - A user can enter a full bracket and get a stable analysis result in the browser

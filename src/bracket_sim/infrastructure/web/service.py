@@ -1,4 +1,4 @@
-"""Core service layer for the local multi-pool web wrapper."""
+"""Core service layer for the Pool Tracker portion of the integrated app."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ class LatestReport:
 
 
 class PoolService:
-    """Local synchronous controller for multi-pool web access."""
+    """Local synchronous controller for Pool Tracker access."""
 
     def __init__(
         self,

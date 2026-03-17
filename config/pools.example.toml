@@ -1,3 +1,6 @@
+# Pool Tracker config only.
+# Keep pre-lock optimizer assumptions out of this file; Bracket Lab stays separate.
+
 [[pools]]
 id = "main"
 name = "Main Pool"
