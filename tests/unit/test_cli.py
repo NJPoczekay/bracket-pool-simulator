@@ -8,6 +8,8 @@ from unittest.mock import Mock
 import pytest
 from typer.testing import CliRunner
 
+from bracket_sim.application.prepare_bracket_lab_data import PrepareBracketLabDataSummary
+from bracket_sim.application.refresh_bracket_lab_data import RefreshBracketLabDataSummary
 from bracket_sim.application.refresh_data import RefreshDataSummary
 from bracket_sim.application.refresh_national_picks import RefreshNationalPicksSummary
 from bracket_sim.infrastructure.cli.main import app
@@ -209,6 +211,44 @@ def test_prepare_data_command_surfaces_validation_errors(
     assert "Error:" in result.stderr
 
 
+def test_prepare_bracket_lab_data_command_runs_with_monkeypatched_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    fake_summary = PrepareBracketLabDataSummary(
+        output_dir=tmp_path / "prepared_lab",
+        teams=64,
+        games=63,
+        constraints=0,
+        public_picks=384,
+        ratings=65,
+        play_in_slots=1,
+    )
+    fake_prepare = Mock(return_value=fake_summary)
+    monkeypatch.setattr(cli_main, "prepare_bracket_lab_data", fake_prepare)
+
+    raw_dir = tmp_path / "raw_lab"
+    raw_dir.mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "prepare-bracket-lab-data",
+            "--raw",
+            str(raw_dir),
+            "--out",
+            str(tmp_path / "prepared_lab"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Prepared Bracket Lab dataset written to:" in result.stdout
+    assert "play_in_slots=1" in result.stdout
+
+
 def test_refresh_data_command_runs_with_monkeypatched_app(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -246,6 +286,46 @@ def test_refresh_data_command_runs_with_monkeypatched_app(
     assert result.exit_code == 0
     assert "Refreshed raw dataset written to:" in result.stdout
     assert "retry_attempted=True" in result.stdout
+
+
+def test_refresh_bracket_lab_data_command_runs_with_monkeypatched_app(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    fake_summary = RefreshBracketLabDataSummary(
+        output_dir=tmp_path / "raw_lab",
+        teams=64,
+        games=63,
+        constraints=0,
+        public_pick_rows=384,
+        kenpom_rows=65,
+        aliases=1,
+    )
+    fake_refresh = Mock(return_value=fake_summary)
+    monkeypatch.setattr(cli_main, "refresh_bracket_lab_data", fake_refresh)
+
+    ratings_path = tmp_path / "ratings.csv"
+    ratings_path.write_text("team,rating,tempo\nA,1,60\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "refresh-bracket-lab-data",
+            "--challenge",
+            "tournament-challenge-bracket-2026",
+            "--raw",
+            str(tmp_path / "raw_lab"),
+            "--ratings-file",
+            str(ratings_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Refreshed Bracket Lab raw dataset written to:" in result.stdout
+    assert "public_pick_rows=384" in result.stdout
 
 
 def test_refresh_national_picks_command_runs_with_monkeypatched_app(
@@ -287,6 +367,16 @@ def test_refresh_national_picks_command_help_mentions_challenge_input() -> None:
     assert result.exit_code == 0
     assert "ESPN bracket URL, group URL, or challenge" in result.stdout
     assert "key" in result.stdout
+
+
+def test_refresh_bracket_lab_data_command_help_mentions_challenge_input() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-bracket-lab-data", "--help"])
+
+    assert result.exit_code == 0
+    assert "ESPN bracket URL, group URL, or" in result.stdout
+    assert "challenge key" in result.stdout
+    assert "ratings-file" in result.stdout
 
 
 def test_serve_command_invokes_web_server(

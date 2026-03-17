@@ -39,8 +39,13 @@ The app now presents two adjacent workflows in one local web shell:
 
 - National pick-count snapshots
   - A standalone `refresh-national-picks` command downloads ESPN's public challenge payload and stores national pick counts in a local snapshot.
-  - The output is acquisition-only in v1, so it can be reused later for modeling without changing simulation inputs today.
+  - `refresh-bracket-lab-data` also pulls the same public challenge data into the Bracket Lab raw dataset for completion/analyzer/optimizer preparation.
   - The parser is API-first and fails loudly if ESPN changes the payload shape; there is no browser fallback in this version.
+
+- Bracket Lab data preparation
+  - `refresh-bracket-lab-data` and `prepare-bracket-lab-data` build a Bracket Lab-specific dataset family separate from the tracker simulation pipeline.
+  - The prepared Bracket Lab dataset carries public picks, KenPom rankings, and unresolved First Four slot metadata so later phases do not need ad hoc external calls.
+  - `internal_model_rank` is currently documented as an alias of `kenpom`; AP Poll and NCAA NET are not part of the current completion dataset.
 
 - Team name normalization
   - A mapping file reconciles naming differences across ESPN pages, KenPom files, and scoreboard files.

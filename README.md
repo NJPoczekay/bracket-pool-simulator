@@ -54,10 +54,12 @@ By default the server runs on [http://127.0.0.1:8000](http://127.0.0.1:8000) and
 
 ## Commands
 
-The CLI exposes seven commands:
+The CLI exposes nine commands:
 
-- `refresh-data`: fetch raw bracket data from ESPN plus ratings data
-- `prepare-data`: normalize raw files into validated simulation inputs
+- `refresh-bracket-lab-data`: fetch Bracket Lab raw data from ESPN challenge APIs plus KenPom inputs
+- `prepare-bracket-lab-data`: normalize raw Bracket Lab files into prepared analysis/optimization inputs
+- `refresh-data`: fetch tracker raw bracket data from ESPN plus ratings data
+- `prepare-data`: normalize tracker raw files into validated simulation inputs
 - `simulate`: run deterministic pool simulations
 - `benchmark`: measure simulation and scoring performance against budgets
 - `report`: generate deterministic offline report bundles from normalized inputs
@@ -66,7 +68,61 @@ The CLI exposes seven commands:
 
 ## Typical Workflow
 
-### 1. Refresh raw data
+### Bracket Lab: Refresh raw data
+
+Use `refresh-bracket-lab-data` when you want a pre-lock dataset for bracket completion, analyzer, and optimizer work.
+
+```bash
+uv run bracket-sim refresh-bracket-lab-data \
+  --challenge tournament-challenge-bracket-2026 \
+  --raw data/bracket-lab/raw/2026 \
+  --ratings-file /path/to/kenpom.csv
+```
+
+Or fetch the KenPom source rows directly:
+
+```bash
+export KENPOM_COOKIE="your authenticated cookie string"
+
+uv run bracket-sim refresh-bracket-lab-data \
+  --challenge tournament-challenge-bracket-2026 \
+  --raw data/bracket-lab/raw/2026 \
+  --kenpom
+```
+
+Expected raw Bracket Lab contents:
+
+- `teams.csv`
+- `games.csv`
+- `constraints.json` when completed games exist
+- `national_picks.csv`
+- `kenpom.csv`
+- `metadata.json`
+- `snapshots/challenge.json`
+- optionally `aliases.csv` when you maintain manual team-name overrides
+
+### Bracket Lab: Prepare inputs
+
+`prepare-bracket-lab-data` converts the raw Bracket Lab snapshot into a self-contained dataset for later analysis and optimization work.
+
+```bash
+uv run bracket-sim prepare-bracket-lab-data \
+  --raw data/bracket-lab/raw/2026 \
+  --out data/bracket-lab/prepared/2026
+```
+
+Expected prepared Bracket Lab contents:
+
+- `teams.json`
+- `games.json`
+- `constraints.json` when completed games exist
+- `public_picks.csv`
+- `ratings.csv`
+- `completion_inputs.json`
+- `play_in_slots.json` when unresolved First Four slots exist
+- `metadata.json`
+
+### 1. Refresh raw data (Pool Tracker)
 
 Use `refresh-data` when you want to build a raw dataset from a live ESPN Tournament Challenge group.
 

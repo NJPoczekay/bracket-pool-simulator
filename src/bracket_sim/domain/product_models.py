@@ -24,8 +24,6 @@ class CompletionMode(StrEnum):
     POPULAR_PICKS = "popular_picks"
     INTERNAL_MODEL_RANK = "internal_model_rank"
     KENPOM = "kenpom"
-    AP_POLL = "ap_poll"
-    NCAA_NET = "ncaa_net"
     PICK_FOUR = "pick_four"
 
 
@@ -212,6 +210,7 @@ class CompletionModeOption(BaseModel):
     mode: CompletionMode
     label: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    alias_of: CompletionMode | None = None
     implemented: bool = False
 
 

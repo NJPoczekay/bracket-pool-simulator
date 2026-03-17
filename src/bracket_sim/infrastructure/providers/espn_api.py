@@ -11,6 +11,8 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from bracket_sim.infrastructure.providers.contracts import (
+    ChallengeSnapshotData,
+    ChallengeSnapshotProvider,
     EntriesData,
     EntriesProvider,
     NationalPicksData,
@@ -76,7 +78,12 @@ class _ParsedChoiceCounter:
     scoring_format_id: int
 
 
-class EspnApiProvider(ResultsProvider, EntriesProvider, NationalPicksProvider):
+class EspnApiProvider(
+    ResultsProvider,
+    EntriesProvider,
+    NationalPicksProvider,
+    ChallengeSnapshotProvider,
+):
     """HTTP adapter for ESPN challenge and group APIs."""
 
     def __init__(
@@ -114,22 +121,26 @@ class EspnApiProvider(ResultsProvider, EntriesProvider, NationalPicksProvider):
     def fetch_results(self) -> ResultsData:
         """Fetch challenge payload and build canonical topology + constraints."""
 
-        payload = self._get_json(
-            f"{self._api_base_url}/apis/v1/challenges/{self._challenge_ref.challenge_key}"
-            "?includeAllProps=true"
-        )
-        return _parse_results_payload(payload)
+        return _parse_results_payload(self._get_challenge_payload())
 
     def fetch_national_picks(self) -> NationalPicksData:
         """Fetch public national pick counts for the target challenge."""
 
-        payload = self._get_json(
-            f"{self._api_base_url}/apis/v1/challenges/{self._challenge_ref.challenge_key}"
-            "?includeAllProps=true"
-        )
         return _parse_national_picks_payload(
-            payload,
+            self._get_challenge_payload(),
             source_url=self._challenge_ref.challenge_url,
+        )
+
+    def fetch_challenge_snapshot(self) -> ChallengeSnapshotData:
+        """Fetch one challenge payload and parse results plus public picks."""
+
+        payload = self._get_challenge_payload()
+        return ChallengeSnapshotData(
+            results=_parse_results_payload(payload),
+            national_picks=_parse_national_picks_payload(
+                payload,
+                source_url=self._challenge_ref.challenge_url,
+            ),
         )
 
     def fetch_entries(
@@ -259,6 +270,12 @@ class EspnApiProvider(ResultsProvider, EntriesProvider, NationalPicksProvider):
             raise ValueError(msg)
 
         return payload
+
+    def _get_challenge_payload(self) -> dict[str, Any]:
+        return self._get_json(
+            f"{self._api_base_url}/apis/v1/challenges/{self._challenge_ref.challenge_key}"
+            "?includeAllProps=true"
+        )
 
 
 def parse_espn_challenge_reference(challenge: str) -> EspnChallengeReference:

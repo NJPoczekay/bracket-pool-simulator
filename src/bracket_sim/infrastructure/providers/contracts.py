@@ -145,6 +145,22 @@ class NationalPicksData:
     raw_snapshot: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class ChallengeSnapshotData:
+    """Combined challenge snapshot parsed once for multiple downstream consumers."""
+
+    results: ResultsData
+    national_picks: NationalPicksData
+
+
+@dataclass(frozen=True)
+class RatingSourceData:
+    """Raw rating rows captured before team-id normalization."""
+
+    ratings: list[RawRatingRow]
+    source: str
+
+
 class ResultsProvider(Protocol):
     """Provider interface for bracket topology and definitive winners."""
 
@@ -176,3 +192,17 @@ class NationalPicksProvider(Protocol):
 
     def fetch_national_picks(self) -> NationalPicksData:
         """Fetch and normalize public national pick counts."""
+
+
+class ChallengeSnapshotProvider(Protocol):
+    """Provider interface for shared challenge snapshots."""
+
+    def fetch_challenge_snapshot(self) -> ChallengeSnapshotData:
+        """Fetch one challenge payload and parse results plus public picks."""
+
+
+class RatingSourceProvider(Protocol):
+    """Provider interface for raw ranking/rating source rows."""
+
+    def fetch_rating_source(self) -> RatingSourceData:
+        """Fetch raw rating rows without resolving them to tournament team ids."""

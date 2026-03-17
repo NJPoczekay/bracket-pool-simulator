@@ -9,7 +9,9 @@ import typer
 
 from bracket_sim.application.benchmark_hotspots import benchmark_hotspots
 from bracket_sim.application.generate_reports import generate_reports
+from bracket_sim.application.prepare_bracket_lab_data import prepare_bracket_lab_data
 from bracket_sim.application.prepare_data import prepare_data
+from bracket_sim.application.refresh_bracket_lab_data import refresh_bracket_lab_data
 from bracket_sim.application.refresh_data import refresh_data
 from bracket_sim.application.refresh_national_picks import refresh_national_picks
 from bracket_sim.application.simulate_pool import simulate_pool
@@ -20,7 +22,9 @@ from bracket_sim.domain.models import (
 )
 from bracket_sim.infrastructure.cli.presenter import (
     format_benchmark_report,
+    format_prepare_bracket_lab_summary,
     format_prepare_summary,
+    format_refresh_bracket_lab_summary,
     format_refresh_national_picks_summary,
     format_refresh_summary,
     format_report_summary,
@@ -268,6 +272,41 @@ def prepare_data_command(
     typer.echo(format_prepare_summary(summary))
 
 
+@app.command("prepare-bracket-lab-data")
+def prepare_bracket_lab_data_command(
+    raw_dir: Annotated[
+        Path,
+        typer.Option(
+            "--raw",
+            help="Directory containing raw Bracket Lab preparation inputs",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            help="Directory to write prepared Bracket Lab inputs",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+) -> None:
+    """Prepare self-contained Bracket Lab inputs from raw challenge data."""
+
+    try:
+        summary = prepare_bracket_lab_data(raw_dir=raw_dir, out_dir=out_dir)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(format_prepare_bracket_lab_summary(summary))
+
+
 @app.command("refresh-data")
 def refresh_data_command(
     group_url: Annotated[
@@ -335,6 +374,60 @@ def refresh_data_command(
         raise typer.Exit(code=1) from exc
 
     typer.echo(format_refresh_summary(summary))
+
+
+@app.command("refresh-bracket-lab-data")
+def refresh_bracket_lab_data_command(
+    challenge: Annotated[
+        str,
+        typer.Option(
+            "--challenge",
+            help="ESPN bracket URL, group URL, or challenge key",
+        ),
+    ],
+    raw_dir: Annotated[
+        Path,
+        typer.Option(
+            "--raw",
+            help="Directory to write raw Bracket Lab inputs",
+            file_okay=False,
+            dir_okay=True,
+            writable=True,
+        ),
+    ],
+    ratings_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--ratings-file",
+            help="Local KenPom-style CSV path with columns team,rating,tempo",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
+    kenpom: Annotated[
+        bool,
+        typer.Option(
+            "--kenpom",
+            help="Fetch ratings from KenPom using KENPOM_COOKIE instead of a local file",
+        ),
+    ] = False,
+) -> None:
+    """Refresh raw Bracket Lab data from ESPN challenge APIs plus KenPom inputs."""
+
+    try:
+        summary = refresh_bracket_lab_data(
+            challenge=challenge,
+            raw_dir=raw_dir,
+            ratings_file=ratings_file,
+            use_kenpom=kenpom,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(format_refresh_bracket_lab_summary(summary))
 
 
 @app.command("refresh-national-picks")

@@ -142,22 +142,13 @@ def _completion_modes() -> list[CompletionModeOption]:
         CompletionModeOption(
             mode=CompletionMode.INTERNAL_MODEL_RANK,
             label="Model Rank",
-            description="Auto-complete using the simulator's internal ranking model.",
+            description="Auto-complete from the same ranking input as KenPom for now.",
+            alias_of=CompletionMode.KENPOM,
         ),
         CompletionModeOption(
             mode=CompletionMode.KENPOM,
             label="KenPom",
             description="Auto-complete from KenPom rankings.",
-        ),
-        CompletionModeOption(
-            mode=CompletionMode.AP_POLL,
-            label="AP Poll",
-            description="Auto-complete from AP Poll rankings.",
-        ),
-        CompletionModeOption(
-            mode=CompletionMode.NCAA_NET,
-            label="NCAA NET",
-            description="Auto-complete from NCAA NET rankings.",
         ),
         CompletionModeOption(
             mode=CompletionMode.PICK_FOUR,

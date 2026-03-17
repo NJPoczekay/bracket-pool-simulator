@@ -142,6 +142,27 @@ def test_fetch_national_picks_extracts_all_round_rows(synthetic_input_dir: Path)
     assert sum(row.pick_count for row in championship_rows) == 1_000
 
 
+def test_fetch_challenge_snapshot_parses_results_and_public_picks_from_one_payload(
+    synthetic_input_dir: Path,
+) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    provider = _build_provider(
+        challenge_payload=challenge_payload,
+        group_payloads=[group_payload],
+    )
+
+    snapshot = provider.fetch_challenge_snapshot()
+
+    assert len(snapshot.results.games) == 63
+    assert len(snapshot.results.teams) == 64
+    assert len(snapshot.national_picks.rows) == 384
+    assert snapshot.results.raw_snapshot == snapshot.national_picks.raw_snapshot
+
+
 def test_fetch_national_picks_falls_back_for_placeholder_team_ids(
     synthetic_input_dir: Path,
 ) -> None:

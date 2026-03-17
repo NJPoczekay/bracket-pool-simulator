@@ -14,6 +14,8 @@ import httpx
 
 from bracket_sim.infrastructure.providers.contracts import (
     RatingsData,
+    RatingSourceData,
+    RatingSourceProvider,
     RatingsProvider,
     RawAliasRow,
     RawRatingRow,
@@ -37,8 +39,8 @@ class _InputRatingRow:
     tempo: float
 
 
-class LocalRatingsProvider(RatingsProvider):
-    """Load ratings from a local CSV or cached snapshot."""
+class LocalRatingSourceProvider(RatingSourceProvider):
+    """Load raw rating rows from a local CSV or cached snapshot."""
 
     def __init__(
         self,
@@ -49,13 +51,10 @@ class LocalRatingsProvider(RatingsProvider):
         self._ratings_file = ratings_file
         self._fallback_dir = fallback_dir
 
-    def fetch_ratings(self, *, teams: list[RawTeamRow]) -> RatingsData:
+    def fetch_rating_source(self) -> RatingSourceData:
         ratings_path = self._resolve_ratings_path()
-        input_rows = _load_ratings_csv(ratings_path)
-        normalized_ratings, aliases = _normalize_ratings_rows(input_rows=input_rows, teams=teams)
-        return RatingsData(
-            ratings=normalized_ratings,
-            aliases=aliases,
+        return RatingSourceData(
+            ratings=load_source_rating_rows(ratings_path),
             source=f"local:{ratings_path}",
         )
 
@@ -78,8 +77,35 @@ class LocalRatingsProvider(RatingsProvider):
         raise ValueError(msg)
 
 
-class KenPomRatingsProvider(RatingsProvider):
-    """Fetch ratings from KenPom with an authenticated session cookie."""
+class LocalRatingsProvider(RatingsProvider):
+    """Load ratings from a local CSV or cached snapshot."""
+
+    def __init__(
+        self,
+        *,
+        ratings_file: Path | None = None,
+        fallback_dir: Path | None = None,
+    ) -> None:
+        self._source_provider = LocalRatingSourceProvider(
+            ratings_file=ratings_file,
+            fallback_dir=fallback_dir,
+        )
+
+    def fetch_ratings(self, *, teams: list[RawTeamRow]) -> RatingsData:
+        source_data = self._source_provider.fetch_rating_source()
+        normalized_ratings, aliases = normalize_rating_rows(
+            input_rows=source_data.ratings,
+            teams=teams,
+        )
+        return RatingsData(
+            ratings=normalized_ratings,
+            aliases=aliases,
+            source=source_data.source,
+        )
+
+
+class KenPomRatingSourceProvider(RatingSourceProvider):
+    """Fetch raw rating rows from KenPom with an authenticated session cookie."""
 
     def __init__(
         self,
@@ -100,7 +126,7 @@ class KenPomRatingsProvider(RatingsProvider):
         if self._owns_client:
             self._client.close()
 
-    def fetch_ratings(self, *, teams: list[RawTeamRow]) -> RatingsData:
+    def fetch_rating_source(self) -> RatingSourceData:
         cookie_value = os.getenv(self._cookie_env_var, "").strip()
         if cookie_value == "":
             msg = (
@@ -125,9 +151,60 @@ class KenPomRatingsProvider(RatingsProvider):
             msg = f"KenPom request failed with status {response.status_code}: {exc}"
             raise ValueError(msg) from exc
 
-        input_rows = _parse_kenpom_table(response.text)
-        normalized_ratings, aliases = _normalize_ratings_rows(input_rows=input_rows, teams=teams)
-        return RatingsData(ratings=normalized_ratings, aliases=aliases, source="kenpom")
+        return RatingSourceData(
+            ratings=parse_kenpom_source_rows(response.text),
+            source="kenpom",
+        )
+
+
+class KenPomRatingsProvider(RatingsProvider):
+    """Fetch ratings from KenPom with an authenticated session cookie."""
+
+    def __init__(
+        self,
+        *,
+        cookie_env_var: str = "KENPOM_COOKIE",
+        url: str = "https://kenpom.com/",
+        timeout_seconds: float = 20.0,
+        client: httpx.Client | None = None,
+    ) -> None:
+        self._source_provider = KenPomRatingSourceProvider(
+            cookie_env_var=cookie_env_var,
+            url=url,
+            timeout_seconds=timeout_seconds,
+            client=client,
+        )
+
+    def close(self) -> None:
+        """Close owned HTTP resources."""
+
+        self._source_provider.close()
+
+    def fetch_ratings(self, *, teams: list[RawTeamRow]) -> RatingsData:
+        source_data = self._source_provider.fetch_rating_source()
+        normalized_ratings, aliases = normalize_rating_rows(
+            input_rows=source_data.ratings,
+            teams=teams,
+        )
+        return RatingsData(ratings=normalized_ratings, aliases=aliases, source=source_data.source)
+
+
+def load_source_rating_rows(path: Path) -> list[RawRatingRow]:
+    """Load raw rating source rows from a local CSV."""
+
+    return [
+        RawRatingRow(team=row.team_raw, rating=row.rating, tempo=row.tempo)
+        for row in _load_ratings_csv(path)
+    ]
+
+
+def parse_kenpom_source_rows(payload: str) -> list[RawRatingRow]:
+    """Parse raw rating source rows from a KenPom HTML payload."""
+
+    return [
+        RawRatingRow(team=row.team_raw, rating=row.rating, tempo=row.tempo)
+        for row in _parse_kenpom_table(payload)
+    ]
 
 
 def _load_ratings_csv(path: Path) -> list[_InputRatingRow]:
@@ -236,11 +313,15 @@ def _parse_kenpom_table(payload: str) -> list[_InputRatingRow]:
     return parsed_rows
 
 
-def _normalize_ratings_rows(
+def normalize_rating_rows(
     *,
-    input_rows: list[_InputRatingRow],
+    input_rows: list[RawRatingRow],
     teams: list[RawTeamRow],
+    aliases: list[RawAliasRow] | None = None,
 ) -> tuple[list[RawRatingRow], list[RawAliasRow]]:
+    """Normalize raw source rows to tournament team ids."""
+
+    manual_aliases = aliases or []
     alias_lookup = _build_alias_lookup(teams)
     team_name_by_id = {team.team_id: team.name for team in teams}
     unresolved_source_names: list[str] = []
@@ -248,10 +329,33 @@ def _normalize_ratings_rows(
     ratings_by_team_id: dict[str, RawRatingRow] = {}
     alias_rows: dict[str, RawAliasRow] = {}
 
+    seen_manual_aliases: set[str] = set()
+    team_ids = {team.team_id for team in teams}
+    for alias in manual_aliases:
+        normalized_alias = _normalize_team_key(alias.alias)
+        if normalized_alias == "":
+            msg = "Alias rows must not contain blank alias values"
+            raise ValueError(msg)
+        if normalized_alias in seen_manual_aliases:
+            msg = f"Duplicate alias declared in aliases.csv: '{alias.alias}'"
+            raise ValueError(msg)
+        seen_manual_aliases.add(normalized_alias)
+        if alias.team_id not in team_ids:
+            msg = f"Alias '{alias.alias}' references unknown team_id '{alias.team_id}'"
+            raise ValueError(msg)
+        existing = alias_lookup.get(normalized_alias)
+        if existing is not None and existing != alias.team_id:
+            msg = (
+                f"Alias collision for '{alias.alias}': maps to both '{existing}' "
+                f"and '{alias.team_id}'"
+            )
+            raise ValueError(msg)
+        alias_lookup[normalized_alias] = alias.team_id
+
     for row in input_rows:
-        resolved_team_id = _resolve_team_id(row.team_raw, alias_lookup)
+        resolved_team_id = _resolve_team_id(row.team, alias_lookup)
         if resolved_team_id is None:
-            unresolved_source_names.append(row.team_raw)
+            unresolved_source_names.append(row.team)
             continue
 
         if resolved_team_id in ratings_by_team_id:
@@ -264,14 +368,14 @@ def _normalize_ratings_rows(
             tempo=row.tempo,
         )
 
-        normalized_team_raw = _normalize_team_key(row.team_raw)
+        normalized_team_raw = _normalize_team_key(row.team)
         canonical_name = next(team.name for team in teams if team.team_id == resolved_team_id)
         if normalized_team_raw not in {
             _normalize_team_key(resolved_team_id),
             _normalize_team_key(canonical_name),
         }:
             alias_rows[normalized_team_raw] = RawAliasRow(
-                alias=row.team_raw,
+                alias=row.team,
                 team_id=resolved_team_id,
             )
 

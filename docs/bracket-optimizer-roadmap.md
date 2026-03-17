@@ -55,9 +55,10 @@ Ship BracketVoodoo-style bracket tools in manageable stages on top of the curren
 
 ### Issues
 - Extend provider contracts to normalize per-outcome public pick percentages
-- Persist public-pick data through `refresh-data` and `prepare-data`
-- Add support for completion/ranking inputs: internal model rank, KenPom, AP Poll, NCAA NET
-- Decide and document fallback behavior when a ranking source is missing for a team
+- Persist public-pick data through Bracket Lab-specific refresh/prepare commands
+- Add support for completion/ranking inputs: tournament seeds, public picks, and KenPom
+- Treat `internal model rank` as an alias of `KenPom` until a distinct internal model exists
+- Fail preparation when a required KenPom row is missing for a concrete team or unresolved play-in candidate
 - Preserve play-in placeholder handling until First Four results resolve those slots
 
 ### Exit Criteria
@@ -96,7 +97,7 @@ Ship BracketVoodoo-style bracket tools in manageable stages on top of the curren
 - Pick Four wizard for forcing Final Four seeds before auto-completion
 
 ### Issues
-- Add completion modes for Tournament Seeds, Popular Picks, internal model rank, KenPom, AP Poll, and NCAA NET
+- Add completion modes for Tournament Seeds, Popular Picks, internal model rank, and KenPom
 - Support partial brackets with user-locked picks
 - Add bracket validation for incomplete, complete, and auto-completed states
 - Implement Pick Four helper that seeds semifinal/final search from chosen regional winners

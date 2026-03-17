@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from bracket_sim.application.prepare_bracket_lab_data import PrepareBracketLabDataSummary
 from bracket_sim.application.prepare_data import PrepareDataSummary
+from bracket_sim.application.refresh_bracket_lab_data import RefreshBracketLabDataSummary
 from bracket_sim.application.refresh_data import RefreshDataSummary
 from bracket_sim.application.refresh_national_picks import RefreshNationalPicksSummary
 from bracket_sim.domain.models import (
@@ -115,6 +117,21 @@ def format_prepare_summary(summary: PrepareDataSummary) -> str:
     return "\n".join(lines)
 
 
+def format_prepare_bracket_lab_summary(summary: PrepareBracketLabDataSummary) -> str:
+    """Render human-readable summary for prepare-bracket-lab-data command."""
+
+    lines = [
+        f"Prepared Bracket Lab dataset written to: {summary.output_dir}",
+        (
+            "Counts: "
+            f"teams={summary.teams} games={summary.games} constraints={summary.constraints} "
+            f"public_picks={summary.public_picks} ratings={summary.ratings} "
+            f"play_in_slots={summary.play_in_slots}"
+        ),
+    ]
+    return "\n".join(lines)
+
+
 def format_refresh_summary(summary: RefreshDataSummary) -> str:
     """Render human-readable summary for refresh-data command."""
 
@@ -128,6 +145,21 @@ def format_refresh_summary(summary: RefreshDataSummary) -> str:
         (
             "Entry handling: "
             f"skipped={summary.skipped_entries} retry_attempted={summary.retry_attempted}"
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def format_refresh_bracket_lab_summary(summary: RefreshBracketLabDataSummary) -> str:
+    """Render human-readable summary for refresh-bracket-lab-data command."""
+
+    lines = [
+        f"Refreshed Bracket Lab raw dataset written to: {summary.output_dir}",
+        (
+            "Counts: "
+            f"teams={summary.teams} games={summary.games} constraints={summary.constraints} "
+            f"public_pick_rows={summary.public_pick_rows} kenpom_rows={summary.kenpom_rows} "
+            f"aliases={summary.aliases}"
         ),
     ]
     return "\n".join(lines)

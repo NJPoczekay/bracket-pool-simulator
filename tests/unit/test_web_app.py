@@ -37,6 +37,13 @@ def test_foundation_endpoint_exposes_phase_zero_contracts() -> None:
         mode["mode"] == "manual" and mode["implemented"] is True
         for mode in payload["completion_modes"]
     )
+    model_rank_mode = next(
+        mode for mode in payload["completion_modes"] if mode["mode"] == "internal_model_rank"
+    )
+    assert model_rank_mode["alias_of"] == "kenpom"
+    assert all(
+        mode["mode"] not in {"ap_poll", "ncaa_net"} for mode in payload["completion_modes"]
+    )
 
 
 def test_cache_key_preview_endpoint_uses_shared_rules() -> None:
