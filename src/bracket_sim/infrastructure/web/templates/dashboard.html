@@ -48,7 +48,7 @@
       }
 
       main {
-        max-width: 1120px;
+        max-width: 1480px;
         margin: 0 auto;
         padding: 28px 18px 60px;
       }
@@ -328,8 +328,7 @@
       }
 
       .control-group input,
-      .control-group select,
-      .pick-select {
+      .control-group select {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 14px;
@@ -339,35 +338,218 @@
         font: inherit;
       }
 
-      .bracket-rounds {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      .bracket-editor {
         margin-top: 18px;
       }
 
-      .round-column {
-        padding: 16px;
+      .bracket-desktop {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .bracket-half {
+        display: grid;
+        gap: 14px;
+      }
+
+      .bracket-region-card,
+      .final-four-card {
+        padding: 12px;
         border-radius: 18px;
         background: var(--paper-strong);
         border: 1px solid var(--line);
       }
 
-      .round-column h3 {
-        margin-bottom: 12px;
+      .bracket-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 8px;
       }
 
-      .game-card + .game-card {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid var(--line);
+      .bracket-card-header h3 {
+        margin-bottom: 0;
+        font-size: 1rem;
       }
 
-      .game-label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 0.86rem;
+      .region-bracket,
+      .final-four-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .round-headings,
+      .round-lanes {
+        display: grid;
+        gap: 10px;
+      }
+
+      .round-headings.is-region {
+        grid-template-columns: repeat(4, minmax(118px, 1fr));
+      }
+
+      .round-headings.is-final {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .region-board {
+        --region-row-size: 34px;
+        --region-row-gap: 8px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(118px, 1fr));
+        grid-template-rows: repeat(15, var(--region-row-size));
+        column-gap: 10px;
+        row-gap: var(--region-row-gap);
+      }
+
+      .final-four-board {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: repeat(3, 92px);
+        column-gap: 10px;
+        row-gap: 12px;
+      }
+
+      .matchup-card {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .matchup-card.is-region-card {
+        min-height: calc(var(--region-row-size) * 2 + var(--region-row-gap));
+      }
+
+      .matchup-card.is-final-card {
+        min-height: 92px;
+      }
+
+      .round-heading {
+        margin: 0;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
         color: var(--muted);
+      }
+
+      .matchup-card {
+        padding: 6px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 253, 248, 0.94);
+      }
+
+      .matchup-detail {
+        margin-bottom: 5px;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.62rem;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .team-slot {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 9px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--ink);
+        box-shadow: none;
+        font-size: 0.84rem;
+        line-height: 1.15;
+      }
+
+      .team-slot + .team-slot {
+        margin-top: 5px;
+      }
+
+      .team-slot.is-available {
+        border-color: var(--line);
+        background: rgba(255, 250, 242, 0.92);
+      }
+
+      .team-slot.is-available:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(50, 32, 13, 0.08);
+      }
+
+      .team-slot.is-selected {
+        background: var(--accent);
+        border-color: rgba(138, 59, 18, 0.36);
+        color: #fffaf5;
+      }
+
+      .team-slot.is-placeholder {
+        border-style: dashed;
+        border-color: var(--line);
+        background: rgba(29, 24, 15, 0.04);
+        color: var(--muted);
+        cursor: default;
+      }
+
+      .team-slot:disabled {
+        opacity: 1;
+      }
+
+      .team-meta {
+        display: flex;
+        min-width: 0;
+      }
+
+      .team-name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .team-seed {
+        flex-shrink: 0;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(29, 24, 15, 0.08);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.72rem;
+      }
+
+      .team-slot.is-selected .team-seed {
+        background: rgba(255, 250, 245, 0.18);
+      }
+
+      .bracket-mobile {
+        display: none;
+        margin-bottom: 18px;
+      }
+
+      .mobile-tab-list {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        margin-bottom: 10px;
+      }
+
+      .mobile-tab-button {
+        flex: 0 0 auto;
+        border: 1px solid var(--line);
+        background: rgba(255, 250, 242, 0.7);
+        color: var(--ink);
+      }
+
+      .mobile-tab-button.is-active {
+        background: var(--accent);
+        color: #fffaf5;
+        border-color: rgba(138, 59, 18, 0.36);
       }
 
       .analysis-results {
@@ -423,6 +605,52 @@
 
       .inline-status {
         margin-top: 12px;
+        min-height: 1.5em;
+      }
+
+      @media (max-width: 1280px) {
+        .bracket-desktop {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .bracket-half {
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+      }
+
+      @media (max-width: 960px) {
+        .bracket-desktop {
+          display: none;
+        }
+
+        .bracket-mobile {
+          display: block;
+        }
+
+        .region-bracket {
+          overflow-x: auto;
+        }
+
+        .round-stack {
+          min-width: 130px;
+        }
+
+        .final-four-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .round-headings.is-final,
+        .final-four-board {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .final-four-board {
+          grid-template-rows: auto auto auto;
+        }
+
+        .matchup-card.is-final-card {
+          min-height: 0;
+        }
       }
 
       @media (max-width: 760px) {
@@ -442,6 +670,20 @@
         .pool-header,
         .panel-item {
           display: block;
+        }
+
+        .region-bracket {
+          gap: 6px;
+        }
+
+        .round-headings.is-region,
+        .region-board {
+          grid-template-columns: repeat(4, minmax(112px, 1fr));
+        }
+
+        .region-board {
+          --region-row-size: 30px;
+          --region-row-gap: 6px;
         }
       }
     </style>
@@ -537,7 +779,7 @@
               </div>
               <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="analyze-bracket-button" type="button">Analyze Bracket</button>
+                <button id="analyze-bracket-button" type="button" disabled>Analyze Bracket</button>
               </div>
             </div>
 
@@ -546,10 +788,16 @@
               <code>{{ bracket_lab_bootstrap.dataset_hash }}</code>
             </p>
             <p id="bracket-lab-status" class="muted inline-status">
-              Adjust any game, then analyze against sampled public opponents.
+              63 picks remaining before analysis.
             </p>
 
-            <div id="bracket-lab-rounds" class="bracket-rounds" aria-live="polite"></div>
+            <div id="bracket-lab-editor" class="bracket-editor">
+              <section class="bracket-mobile" aria-label="Bracket regions">
+                <div id="bracket-mobile-tabs" class="mobile-tab-list" role="tablist"></div>
+                <div id="bracket-mobile-panel" aria-live="polite"></div>
+              </section>
+              <div id="bracket-lab-desktop" class="bracket-desktop" aria-live="polite"></div>
+            </div>
 
             <section id="analysis-results" class="analysis-results" hidden>
               <div class="analysis-grid">
@@ -751,10 +999,13 @@
     </main>
     {% if bracket_lab_bootstrap %}
     <script id="bracket-lab-bootstrap" type="application/json">{{ bracket_lab_bootstrap | tojson }}</script>
+    <script id="bracket-lab-editor-layout" type="application/json">{{ bracket_lab_editor_layout | tojson }}</script>
     <script>
       const bootstrapElement = document.getElementById("bracket-lab-bootstrap");
-      if (bootstrapElement) {
+      const layoutElement = document.getElementById("bracket-lab-editor-layout");
+      if (bootstrapElement && layoutElement) {
         const bootstrap = JSON.parse(bootstrapElement.textContent);
+        const editorLayout = JSON.parse(layoutElement.textContent);
         const games = [...bootstrap.games].sort((left, right) => {
           if (left.round !== right.round) {
             return left.round - right.round;
@@ -763,8 +1014,13 @@
         });
         const teamsById = Object.fromEntries(bootstrap.teams.map((team) => [team.team_id, team]));
         const gamesById = Object.fromEntries(games.map((game) => [game.game_id, game]));
+        const regionsById = Object.fromEntries(
+          editorLayout.regions.map((region) => [region.region, region]),
+        );
         const picksByGameId = Object.fromEntries(games.map((game) => [game.game_id, null]));
-        const roundsContainer = document.getElementById("bracket-lab-rounds");
+        const desktopContainer = document.getElementById("bracket-lab-desktop");
+        const mobileTabsContainer = document.getElementById("bracket-mobile-tabs");
+        const mobilePanelContainer = document.getElementById("bracket-mobile-panel");
         const statusElement = document.getElementById("bracket-lab-status");
         const poolSizeInput = document.getElementById("pool-size-input");
         const scoringInput = document.getElementById("scoring-system-input");
@@ -774,75 +1030,320 @@
         const winProbabilityElement = document.getElementById("analysis-win-probability");
         const poolSettingsElement = document.getElementById("analysis-pool-settings");
         const cacheKeyElement = document.getElementById("analysis-cache-key");
+        let activeMobileTab = editorLayout.regions[0].region;
+        let isAnalyzing = false;
 
-        function availableTeamIds(game) {
+        function roundLabel(roundNumber) {
+          const labels = {
+            1: "Round of 64",
+            2: "Round of 32",
+            3: "Sweet 16",
+            4: "Elite 8",
+            5: "Final Four",
+            6: "Championship",
+          };
+          return labels[roundNumber] || `Round ${roundNumber}`;
+        }
+
+        function entrantsBySlot(game) {
           if (game.round === 1) {
             return [game.left_team_id, game.right_team_id];
           }
-          return [
-            picksByGameId[game.left_game_id],
-            picksByGameId[game.right_game_id],
-          ].filter((teamId) => teamId !== null);
+          return [picksByGameId[game.left_game_id], picksByGameId[game.right_game_id]];
+        }
+
+        function availableTeamIds(game) {
+          return entrantsBySlot(game).filter((teamId) => teamId !== null);
         }
 
         function syncPicks() {
           for (const game of games) {
             const teamIds = availableTeamIds(game);
             if (!teamIds.includes(picksByGameId[game.game_id])) {
-              picksByGameId[game.game_id] = teamIds[0] || null;
+              picksByGameId[game.game_id] = null;
             }
           }
         }
 
+        function remainingPickCount() {
+          let remaining = 0;
+          for (const game of games) {
+            if (picksByGameId[game.game_id] === null) {
+              remaining += 1;
+            }
+          }
+          return remaining;
+        }
+
+        function syncAnalyzeAvailability() {
+          analyzeButton.disabled = isAnalyzing || remainingPickCount() > 0;
+        }
+
+        function renderBracketStatus() {
+          const remaining = remainingPickCount();
+          if (remaining === 0) {
+            statusElement.textContent = "Bracket complete. Ready to analyze against sampled public opponents.";
+            return;
+          }
+          statusElement.textContent = `${remaining} picks remaining before analysis.`;
+        }
+
+        function appendTeamContents(button, {name, seed = null}) {
+          const meta = document.createElement("span");
+          meta.className = "team-meta";
+
+          const nameElement = document.createElement("span");
+          nameElement.className = "team-name";
+          nameElement.textContent = name;
+          meta.appendChild(nameElement);
+
+          button.appendChild(meta);
+          if (seed !== null) {
+            const seedElement = document.createElement("span");
+            seedElement.className = "team-seed";
+            seedElement.textContent = seed;
+            button.appendChild(seedElement);
+          }
+        }
+
+        function renderTeamSlot(game, teamId) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "team-slot";
+
+          if (teamId === null) {
+            button.classList.add("is-placeholder");
+            button.disabled = true;
+            appendTeamContents(button, {
+              name: "TBD",
+            });
+            return button;
+          }
+
+          const team = teamsById[teamId];
+          button.classList.add("is-available");
+          if (picksByGameId[game.game_id] === teamId) {
+            button.classList.add("is-selected");
+          }
+          button.setAttribute(
+            "aria-pressed",
+            picksByGameId[game.game_id] === teamId ? "true" : "false",
+          );
+          appendTeamContents(button, {
+            name: team.name,
+            seed: String(team.seed),
+          });
+          button.addEventListener("click", () => {
+            if (isAnalyzing) {
+              return;
+            }
+            picksByGameId[game.game_id] = teamId;
+            syncPicks();
+            resultsSection.hidden = true;
+            renderEditor();
+          });
+          return button;
+        }
+
+        function renderMatchupCard(gameId, detailText = null) {
+          const game = gamesById[gameId];
+          const card = document.createElement("article");
+          card.className = "matchup-card";
+
+          if (detailText !== null) {
+            const detail = document.createElement("div");
+            detail.className = "matchup-detail";
+            detail.textContent = detailText;
+            card.appendChild(detail);
+          }
+          entrantsBySlot(game).forEach((teamId) => {
+            card.appendChild(renderTeamSlot(game, teamId));
+          });
+          return card;
+        }
+
+        function renderRoundHeading(roundNumber) {
+          const heading = document.createElement("div");
+          heading.className = "round-heading";
+          heading.textContent = roundLabel(roundNumber);
+          return heading;
+        }
+
+        function regionGridRow(roundNumber, gameIndex) {
+          const roundIndex = roundNumber - 1;
+          return (2 ** roundIndex) + (gameIndex * (2 ** (roundIndex + 1)));
+        }
+
+        function renderRegionCard(regionLayout, side) {
+          const card = document.createElement("section");
+          card.className = "bracket-region-card";
+
+          const header = document.createElement("div");
+          header.className = "bracket-card-header";
+          const textWrap = document.createElement("div");
+
+          const title = document.createElement("h3");
+          title.textContent = `${regionLayout.title} Region`;
+          textWrap.appendChild(title);
+
+          header.appendChild(textWrap);
+          card.appendChild(header);
+
+          const bracket = document.createElement("div");
+          bracket.className = "region-bracket";
+          const rounds = side === "right"
+            ? [...regionLayout.rounds].reverse()
+            : regionLayout.rounds;
+
+          const headings = document.createElement("div");
+          headings.className = "round-headings is-region";
+          rounds.forEach((roundLayout) => {
+            headings.appendChild(renderRoundHeading(roundLayout.round));
+          });
+
+          const board = document.createElement("div");
+          board.className = "region-board";
+          rounds.forEach((roundLayout, columnIndex) => {
+            roundLayout.game_ids.forEach((gameId, gameIndex) => {
+              const matchup = renderMatchupCard(gameId);
+              matchup.classList.add("is-region-card");
+              matchup.style.gridColumn = String(columnIndex + 1);
+              matchup.style.gridRow = `${regionGridRow(roundLayout.round, gameIndex)} / span 2`;
+              board.appendChild(matchup);
+            });
+          });
+
+          bracket.appendChild(headings);
+          bracket.appendChild(board);
+          card.appendChild(bracket);
+          return card;
+        }
+
+        function renderFinalFourCard() {
+          const card = document.createElement("section");
+          card.className = "final-four-card";
+
+          const header = document.createElement("div");
+          header.className = "bracket-card-header";
+          const textWrap = document.createElement("div");
+
+          const title = document.createElement("h3");
+          title.textContent = "Final Four";
+          textWrap.appendChild(title);
+
+          header.appendChild(textWrap);
+          card.appendChild(header);
+
+          const grid = document.createElement("div");
+          grid.className = "final-four-grid";
+
+          const semifinalDetails = Object.fromEntries(
+            editorLayout.semifinals.map((semifinal) => [
+              semifinal.game_id,
+              `${regionsById[semifinal.left_region].title} vs ${regionsById[semifinal.right_region].title}`,
+            ]),
+          );
+
+          const headings = document.createElement("div");
+          headings.className = "round-headings is-final";
+          headings.appendChild(renderRoundHeading(5));
+          headings.appendChild(renderRoundHeading(6));
+
+          const board = document.createElement("div");
+          board.className = "final-four-board";
+          editorLayout.semifinals.forEach((semifinal, index) => {
+            const matchup = renderMatchupCard(
+              semifinal.game_id,
+              semifinalDetails[semifinal.game_id],
+            );
+            matchup.classList.add("is-final-card");
+            matchup.style.gridColumn = "1";
+            matchup.style.gridRow = String((index * 2) + 1);
+            board.appendChild(matchup);
+          });
+
+          const championship = renderMatchupCard(
+            editorLayout.championship_game_id,
+            "National title",
+          );
+          championship.classList.add("is-final-card");
+          championship.style.gridColumn = "2";
+          championship.style.gridRow = "2";
+          board.appendChild(championship);
+
+          grid.appendChild(headings);
+          grid.appendChild(board);
+          card.appendChild(grid);
+          return card;
+        }
+
+        function renderDesktopEditor() {
+          desktopContainer.innerHTML = "";
+
+          const leftHalf = document.createElement("div");
+          leftHalf.className = "bracket-half";
+          editorLayout.left_region_ids.forEach((regionId) => {
+            leftHalf.appendChild(renderRegionCard(regionsById[regionId], "left"));
+          });
+
+          const rightHalf = document.createElement("div");
+          rightHalf.className = "bracket-half";
+          editorLayout.right_region_ids.forEach((regionId) => {
+            rightHalf.appendChild(renderRegionCard(regionsById[regionId], "right"));
+          });
+
+          desktopContainer.appendChild(leftHalf);
+          desktopContainer.appendChild(renderFinalFourCard());
+          desktopContainer.appendChild(rightHalf);
+        }
+
+        function mobileTabs() {
+          return [
+            ...editorLayout.regions.map((region) => ({
+              id: region.region,
+              label: region.title,
+            })),
+            {id: "final-four", label: "Final Four"},
+          ];
+        }
+
+        function renderMobileTabs() {
+          mobileTabsContainer.innerHTML = "";
+          mobileTabs().forEach((tab) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "mobile-tab-button";
+            if (tab.id === activeMobileTab) {
+              button.classList.add("is-active");
+            }
+            button.textContent = tab.label;
+            button.setAttribute("role", "tab");
+            button.setAttribute("aria-selected", tab.id === activeMobileTab ? "true" : "false");
+            button.addEventListener("click", () => {
+              activeMobileTab = tab.id;
+              renderMobileTabs();
+              renderMobilePanel();
+            });
+            mobileTabsContainer.appendChild(button);
+          });
+        }
+
+        function renderMobilePanel() {
+          mobilePanelContainer.innerHTML = "";
+          if (activeMobileTab === "final-four") {
+            mobilePanelContainer.appendChild(renderFinalFourCard());
+            return;
+          }
+          mobilePanelContainer.appendChild(renderRegionCard(regionsById[activeMobileTab], "left"));
+        }
+
         function renderEditor() {
           syncPicks();
-          const gamesByRound = new Map();
-          for (const game of games) {
-            if (!gamesByRound.has(game.round)) {
-              gamesByRound.set(game.round, []);
-            }
-            gamesByRound.get(game.round).push(game);
-          }
-
-          roundsContainer.innerHTML = "";
-          for (const [round, roundGames] of gamesByRound.entries()) {
-            const roundColumn = document.createElement("section");
-            roundColumn.className = "round-column";
-            const heading = document.createElement("h3");
-            heading.textContent = `Round ${round}`;
-            roundColumn.appendChild(heading);
-
-            for (const game of roundGames) {
-              const card = document.createElement("div");
-              card.className = "game-card";
-
-              const label = document.createElement("label");
-              label.className = "game-label";
-              label.htmlFor = `pick-${game.game_id}`;
-              label.textContent = `${game.game_id}`;
-              card.appendChild(label);
-
-              const select = document.createElement("select");
-              select.className = "pick-select";
-              select.id = `pick-${game.game_id}`;
-              const teamIds = availableTeamIds(game);
-              for (const teamId of teamIds) {
-                const option = document.createElement("option");
-                option.value = teamId;
-                option.textContent = `${teamsById[teamId].name} (${teamsById[teamId].seed})`;
-                option.selected = picksByGameId[game.game_id] === teamId;
-                select.appendChild(option);
-              }
-              select.addEventListener("change", (event) => {
-                picksByGameId[game.game_id] = event.target.value;
-                renderEditor();
-              });
-              card.appendChild(select);
-              roundColumn.appendChild(card);
-            }
-
-            roundsContainer.appendChild(roundColumn);
-          }
+          renderDesktopEditor();
+          renderMobileTabs();
+          renderMobilePanel();
+          renderBracketStatus();
+          syncAnalyzeAvailability();
         }
 
         function percentage(value) {
@@ -879,7 +1380,14 @@
         }
 
         async function analyzeBracket() {
-          analyzeButton.disabled = true;
+          if (remainingPickCount() > 0) {
+            renderBracketStatus();
+            syncAnalyzeAvailability();
+            return;
+          }
+
+          isAnalyzing = true;
+          syncAnalyzeAvailability();
           statusElement.textContent = "Running deterministic analysis...";
           const payload = {
             bracket: {
@@ -911,13 +1419,22 @@
             renderResults(responseBody);
             statusElement.textContent = "Analysis complete.";
           } catch (error) {
-            statusElement.textContent = error.message;
+            statusElement.textContent = error instanceof Error ? error.message : "Analysis failed";
           } finally {
-            analyzeButton.disabled = false;
+            isAnalyzing = false;
+            syncAnalyzeAvailability();
           }
         }
 
         analyzeButton.addEventListener("click", analyzeBracket);
+        poolSizeInput.addEventListener("input", () => {
+          resultsSection.hidden = true;
+          syncAnalyzeAvailability();
+        });
+        scoringInput.addEventListener("change", () => {
+          resultsSection.hidden = true;
+          syncAnalyzeAvailability();
+        });
         renderEditor();
       }
     </script>

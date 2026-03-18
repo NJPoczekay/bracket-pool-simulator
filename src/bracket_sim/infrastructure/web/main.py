@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 from typing import cast
 
@@ -28,6 +29,7 @@ from bracket_sim.domain.product_models import (
 )
 from bracket_sim.infrastructure.web.app import PoolScheduler
 from bracket_sim.infrastructure.web.config import PoolProfile, load_pool_registry
+from bracket_sim.infrastructure.web.layout import build_bracket_lab_editor_layout
 from bracket_sim.infrastructure.web.service import (
     REPORT_ARTIFACT_FILENAMES,
     LatestReport,
@@ -347,6 +349,18 @@ def _render_home(
     workflow_by_key = {workflow["key"]: workflow for workflow in foundation["workflows"]}
     tracker_service = _pool_service(request)
     bracket_lab_service = _bracket_lab_service(request)
+    bracket_lab_bootstrap: dict[str, object] | None = None
+    bracket_lab_editor_layout: dict[str, object] | None = None
+    if bracket_lab_service is not None:
+        bootstrap = bracket_lab_service.build_bootstrap()
+        bracket_lab_bootstrap = bootstrap.model_dump(mode="json")
+        bracket_lab_editor_layout = asdict(
+            build_bracket_lab_editor_layout(
+                teams=bootstrap.teams,
+                games=bootstrap.games,
+            )
+        )
+
     context = {
         "request": request,
         "version": __version__,
@@ -356,11 +370,8 @@ def _render_home(
         "error": error,
         "busy": tracker_service.is_busy() if tracker_service is not None else False,
         "bracket_lab_configured": bracket_lab_service is not None,
-        "bracket_lab_bootstrap": (
-            bracket_lab_service.build_bootstrap().model_dump(mode="json")
-            if bracket_lab_service is not None
-            else None
-        ),
+        "bracket_lab_bootstrap": bracket_lab_bootstrap,
+        "bracket_lab_editor_layout": bracket_lab_editor_layout,
         "tracker_configured": tracker_service is not None,
         "tracker_setup_path": "config/pools.example.toml",
         "pools": _serialized_pools(request),

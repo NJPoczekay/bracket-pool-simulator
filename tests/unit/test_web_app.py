@@ -145,6 +145,26 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     assert analysis["cache_key"].startswith("analysis-")
 
 
+def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(
+    prepared_bracket_lab_dir: Path,
+) -> None:
+    client = TestClient(
+        create_app(
+            bracket_lab_input=prepared_bracket_lab_dir,
+            enable_scheduler=False,
+        )
+    )
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'id="bracket-lab-editor-layout"' in response.text
+    assert 'id="bracket-lab-desktop"' in response.text
+    assert 'id="bracket-mobile-tabs"' in response.text
+    assert "63 picks remaining before analysis." in response.text
+    assert 'id="analyze-bracket-button" type="button" disabled' in response.text
+
+
 def _editable_bracket_payload(synthetic_input_dir: Path) -> list[dict[str, object]]:
     entries = json.loads((synthetic_input_dir / "entries.json").read_text(encoding="utf-8"))
     return [

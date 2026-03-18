@@ -124,6 +124,10 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
     assert "Manual Analyzer" in dashboard_response.text
     assert "Analyze Bracket" in dashboard_response.text
     assert "Dataset hash" in dashboard_response.text
+    assert 'id="bracket-lab-editor-layout"' in dashboard_response.text
+    assert 'id="bracket-mobile-tabs"' in dashboard_response.text
+    assert 'id="bracket-lab-desktop"' in dashboard_response.text
+    assert "63 picks remaining before analysis." in dashboard_response.text
 
     assert analyze_response.status_code == 200
     payload = analyze_response.json()
