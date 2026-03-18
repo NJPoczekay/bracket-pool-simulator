@@ -75,16 +75,16 @@ Use `refresh-bracket-lab-data` when you want a pre-lock dataset for bracket comp
 ```bash
 uv run bracket-sim refresh-bracket-lab-data \
   --challenge tournament-challenge-bracket-2026 \
-  --raw data/bracket-lab/raw/2026 \
   --ratings-file /path/to/kenpom.csv
 ```
+
+Default raw output: `data/2026/bracket-lab/tournament-challenge-bracket-2026/raw`
 
 Or fetch the KenPom source rows directly:
 
 ```bash
 uv run bracket-sim refresh-bracket-lab-data \
   --challenge tournament-challenge-bracket-2026 \
-  --raw data/bracket-lab/raw/2026 \
   --kenpom
 ```
 
@@ -105,9 +105,10 @@ Expected raw Bracket Lab contents:
 
 ```bash
 uv run bracket-sim prepare-bracket-lab-data \
-  --raw data/bracket-lab/raw/2026 \
-  --out data/bracket-lab/prepared/2026
+  --raw data/2026/bracket-lab/tournament-challenge-bracket-2026/raw
 ```
+
+Default prepared output: `data/2026/bracket-lab/tournament-challenge-bracket-2026/prepared`
 
 Expected prepared Bracket Lab contents:
 
@@ -126,9 +127,10 @@ Use `refresh-data` when you want to build a raw dataset from a live ESPN Tournam
 
 ```bash
 uv run bracket-sim refresh-data \
-  --group-url "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID" \
-  --raw data/raw/2026
+  --group-url "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID"
 ```
+
+Default raw output: `data/2026/tracker/<group-id>/raw`
 
 By default the command expects ratings from either:
 
@@ -140,7 +142,6 @@ You can also fetch ratings from KenPom instead:
 ```bash
 uv run bracket-sim refresh-data \
   --group-url "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID" \
-  --raw data/raw/2026 \
   --kenpom
 ```
 
@@ -168,9 +169,10 @@ Expected raw directory contents after a successful refresh:
 
 ```bash
 uv run bracket-sim prepare-data \
-  --raw data/raw/2026 \
-  --out data/prepared/2026
+  --raw data/2026/tracker/YOUR_GROUP_ID/raw
 ```
+
+Default prepared output: `data/2026/tracker/YOUR_GROUP_ID/prepared`
 
 Expected prepared directory contents:
 
@@ -265,10 +267,13 @@ uv run bracket-sim benchmark \
 ```bash
 uv run bracket-sim report \
   --input data/prepared/2026 \
-  --out reports/2026-main \
   --n-sims 100000 \
   --seed 42
 ```
+
+Default report archive root: `reports/<season>/tracker/<dataset-slug>/`
+
+When `--out` is omitted, the CLI writes a timestamped archive bundle under that root and refreshes `latest/` with the newest canonical artifacts.
 
 Useful options:
 
@@ -290,9 +295,10 @@ This command downloads the public ESPN challenge payload and stores national pic
 
 ```bash
 uv run bracket-sim refresh-national-picks \
-  --challenge tournament-challenge-bracket-2026 \
-  --out data/national-picks/2026
+  --challenge tournament-challenge-bracket-2026
 ```
+
+Default output: `data/2026/national-picks/tournament-challenge-bracket-2026`
 
 `--challenge` accepts an ESPN bracket URL, group URL, or challenge key.
 
@@ -323,7 +329,13 @@ Start from the example config:
 cp config/pools.example.toml config/pools.toml
 ```
 
-Paths inside the TOML are resolved relative to the config file, so each pool can stay self-contained inside one workspace. Each pool needs its own `raw_dir`, `prepared_dir`, and `reports_root`.
+Paths inside the TOML are resolved relative to the config file, so each pool can stay self-contained inside one workspace. You can still set `raw_dir`, `prepared_dir`, and `reports_root` explicitly, but they now default automatically from the pool id and parsed season.
+
+If those tracker path fields are omitted, they default to:
+
+- `data/<season>/tracker/<pool-id>/raw`
+- `data/<season>/tracker/<pool-id>/prepared`
+- `reports/<season>/tracker/<pool-id>`
 
 The tracker config is intentionally tracker-only. Keep pre-lock optimizer assumptions out of this file because Bracket Lab and Pool Tracker do not share mutable state.
 

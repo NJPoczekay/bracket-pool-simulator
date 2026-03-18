@@ -7,6 +7,7 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from bracket_sim.domain.models import CompletedGameConstraint, Game, PoolEntry, RatingRecord, Team
@@ -21,6 +22,7 @@ class PreparedDataset:
     entries: list[PoolEntry]
     constraints: list[CompletedGameConstraint]
     ratings: list[RatingRecord]
+    metadata: dict[str, Any] | None = None
 
 
 def write_prepared_dataset(
@@ -69,6 +71,8 @@ def _write_normalized_json_csv(*, staging_dir: Path, dataset: PreparedDataset) -
     _write_json(path=staging_dir / "entries.json", payload=entries_payload)
     _write_json(path=staging_dir / "constraints.json", payload=constraints_payload)
     _write_ratings_csv(path=staging_dir / "ratings.csv", ratings=dataset.ratings)
+    if dataset.metadata is not None:
+        _write_json(path=staging_dir / "metadata.json", payload=dataset.metadata)
 
 
 def _write_ratings_csv(path: Path, ratings: list[RatingRecord]) -> None:

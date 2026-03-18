@@ -6,6 +6,7 @@ import html
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 from bracket_sim.domain.models import Game, Team
 from bracket_sim.infrastructure.storage._file_io import load_required_csv_rows, load_required_json
@@ -55,6 +56,7 @@ class RawInput:
     constraints: list[RawConstraint]
     ratings: list[RawRatingRecord]
     aliases: list[RawAlias]
+    metadata: dict[str, Any] | None
 
 
 def load_raw_input(raw_dir: Path) -> RawInput:
@@ -75,6 +77,9 @@ def load_raw_input(raw_dir: Path) -> RawInput:
     aliases_path = raw_dir / "aliases.csv"
     aliases = _load_aliases_csv(aliases_path) if aliases_path.exists() else []
 
+    metadata_path = raw_dir / "metadata.json"
+    metadata = _load_metadata(metadata_path) if metadata_path.exists() else None
+
     return RawInput(
         teams=teams,
         games=games,
@@ -82,6 +87,7 @@ def load_raw_input(raw_dir: Path) -> RawInput:
         constraints=constraints,
         ratings=ratings,
         aliases=aliases,
+        metadata=metadata,
     )
 
 
@@ -236,6 +242,14 @@ def _load_aliases_csv(path: Path) -> list[RawAlias]:
             )
         )
     return aliases
+
+
+def _load_metadata(path: Path) -> dict[str, Any]:
+    payload = load_required_json(path, missing_prefix="Required raw file is missing")
+    if not isinstance(payload, dict):
+        msg = "metadata.json must contain an object"
+        raise ValueError(msg)
+    return cast(dict[str, Any], payload)
 
 
 def _validate_columns(path: Path, expected_columns: set[str], fieldnames: list[str]) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -177,6 +178,28 @@ def write_report_manifest(path: Path, manifest: ReportBundleManifest) -> None:
     write_json_atomic(path=path, payload=manifest.model_dump(mode="json"))
 
 
+def publish_latest_report(*, archive_dir: Path, latest_dir: Path) -> None:
+    """Refresh a materialized latest-report directory from one archive bundle."""
+
+    latest_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging_dir = latest_dir.parent / f".{latest_dir.name}.tmp-{uuid4().hex}"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+
+    try:
+        staging_dir.mkdir(parents=True, exist_ok=False)
+        for source_path in _canonical_report_paths(archive_dir):
+            shutil.copy2(source_path, staging_dir / source_path.name)
+
+        if latest_dir.exists():
+            shutil.rmtree(latest_dir)
+        staging_dir.rename(latest_dir)
+    except Exception:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        raise
+
+
 def _write_csv_rows(*, path: Path, rows: list[dict[str, object]]) -> ReportArtifact:
     path.parent.mkdir(parents=True, exist_ok=True)
     staging_path = path.parent / f".{path.name}.tmp-{uuid4().hex}"
@@ -200,3 +223,14 @@ def _write_csv_rows(*, path: Path, rows: list[dict[str, object]]) -> ReportArtif
 
 def _sha256_path(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _canonical_report_paths(output_dir: Path) -> tuple[Path, ...]:
+    paths = build_report_artifact_paths(output_dir)
+    return (
+        paths.manifest_path,
+        paths.summary_path,
+        paths.team_advancement_path,
+        paths.entry_summary_path,
+        paths.champion_sensitivity_path,
+    )

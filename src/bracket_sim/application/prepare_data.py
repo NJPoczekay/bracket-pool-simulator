@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from bracket_sim.domain.bracket_graph import build_bracket_graph
 from bracket_sim.domain.constraints import validate_constraints
 from bracket_sim.domain.models import (
     CompletedGameConstraint,
     EntryPick,
+    Game,
     PoolEntry,
     RatingRecord,
     Team,
 )
 from bracket_sim.domain.scoring import validate_entries
 from bracket_sim.infrastructure.storage.alias_resolver import AliasResolver
+from bracket_sim.infrastructure.storage.path_defaults import tracker_context_from_raw
 from bracket_sim.infrastructure.storage.prepared_writer import (
     PreparedDataset,
     write_prepared_dataset,
@@ -67,12 +72,23 @@ def prepare_data(*, raw_dir: Path, out_dir: Path) -> PrepareDataSummary:
     validate_constraints(constraints=constraints, graph=graph)
     validate_entries(entries=entries, graph=graph)
 
+    metadata = _build_metadata(
+        raw_dir=raw_dir,
+        raw=raw,
+        teams=teams,
+        games=games,
+        entries=entries,
+        constraints=constraints,
+        ratings=ratings,
+    )
+
     prepared = PreparedDataset(
         teams=teams,
         games=games,
         entries=entries,
         constraints=constraints,
         ratings=ratings,
+        metadata=metadata,
     )
     write_prepared_dataset(out_dir=out_dir, dataset=prepared)
 
@@ -157,3 +173,62 @@ def _normalize_ratings(
         for team_id in sorted(expected_team_ids)
     ]
     return normalized
+
+
+def _build_metadata(
+    *,
+    raw_dir: Path,
+    raw: RawInput,
+    teams: list[Team],
+    games: list[Game],
+    entries: list[PoolEntry],
+    constraints: list[CompletedGameConstraint],
+    ratings: list[RatingRecord],
+) -> dict[str, Any]:
+    context = tracker_context_from_raw(raw_dir=raw_dir, raw_metadata=raw.metadata)
+    source_metadata = raw.metadata or {}
+    source_value = source_metadata.get("source")
+    source = source_value if isinstance(source_value, dict) else {}
+    return {
+        "schema_version": "prepare-data.v1",
+        "storage": context.to_metadata(),
+        "source": {
+            "raw_schema_version": source_metadata.get("schema_version"),
+            "raw_canonical_sha256": source_metadata.get("canonical_sha256"),
+            "upstream": source,
+        },
+        "counts": {
+            "teams": len(teams),
+            "games": len(games),
+            "entries": len(entries),
+            "constraints": len(constraints),
+            "ratings": len(ratings),
+            "aliases": len(raw.aliases),
+        },
+        "canonical_sha256": _compute_canonical_hash(
+            teams=teams,
+            games=games,
+            entries=entries,
+            constraints=constraints,
+            ratings=ratings,
+        ),
+    }
+
+
+def _compute_canonical_hash(
+    *,
+    teams: list[Team],
+    games: list[Game],
+    entries: list[PoolEntry],
+    constraints: list[CompletedGameConstraint],
+    ratings: list[RatingRecord],
+) -> str:
+    payload = {
+        "teams": [row.model_dump(mode="json") for row in teams],
+        "games": [row.model_dump(mode="json") for row in games],
+        "entries": [row.model_dump(mode="json") for row in entries],
+        "constraints": [row.model_dump(mode="json") for row in constraints],
+        "ratings": [row.model_dump(mode="json") for row in ratings],
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()

@@ -47,6 +47,19 @@ def test_find_latest_report_uses_newest_timestamped_directory(tmp_path: Path) ->
     assert latest.summary.report_id == "new-report"
 
 
+def test_find_latest_report_ignores_materialized_latest_directory(tmp_path: Path) -> None:
+    pool = _build_registry(tmp_path).pools[0]
+    timestamped_dir = pool.reports_root / "20260315-093000"
+    latest_dir = pool.reports_root / "latest"
+    _write_report_bundle(timestamped_dir, report_id="timestamped-report")
+    _write_report_bundle(latest_dir, report_id="latest-copy")
+
+    latest = find_latest_report(pool)
+
+    assert latest is not None
+    assert latest.report_dir == timestamped_dir
+
+
 def test_is_pool_due_today_respects_local_time_and_existing_success(tmp_path: Path) -> None:
     schedule = PoolSchedule(
         enabled=True,

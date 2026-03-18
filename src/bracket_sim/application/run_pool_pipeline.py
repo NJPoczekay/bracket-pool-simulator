@@ -17,6 +17,7 @@ from bracket_sim.infrastructure.providers.contracts import (
     RatingsProvider,
     ResultsProvider,
 )
+from bracket_sim.infrastructure.storage.report_bundle import publish_latest_report
 
 _ALLOWED_ENGINES = {"numpy", "numba"}
 REPORT_DIR_TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
@@ -135,6 +136,10 @@ def run_pool_pipeline(
             batch_size=config.batch_size,
             engine=config.engine,
         )
+    )
+    publish_latest_report(
+        archive_dir=report_dir,
+        latest_dir=config.reports_root / "latest",
     )
     return PoolPipelineResult(
         config=config,

@@ -48,6 +48,10 @@ def test_prepare_data_generates_simulate_compatible_dataset(
         assert first_row["rating"]
         assert first_row["tempo"]
 
+    metadata = json.loads((out_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["schema_version"] == "prepare-data.v1"
+    assert metadata["storage"]["workflow"] == "tracker"
+
 
 def test_prepare_data_is_deterministic(raw_canonical_dir: Path, tmp_path: Path) -> None:
     out_a = tmp_path / "prepared_a"
@@ -62,6 +66,7 @@ def test_prepare_data_is_deterministic(raw_canonical_dir: Path, tmp_path: Path) 
         "entries.json",
         "constraints.json",
         "ratings.csv",
+        "metadata.json",
     ):
         assert (out_a / filename).read_text(encoding="utf-8") == (
             out_b / filename

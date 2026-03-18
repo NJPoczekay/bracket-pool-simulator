@@ -198,6 +198,7 @@ def test_prepare_bracket_lab_data_outputs_self_contained_placeholder_artifacts(
 
     prepared = load_bracket_lab_prepared_input(out_dir)
     assert prepared.metadata["schema_version"] == "prepare-bracket-lab-data.v1"
+    assert prepared.metadata["storage"]["workflow"] == "bracket-lab"
     assert prepared.completion_inputs.mode_aliases[0].mode.value == "internal_model_rank"
     assert prepared.completion_inputs.mode_aliases[0].alias_of.value == "kenpom"
     assert all(

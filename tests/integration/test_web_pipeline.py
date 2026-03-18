@@ -89,6 +89,7 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert (report_dir / "summary.json").exists()
     assert (report_dir / "manifest.json").exists()
     assert (report_dir / "entry_summary.csv").exists()
+    assert (tmp_path / "reports" / "latest" / "summary.json").exists()
     assert "Bracket Lab" in dashboard_response.text
     assert "Pool Tracker" in dashboard_response.text
     assert "Top Entries" in dashboard_response.text

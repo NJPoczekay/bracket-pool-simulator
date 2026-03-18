@@ -14,6 +14,7 @@ from bracket_sim.application.prepare_data import prepare_data
 from bracket_sim.application.refresh_bracket_lab_data import refresh_bracket_lab_data
 from bracket_sim.application.refresh_data import refresh_data
 from bracket_sim.application.refresh_national_picks import refresh_national_picks
+from bracket_sim.application.run_pool_pipeline import create_report_output_dir
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import (
     BenchmarkConfig,
@@ -30,9 +31,27 @@ from bracket_sim.infrastructure.cli.presenter import (
     format_report_summary,
     format_result_table,
 )
+from bracket_sim.infrastructure.providers.espn_api import (
+    parse_espn_challenge_reference,
+    parse_espn_group_url,
+)
+from bracket_sim.infrastructure.storage.path_defaults import (
+    bracket_lab_context_from_challenge,
+    build_bracket_lab_paths,
+    build_national_picks_dir,
+    build_tracker_paths,
+    default_report_timestamp,
+    derive_prepared_out_dir,
+    national_picks_context_from_challenge,
+    report_publish_targets_for_input,
+    tracker_context_from_group,
+)
+from bracket_sim.infrastructure.storage.report_bundle import publish_latest_report
 from bracket_sim.infrastructure.web.main import run_server
 
 app = typer.Typer(no_args_is_help=True, help="Bracket pool simulator CLI")
+
+_DEFAULT_BASE_DIR = Path(".")
 
 
 @app.callback()
@@ -186,15 +205,18 @@ def report_command(
         ),
     ],
     out_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--out",
-            help="Directory to write report bundle artifacts",
+            help=(
+                "Directory to write report bundle artifacts. Defaults to "
+                "reports/<season>/<workflow>/<dataset>/<timestamp>"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
     n_sims: Annotated[int, typer.Option(help="Number of simulations to run")] = 100_000,
     seed: Annotated[int, typer.Option(help="Deterministic random seed")] = 42,
     batch_size: Annotated[
@@ -217,15 +239,31 @@ def report_command(
     """Generate deterministic offline report artifacts from normalized local inputs."""
 
     try:
+        publish_latest = out_dir is None
+        latest_dir = None
+        resolved_out_dir = out_dir
+        if resolved_out_dir is None:
+            targets = report_publish_targets_for_input(
+                input_dir=input_dir,
+                base_dir=_DEFAULT_BASE_DIR,
+            )
+            resolved_out_dir = create_report_output_dir(
+                reports_root=targets.reports_root,
+                started_at=default_report_timestamp(),
+            )
+            latest_dir = targets.latest_dir
+
         config = ReportConfig(
             input_dir=input_dir,
-            output_dir=out_dir,
+            output_dir=resolved_out_dir,
             n_sims=n_sims,
             seed=seed,
             batch_size=batch_size,
             engine=engine,
         )
         result = generate_reports(config)
+        if publish_latest and latest_dir is not None:
+            publish_latest_report(archive_dir=resolved_out_dir, latest_dir=latest_dir)
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -251,20 +289,27 @@ def prepare_data_command(
         ),
     ],
     out_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--out",
-            help="Directory to write normalized simulation inputs",
+            help=(
+                "Directory to write normalized simulation inputs. Defaults to a sibling "
+                "prepared directory next to --raw"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
 ) -> None:
     """Prepare normalized simulation inputs from canonical raw local files."""
 
     try:
-        summary = prepare_data(raw_dir=raw_dir, out_dir=out_dir)
+        resolved_out_dir = out_dir or derive_prepared_out_dir(raw_dir)
+        if raw_dir.resolve() == resolved_out_dir.resolve():
+            msg = f"Derived default --out collides with --raw: {resolved_out_dir}"
+            raise ValueError(msg)
+        summary = prepare_data(raw_dir=raw_dir, out_dir=resolved_out_dir)
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -286,20 +331,27 @@ def prepare_bracket_lab_data_command(
         ),
     ],
     out_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--out",
-            help="Directory to write prepared Bracket Lab inputs",
+            help=(
+                "Directory to write prepared Bracket Lab inputs. Defaults to a sibling "
+                "prepared directory next to --raw"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
 ) -> None:
     """Prepare self-contained Bracket Lab inputs from raw challenge data."""
 
     try:
-        summary = prepare_bracket_lab_data(raw_dir=raw_dir, out_dir=out_dir)
+        resolved_out_dir = out_dir or derive_prepared_out_dir(raw_dir)
+        if raw_dir.resolve() == resolved_out_dir.resolve():
+            msg = f"Derived default --out collides with --raw: {resolved_out_dir}"
+            raise ValueError(msg)
+        summary = prepare_bracket_lab_data(raw_dir=raw_dir, out_dir=resolved_out_dir)
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -317,15 +369,18 @@ def refresh_data_command(
         ),
     ],
     raw_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--raw",
-            help="Directory to write canonical raw preparation inputs",
+            help=(
+                "Directory to write canonical raw preparation inputs. Defaults to "
+                "data/<season>/tracker/<group-id>/raw"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
     ratings_file: Annotated[
         Path | None,
         typer.Option(
@@ -361,9 +416,17 @@ def refresh_data_command(
     """Refresh canonical raw inputs from ESPN + ratings providers."""
 
     try:
+        group_ref = parse_espn_group_url(group_url)
+        resolved_raw_dir = raw_dir or build_tracker_paths(
+            base_dir=_DEFAULT_BASE_DIR,
+            context=tracker_context_from_group(
+                challenge_key=group_ref.challenge_key,
+                group_id=group_ref.group_id,
+            ),
+        ).raw_dir
         summary = refresh_data(
             group_url=group_url,
-            raw_dir=raw_dir,
+            raw_dir=resolved_raw_dir,
             ratings_file=ratings_file,
             use_kenpom=kenpom,
             min_usable_entries=min_usable_entries,
@@ -385,15 +448,18 @@ def refresh_bracket_lab_data_command(
         ),
     ],
     raw_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--raw",
-            help="Directory to write raw Bracket Lab inputs",
+            help=(
+                "Directory to write raw Bracket Lab inputs. Defaults to "
+                "data/<season>/bracket-lab/<challenge-key>/raw"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
     ratings_file: Annotated[
         Path | None,
         typer.Option(
@@ -416,9 +482,14 @@ def refresh_bracket_lab_data_command(
     """Refresh raw Bracket Lab data from ESPN challenge APIs plus KenPom inputs."""
 
     try:
+        challenge_ref = parse_espn_challenge_reference(challenge)
+        resolved_raw_dir = raw_dir or build_bracket_lab_paths(
+            base_dir=_DEFAULT_BASE_DIR,
+            context=bracket_lab_context_from_challenge(challenge_ref.challenge_key),
+        ).raw_dir
         summary = refresh_bracket_lab_data(
             challenge=challenge,
-            raw_dir=raw_dir,
+            raw_dir=resolved_raw_dir,
             ratings_file=ratings_file,
             use_kenpom=kenpom,
         )
@@ -439,20 +510,28 @@ def refresh_national_picks_command(
         ),
     ],
     out_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--out",
-            help="Directory to write national pick-count artifacts",
+            help=(
+                "Directory to write national pick-count artifacts. Defaults to "
+                "data/<season>/national-picks/<challenge-key>"
+            ),
             file_okay=False,
             dir_okay=True,
             writable=True,
         ),
-    ],
+    ] = None,
 ) -> None:
     """Download canonical ESPN national pick counts into a local snapshot."""
 
     try:
-        summary = refresh_national_picks(challenge=challenge, out_dir=out_dir)
+        challenge_ref = parse_espn_challenge_reference(challenge)
+        resolved_out_dir = out_dir or build_national_picks_dir(
+            base_dir=_DEFAULT_BASE_DIR,
+            context=national_picks_context_from_challenge(challenge_ref.challenge_key),
+        )
+        summary = refresh_national_picks(challenge=challenge, out_dir=resolved_out_dir)
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc

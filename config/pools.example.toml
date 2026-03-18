@@ -5,9 +5,6 @@
 id = "main"
 name = "Main Pool"
 group_url = "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=YOUR_GROUP_ID"
-raw_dir = "data/raw/main"
-prepared_dir = "data/prepared/main"
-reports_root = "reports/main"
 ratings_file = "data/ratings/2026.csv"
 use_kenpom = false
 min_usable_entries = 1
@@ -25,9 +22,6 @@ timezone = "America/Los_Angeles"
 id = "friends"
 name = "Friends Pool"
 group_url = "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=ANOTHER_GROUP_ID"
-raw_dir = "data/raw/friends"
-prepared_dir = "data/prepared/friends"
-reports_root = "reports/friends"
 ratings_file = "data/ratings/2026.csv"
 use_kenpom = false
 min_usable_entries = 1

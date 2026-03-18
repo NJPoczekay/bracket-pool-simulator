@@ -32,6 +32,7 @@ from bracket_sim.infrastructure.storage.bracket_lab_prepared_writer import (
     write_bracket_lab_prepared_dataset,
 )
 from bracket_sim.infrastructure.storage.bracket_lab_raw_loader import load_bracket_lab_raw_input
+from bracket_sim.infrastructure.storage.path_defaults import bracket_lab_context_from_raw
 
 _DEFAULT_RATING_SCALE = 10.0
 
@@ -132,6 +133,7 @@ def prepare_bracket_lab_data(*, raw_dir: Path, out_dir: Path) -> PrepareBracketL
         rank_by_team_id=rank_by_team_id,
     )
     metadata = _build_metadata(
+        raw_dir=raw_dir,
         raw_metadata=raw.metadata,
         teams=teams,
         games=games,
@@ -350,6 +352,7 @@ def _build_completion_inputs(
 
 def _build_metadata(
     *,
+    raw_dir: Path,
     raw_metadata: dict[str, Any],
     teams: list[Team],
     games: list[Any],
@@ -368,9 +371,15 @@ def _build_metadata(
         completion_inputs=completion_inputs,
         play_in_slots=play_in_slots,
     )
+    context = bracket_lab_context_from_raw(raw_dir=raw_dir, raw_metadata=raw_metadata)
     return {
         "schema_version": "prepare-bracket-lab-data.v1",
-        "source": raw_metadata.get("source", {}),
+        "storage": context.to_metadata(),
+        "source": {
+            "raw_schema_version": raw_metadata.get("schema_version"),
+            "raw_canonical_sha256": raw_metadata.get("canonical_sha256"),
+            "upstream": raw_metadata.get("source", {}),
+        },
         "counts": {
             "teams": len(teams),
             "games": len(games),
