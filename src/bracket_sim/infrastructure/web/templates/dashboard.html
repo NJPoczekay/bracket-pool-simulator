@@ -304,6 +304,127 @@
         margin-bottom: 0;
       }
 
+      .bracket-lab-panel {
+        padding: 22px;
+        margin-bottom: 16px;
+      }
+
+      .control-grid,
+      .analysis-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .control-grid {
+        margin-bottom: 18px;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .control-group input,
+      .control-group select,
+      .pick-select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: #fffdf8;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .bracket-rounds {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        margin-top: 18px;
+      }
+
+      .round-column {
+        padding: 16px;
+        border-radius: 18px;
+        background: var(--paper-strong);
+        border: 1px solid var(--line);
+      }
+
+      .round-column h3 {
+        margin-bottom: 12px;
+      }
+
+      .game-card + .game-card {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .game-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+
+      .analysis-results {
+        margin-top: 22px;
+      }
+
+      .analysis-results[hidden] {
+        display: none;
+      }
+
+      .analysis-table-wrap {
+        margin-top: 16px;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        font-size: 0.82rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tag-chip {
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: var(--sand-soft);
+        color: var(--sand);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .inline-status {
+        margin-top: 12px;
+      }
+
       @media (max-width: 760px) {
         main {
           padding-inline: 14px;
@@ -371,15 +492,114 @@
           <div>
             <h2>Bracket Lab</h2>
             <p class="section-subtitle">
-              Foundation-first scaffolding for analyzer and optimizer workflows. This area is where
-              users will complete brackets, compare scoring systems, and explore pre-lock strategy
-              inputs before any live pool entries matter.
+              Manual full-bracket analysis for pre-lock planning. Build a full bracket, choose your
+              pool assumptions, and compare it against a sampled public field without crossing into
+              live Pool Tracker state.
             </p>
           </div>
           <span class="status-badge state-{{ workflow_by_key['bracket_lab'].state }}">
             {{ workflow_by_key["bracket_lab"].state|replace("_", " ") }}
           </span>
         </div>
+
+        {% if bracket_lab_configured %}
+          <article class="panel bracket-lab-panel">
+            <div class="panel-item">
+              <div>
+                <h3 style="margin-bottom: 6px;">Manual Analyzer</h3>
+                <p class="muted" style="margin-bottom: 0;">
+                  Full 63-game editor backed by the prepared Bracket Lab dataset.
+                </p>
+              </div>
+              <span class="mini-badge implemented-live">live</span>
+            </div>
+
+            <div class="control-grid">
+              <div class="control-group">
+                <label for="pool-size-input">Pool Size</label>
+                <input id="pool-size-input" type="number" min="1" value="{{ bracket_lab_bootstrap.default_pool_settings.pool_size }}" />
+              </div>
+              <div class="control-group">
+                <label for="scoring-system-input">Scoring System</label>
+                <select id="scoring-system-input">
+                  {% for system in foundation.scoring_systems %}
+                  <option value="{{ system.key }}" {% if system.key == bracket_lab_bootstrap.default_pool_settings.scoring_system %}selected{% endif %}>
+                    {{ system.label }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="control-group">
+                <label for="completion-mode-input">Completion Mode</label>
+                <select id="completion-mode-input" disabled>
+                  <option value="manual" selected>manual</option>
+                </select>
+              </div>
+              <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="analyze-bracket-button" type="button">Analyze Bracket</button>
+              </div>
+            </div>
+
+            <p class="muted" style="margin-bottom: 0;">
+              Dataset hash:
+              <code>{{ bracket_lab_bootstrap.dataset_hash }}</code>
+            </p>
+            <p id="bracket-lab-status" class="muted inline-status">
+              Adjust any game, then analyze against sampled public opponents.
+            </p>
+
+            <div id="bracket-lab-rounds" class="bracket-rounds" aria-live="polite"></div>
+
+            <section id="analysis-results" class="analysis-results" hidden>
+              <div class="analysis-grid">
+                <article class="summary-block">
+                  <h3>Win Probability</h3>
+                  <p id="analysis-win-probability" style="margin-bottom: 0;"></p>
+                </article>
+                <article class="summary-block">
+                  <h3>Pool Settings</h3>
+                  <p id="analysis-pool-settings" style="margin-bottom: 0;"></p>
+                </article>
+                <article class="summary-block">
+                  <h3>Cache Identity</h3>
+                  <p id="analysis-cache-key" style="margin-bottom: 0;"></p>
+                </article>
+              </div>
+
+              <div class="analysis-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Game</th>
+                      <th>Pick</th>
+                      <th>Round</th>
+                      <th>Survival</th>
+                      <th>Win If Picked</th>
+                      <th>Delta</th>
+                      <th>Tags</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analysis-diagnostics-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </article>
+        {% else %}
+          <article class="setup-card">
+            <h3>Bracket Lab Setup Required</h3>
+            <p class="muted">
+              Prepare a Bracket Lab dataset, then point the integrated app at the prepared
+              directory to enable the analyzer.
+            </p>
+            <p><code>uv run bracket-sim prepare-bracket-lab-data --raw data/&lt;season&gt;/bracket-lab/&lt;challenge&gt;/raw</code></p>
+            <p><code>uv run bracket-sim serve --bracket-lab-input /path/to/bracket-lab/prepared</code></p>
+            <p class="muted" style="margin-bottom: 0;">
+              Bracket Lab stays separate from tracker config so pre-lock assumptions never become
+              the source of truth for live pool tracking.
+            </p>
+          </article>
+        {% endif %}
 
         <div class="section-grid">
           <article class="panel">
@@ -529,5 +749,178 @@
         {% endif %}
       </section>
     </main>
+    {% if bracket_lab_bootstrap %}
+    <script id="bracket-lab-bootstrap" type="application/json">{{ bracket_lab_bootstrap | tojson }}</script>
+    <script>
+      const bootstrapElement = document.getElementById("bracket-lab-bootstrap");
+      if (bootstrapElement) {
+        const bootstrap = JSON.parse(bootstrapElement.textContent);
+        const games = [...bootstrap.games].sort((left, right) => {
+          if (left.round !== right.round) {
+            return left.round - right.round;
+          }
+          return left.game_id.localeCompare(right.game_id);
+        });
+        const teamsById = Object.fromEntries(bootstrap.teams.map((team) => [team.team_id, team]));
+        const gamesById = Object.fromEntries(games.map((game) => [game.game_id, game]));
+        const picksByGameId = Object.fromEntries(games.map((game) => [game.game_id, null]));
+        const roundsContainer = document.getElementById("bracket-lab-rounds");
+        const statusElement = document.getElementById("bracket-lab-status");
+        const poolSizeInput = document.getElementById("pool-size-input");
+        const scoringInput = document.getElementById("scoring-system-input");
+        const analyzeButton = document.getElementById("analyze-bracket-button");
+        const resultsSection = document.getElementById("analysis-results");
+        const diagnosticsBody = document.getElementById("analysis-diagnostics-body");
+        const winProbabilityElement = document.getElementById("analysis-win-probability");
+        const poolSettingsElement = document.getElementById("analysis-pool-settings");
+        const cacheKeyElement = document.getElementById("analysis-cache-key");
+
+        function availableTeamIds(game) {
+          if (game.round === 1) {
+            return [game.left_team_id, game.right_team_id];
+          }
+          return [
+            picksByGameId[game.left_game_id],
+            picksByGameId[game.right_game_id],
+          ].filter((teamId) => teamId !== null);
+        }
+
+        function syncPicks() {
+          for (const game of games) {
+            const teamIds = availableTeamIds(game);
+            if (!teamIds.includes(picksByGameId[game.game_id])) {
+              picksByGameId[game.game_id] = teamIds[0] || null;
+            }
+          }
+        }
+
+        function renderEditor() {
+          syncPicks();
+          const gamesByRound = new Map();
+          for (const game of games) {
+            if (!gamesByRound.has(game.round)) {
+              gamesByRound.set(game.round, []);
+            }
+            gamesByRound.get(game.round).push(game);
+          }
+
+          roundsContainer.innerHTML = "";
+          for (const [round, roundGames] of gamesByRound.entries()) {
+            const roundColumn = document.createElement("section");
+            roundColumn.className = "round-column";
+            const heading = document.createElement("h3");
+            heading.textContent = `Round ${round}`;
+            roundColumn.appendChild(heading);
+
+            for (const game of roundGames) {
+              const card = document.createElement("div");
+              card.className = "game-card";
+
+              const label = document.createElement("label");
+              label.className = "game-label";
+              label.htmlFor = `pick-${game.game_id}`;
+              label.textContent = `${game.game_id}`;
+              card.appendChild(label);
+
+              const select = document.createElement("select");
+              select.className = "pick-select";
+              select.id = `pick-${game.game_id}`;
+              const teamIds = availableTeamIds(game);
+              for (const teamId of teamIds) {
+                const option = document.createElement("option");
+                option.value = teamId;
+                option.textContent = `${teamsById[teamId].name} (${teamsById[teamId].seed})`;
+                option.selected = picksByGameId[game.game_id] === teamId;
+                select.appendChild(option);
+              }
+              select.addEventListener("change", (event) => {
+                picksByGameId[game.game_id] = event.target.value;
+                renderEditor();
+              });
+              card.appendChild(select);
+              roundColumn.appendChild(card);
+            }
+
+            roundsContainer.appendChild(roundColumn);
+          }
+        }
+
+        function percentage(value) {
+          return `${(value * 100).toFixed(2)}%`;
+        }
+
+        function renderTags(tags) {
+          if (!tags.length) {
+            return '<span class="muted">none</span>';
+          }
+          return tags
+            .map((tag) => `<span class="tag-chip">${tag.replaceAll("_", " ")}</span>`)
+            .join("");
+        }
+
+        function renderResults(payload) {
+          resultsSection.hidden = false;
+          winProbabilityElement.textContent = percentage(payload.win_probability);
+          poolSettingsElement.textContent = `${payload.pool_settings.pool_size} entries, ${payload.pool_settings.scoring_system}`;
+          cacheKeyElement.innerHTML = `<code>${payload.cache_key}</code>`;
+          diagnosticsBody.innerHTML = payload.pick_diagnostics
+            .map((diagnostic) => `
+              <tr>
+                <td><code>${diagnostic.game_id}</code></td>
+                <td>${diagnostic.team_name}</td>
+                <td>${diagnostic.round}</td>
+                <td>${percentage(diagnostic.survival_probability)}</td>
+                <td>${percentage(diagnostic.win_probability_if_picked)}</td>
+                <td>${percentage(diagnostic.delta_win_probability_if_picked)}</td>
+                <td><div class="tag-list">${renderTags(diagnostic.tags)}</div></td>
+              </tr>
+            `)
+            .join("");
+        }
+
+        async function analyzeBracket() {
+          analyzeButton.disabled = true;
+          statusElement.textContent = "Running deterministic analysis...";
+          const payload = {
+            bracket: {
+              picks: games.map((game) => ({
+                game_id: game.game_id,
+                winner_team_id: picksByGameId[game.game_id],
+                locked: false,
+              })),
+            },
+            pool_settings: {
+              pool_size: Number.parseInt(poolSizeInput.value, 10),
+              scoring_system: scoringInput.value,
+            },
+            completion_mode: "manual",
+          };
+
+          try {
+            const response = await fetch("/api/bracket-lab/analyze", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const responseBody = await response.json();
+            if (!response.ok) {
+              throw new Error(responseBody.detail || "Analysis failed");
+            }
+            renderResults(responseBody);
+            statusElement.textContent = "Analysis complete.";
+          } catch (error) {
+            statusElement.textContent = error.message;
+          } finally {
+            analyzeButton.disabled = false;
+          }
+        }
+
+        analyzeButton.addEventListener("click", analyzeBracket);
+        renderEditor();
+      }
+    </script>
+    {% endif %}
   </body>
 </html>

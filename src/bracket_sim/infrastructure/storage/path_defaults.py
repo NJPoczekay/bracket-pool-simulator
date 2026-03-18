@@ -251,16 +251,24 @@ def load_storage_context(input_dir: Path) -> StorageContext | None:
     workflow = storage.get("workflow")
     season = storage.get("season")
     dataset_slug = storage.get("dataset_slug")
-    if not all(
-        isinstance(value, str) and value.strip()
-        for value in (workflow, season, dataset_slug)
+    if (
+        not isinstance(workflow, str)
+        or not workflow.strip()
+        or not isinstance(season, str)
+        or not season.strip()
+        or not isinstance(dataset_slug, str)
+        or not dataset_slug.strip()
     ):
         return None
 
+    workflow_value = workflow.strip()
+    season_value = season.strip()
+    dataset_slug_value = dataset_slug.strip()
+
     return StorageContext(
-        workflow=workflow.strip(),
-        season=season.strip(),
-        dataset_slug=dataset_slug.strip(),
+        workflow=workflow_value,
+        season=season_value,
+        dataset_slug=dataset_slug_value,
     )
 
 

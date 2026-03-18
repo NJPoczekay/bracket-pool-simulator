@@ -4,7 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from bracket_sim.domain.product_models import (
+    BracketAnalysis,
     BracketEditPick,
+    CompletionMode,
     EditableBracket,
     PoolSettings,
     ScoringSystem,
@@ -40,3 +42,20 @@ def test_scoring_system_requires_positive_round_values() -> None:
             round_values=(1, 2, 4, 8, 0, 32),
             description="invalid",
         )
+
+
+def test_bracket_analysis_allows_deferred_public_percentile() -> None:
+    analysis = BracketAnalysis(
+        bracket=EditableBracket(
+            picks=[BracketEditPick(game_id="g001", winner_team_id="team-a")]
+        ),
+        pool_settings=PoolSettings(pool_size=5),
+        completion_mode=CompletionMode.MANUAL,
+        dataset_hash="a" * 64,
+        cache_key="analysis-1234",
+        win_probability=0.2,
+        public_percentile=None,
+        pick_diagnostics=[],
+    )
+
+    assert analysis.public_percentile is None

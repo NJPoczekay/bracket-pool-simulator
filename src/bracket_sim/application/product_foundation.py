@@ -19,13 +19,20 @@ from bracket_sim.domain.product_models import (
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key
 
 
-def build_product_foundation(*, tracker_enabled: bool = False) -> ProductFoundation:
+def build_product_foundation(
+    *,
+    bracket_lab_enabled: bool = False,
+    tracker_enabled: bool = False,
+) -> ProductFoundation:
     """Return the shared product metadata exposed by the integrated app."""
 
     return ProductFoundation(
         app_name="Bracket Pool Simulator",
-        roadmap_phase="integrated_bracket_lab_and_tracker",
-        workflows=_workflows(tracker_enabled=tracker_enabled),
+        roadmap_phase="phase_2_analyzer_mvp",
+        workflows=_workflows(
+            bracket_lab_enabled=bracket_lab_enabled,
+            tracker_enabled=tracker_enabled,
+        ),
         scoring_systems=_scoring_systems(),
         completion_modes=_completion_modes(),
         cache_policy=CachePolicy(
@@ -76,12 +83,14 @@ def _scoring_systems() -> list[ScoringSystem]:
             key=ScoringSystemKey.LINEAR,
             label="Linear",
             round_values=(1, 2, 3, 4, 5, 6),
+            implemented=True,
             description="Planned for Bracket Lab analysis and optimization support.",
         ),
         ScoringSystem(
             key=ScoringSystemKey.FIBONACCI,
             label="Fibonacci",
             round_values=(2, 3, 5, 8, 13, 21),
+            implemented=True,
             description="Planned for Bracket Lab analysis and optimization support.",
         ),
         ScoringSystem(
@@ -89,23 +98,27 @@ def _scoring_systems() -> list[ScoringSystem]:
             label="Round Plus Seed",
             round_values=(1, 2, 3, 4, 5, 6),
             seed_bonus=True,
+            implemented=True,
             description="Planned for Bracket Lab analysis with a seed bonus overlay.",
         ),
     ]
 
 
-def _workflows(*, tracker_enabled: bool) -> list[ProductWorkflow]:
+def _workflows(
+    *,
+    bracket_lab_enabled: bool,
+    tracker_enabled: bool,
+) -> list[ProductWorkflow]:
     return [
         ProductWorkflow(
             key=WorkflowKey.BRACKET_LAB,
             label="Bracket Lab",
             timing="Pre-tournament",
             description=(
-                "Plan brackets before lock with future completion, analysis, and optimizer "
-                "workflows."
+                "Build and analyze full brackets before lock with public-pick aware scoring."
             ),
             sequence=1,
-            state=WorkflowState.PLANNED,
+            state=WorkflowState.LIVE if bracket_lab_enabled else WorkflowState.SETUP_REQUIRED,
         ),
         ProductWorkflow(
             key=WorkflowKey.POOL_TRACKER,

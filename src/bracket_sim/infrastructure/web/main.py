@@ -13,11 +13,15 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from bracket_sim import __version__
+from bracket_sim.application.analyze_bracket import BracketLabService
 from bracket_sim.application.product_foundation import (
     build_product_foundation,
     preview_cache_key,
 )
 from bracket_sim.domain.product_models import (
+    AnalyzeBracketRequest,
+    BracketAnalysis,
+    BracketLabBootstrap,
     CacheKeyPreview,
     CacheKeyPreviewRequest,
     ProductFoundation,
@@ -39,6 +43,8 @@ def create_app(
     *,
     config_path: Path | None = None,
     service: PoolService | None = None,
+    bracket_lab_input: Path | None = None,
+    bracket_lab_service: BracketLabService | None = None,
     enable_scheduler: bool = True,
     scheduler_poll_seconds: float = 60.0,
 ) -> FastAPI:
@@ -48,7 +54,14 @@ def create_app(
     if pool_service is None and config_path is not None:
         pool_service = PoolService(load_pool_registry(config_path))
 
-    foundation = build_product_foundation(tracker_enabled=pool_service is not None)
+    analyzer_service = bracket_lab_service
+    if analyzer_service is None and bracket_lab_input is not None:
+        analyzer_service = BracketLabService(bracket_lab_input)
+
+    foundation = build_product_foundation(
+        bracket_lab_enabled=analyzer_service is not None,
+        tracker_enabled=pool_service is not None,
+    )
     scheduler = (
         PoolScheduler(pool_service, poll_seconds=scheduler_poll_seconds)
         if pool_service is not None
@@ -59,6 +72,7 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.product_foundation = foundation
         app.state.pool_service = pool_service
+        app.state.bracket_lab_service = analyzer_service
         app.state.pool_scheduler = scheduler
         if enable_scheduler and scheduler is not None:
             scheduler.start()
@@ -76,6 +90,7 @@ def create_app(
     )
     app.state.product_foundation = foundation
     app.state.pool_service = pool_service
+    app.state.bracket_lab_service = analyzer_service
     app.state.pool_scheduler = scheduler
 
     @app.get("/", response_class=HTMLResponse)
@@ -101,6 +116,24 @@ def create_app(
         """Preview the shared cache-key strategy for future workflows."""
 
         return preview_cache_key(request)
+
+    @app.get("/api/bracket-lab/bootstrap", response_model=BracketLabBootstrap)
+    def bracket_lab_bootstrap_api(request: Request) -> BracketLabBootstrap:
+        """Return prepared Bracket Lab graph data for the browser editor."""
+
+        return _bracket_lab_service_or_503(request).build_bootstrap()
+
+    @app.post("/api/bracket-lab/analyze", response_model=BracketAnalysis)
+    def analyze_bracket_api(
+        payload: AnalyzeBracketRequest,
+        request: Request,
+    ) -> BracketAnalysis:
+        """Analyze one full user bracket against sampled public opponents."""
+
+        try:
+            return _bracket_lab_service_or_503(request).analyze_bracket(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/pools")
     def list_pools_api(request: Request) -> dict[str, object]:
@@ -219,18 +252,22 @@ def run_server(
     port: int = 8000,
     reload: bool = False,
     config_path: Path | None = None,
+    bracket_lab_input: Path | None = None,
 ) -> None:
     """Run the integrated local web/API server."""
 
     import uvicorn
 
-    if config_path is not None:
+    if config_path is not None or bracket_lab_input is not None:
         if reload:
-            msg = "--reload is not supported when --config is set"
+            msg = "--reload is not supported when --config or --bracket-lab-input is set"
             raise ValueError(msg)
 
         uvicorn.run(
-            create_app(config_path=config_path),
+            create_app(
+                config_path=config_path,
+                bracket_lab_input=bracket_lab_input,
+            ),
             host=host,
             port=port,
             reload=False,
@@ -255,11 +292,22 @@ def main() -> None:
         type=Path,
         help="Optional pool config TOML to enable live pool tracking data",
     )
+    parser.add_argument(
+        "--bracket-lab-input",
+        type=Path,
+        help="Optional prepared Bracket Lab directory to enable analyzer workflows",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind")
     parser.add_argument("--port", type=int, default=8000, help="TCP port to bind")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
     args = parser.parse_args()
-    run_server(host=args.host, port=args.port, reload=args.reload, config_path=args.config)
+    run_server(
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        config_path=args.config,
+        bracket_lab_input=args.bracket_lab_input,
+    )
 
 
 def _product_foundation(request: Request) -> ProductFoundation:
@@ -270,10 +318,21 @@ def _pool_service(request: Request) -> PoolService | None:
     return cast(PoolService | None, request.app.state.pool_service)
 
 
+def _bracket_lab_service(request: Request) -> BracketLabService | None:
+    return cast(BracketLabService | None, request.app.state.bracket_lab_service)
+
+
 def _pool_service_or_404(request: Request, pool_id: str) -> PoolService:
     service = _pool_service(request)
     if service is None:
         raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}")
+    return service
+
+
+def _bracket_lab_service_or_503(request: Request) -> BracketLabService:
+    service = _bracket_lab_service(request)
+    if service is None:
+        raise HTTPException(status_code=503, detail="Bracket Lab is not configured")
     return service
 
 
@@ -286,7 +345,8 @@ def _render_home(
 ) -> HTMLResponse:
     foundation = _product_foundation(request).model_dump(mode="json")
     workflow_by_key = {workflow["key"]: workflow for workflow in foundation["workflows"]}
-    service = _pool_service(request)
+    tracker_service = _pool_service(request)
+    bracket_lab_service = _bracket_lab_service(request)
     context = {
         "request": request,
         "version": __version__,
@@ -294,8 +354,14 @@ def _render_home(
         "workflow_by_key": workflow_by_key,
         "message": message,
         "error": error,
-        "busy": service.is_busy() if service is not None else False,
-        "tracker_configured": service is not None,
+        "busy": tracker_service.is_busy() if tracker_service is not None else False,
+        "bracket_lab_configured": bracket_lab_service is not None,
+        "bracket_lab_bootstrap": (
+            bracket_lab_service.build_bootstrap().model_dump(mode="json")
+            if bracket_lab_service is not None
+            else None
+        ),
+        "tracker_configured": tracker_service is not None,
         "tracker_setup_path": "config/pools.example.toml",
         "pools": _serialized_pools(request),
     }

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from bracket_sim.infrastructure.web.main import create_app
@@ -15,22 +18,22 @@ def test_health_endpoint_returns_status_and_version() -> None:
     assert response.json()["version"]
 
 
-def test_foundation_endpoint_exposes_phase_zero_contracts() -> None:
+def test_foundation_endpoint_exposes_analyzer_mvp_contracts() -> None:
     client = TestClient(create_app())
 
     response = client.get("/api/foundation")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["roadmap_phase"] == "integrated_bracket_lab_and_tracker"
+    assert payload["roadmap_phase"] == "phase_2_analyzer_mvp"
     assert [workflow["key"] for workflow in payload["workflows"]] == [
         "bracket_lab",
         "pool_tracker",
     ]
-    assert payload["workflows"][0]["state"] == "planned"
+    assert payload["workflows"][0]["state"] == "setup_required"
     assert payload["workflows"][1]["state"] == "setup_required"
-    assert any(
-        system["key"] == "1-2-4-8-16-32" and system["implemented"] is True
+    assert all(
+        system["implemented"] is True
         for system in payload["scoring_systems"]
     )
     assert any(
@@ -86,7 +89,69 @@ def test_root_and_pools_api_show_tracker_setup_state_without_config() -> None:
     pools_response = client.get("/api/pools")
 
     assert root_response.status_code == 200
+    assert "Bracket Lab Setup Required" in root_response.text
     assert "Tracker Setup Required" in root_response.text
     assert "config/pools.example.toml" in root_response.text
     assert pools_response.status_code == 200
     assert pools_response.json() == {"pools": []}
+
+
+def test_bracket_lab_api_requires_configured_dataset() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/api/bracket-lab/bootstrap")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Bracket Lab is not configured"
+
+
+def test_bracket_lab_bootstrap_and_analyze_endpoints(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+) -> None:
+    client = TestClient(
+        create_app(
+            bracket_lab_input=prepared_bracket_lab_dir,
+            enable_scheduler=False,
+        )
+    )
+
+    bootstrap_response = client.get("/api/bracket-lab/bootstrap")
+    analyze_response = client.post(
+        "/api/bracket-lab/analyze",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir),
+            },
+            "pool_settings": {
+                "pool_size": 18,
+                "scoring_system": "2-3-5-8-13-21",
+            },
+            "completion_mode": "manual",
+        },
+    )
+
+    assert bootstrap_response.status_code == 200
+    bootstrap = bootstrap_response.json()
+    assert bootstrap["completion_mode"] == "manual"
+    assert len(bootstrap["teams"]) == 64
+    assert len(bootstrap["games"]) == 63
+
+    assert analyze_response.status_code == 200
+    analysis = analyze_response.json()
+    assert analysis["public_percentile"] is None
+    assert analysis["pool_settings"]["scoring_system"] == "2-3-5-8-13-21"
+    assert len(analysis["pick_diagnostics"]) == 63
+    assert analysis["cache_key"].startswith("analysis-")
+
+
+def _editable_bracket_payload(synthetic_input_dir: Path) -> list[dict[str, object]]:
+    entries = json.loads((synthetic_input_dir / "entries.json").read_text(encoding="utf-8"))
+    return [
+        {
+            "game_id": game_id,
+            "winner_team_id": winner_team_id,
+            "locked": False,
+        }
+        for game_id, winner_team_id in sorted(entries[0]["picks"].items())
+    ]

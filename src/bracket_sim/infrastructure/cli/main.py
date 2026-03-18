@@ -552,6 +552,17 @@ def serve_command(
             readable=True,
         ),
     ] = None,
+    bracket_lab_input: Annotated[
+        Path | None,
+        typer.Option(
+            "--bracket-lab-input",
+            help="Optional prepared Bracket Lab directory to enable analyzer workflows",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ] = None,
     host: Annotated[
         str,
         typer.Option("--host", help="Host interface for the local web/API server"),
@@ -567,7 +578,13 @@ def serve_command(
 ) -> None:
     """Run the local web/API surface."""
     try:
-        run_server(host=host, port=port, reload=reload, config_path=config_path)
+        run_server(
+            host=host,
+            port=port,
+            reload=reload,
+            config_path=config_path,
+            bracket_lab_input=bracket_lab_input,
+        )
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc

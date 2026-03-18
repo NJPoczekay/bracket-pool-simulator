@@ -605,6 +605,8 @@ def test_serve_command_invokes_web_server(
 
     config_path = tmp_path / "pools.toml"
     config_path.write_text("pools = []\n", encoding="utf-8")
+    bracket_lab_input = tmp_path / "bracket-lab"
+    bracket_lab_input.mkdir()
     fake_run_server = Mock()
     monkeypatch.setattr(cli_main, "run_server", fake_run_server)
 
@@ -615,6 +617,8 @@ def test_serve_command_invokes_web_server(
             "serve",
             "--config",
             str(config_path),
+            "--bracket-lab-input",
+            str(bracket_lab_input),
             "--host",
             "127.0.0.1",
             "--port",
@@ -628,4 +632,5 @@ def test_serve_command_invokes_web_server(
         port=8123,
         reload=False,
         config_path=config_path,
+        bracket_lab_input=bracket_lab_input,
     )

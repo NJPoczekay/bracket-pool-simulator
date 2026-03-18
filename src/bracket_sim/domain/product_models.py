@@ -6,6 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from bracket_sim.domain.models import Game, Team
+
 
 class ScoringSystemKey(StrEnum):
     """Supported scoring system identifiers."""
@@ -171,7 +173,7 @@ class BracketAnalysis(BaseModel):
     dataset_hash: str = Field(min_length=64, max_length=64)
     cache_key: str = Field(min_length=1)
     win_probability: float = Field(ge=0.0, le=1.0)
-    public_percentile: float = Field(ge=0.0, le=1.0)
+    public_percentile: float | None = Field(default=None, ge=0.0, le=1.0)
     pick_diagnostics: list[PickDiagnostic]
 
 
@@ -270,3 +272,25 @@ class CacheKeyPreview(BaseModel):
     artifact_kind: CacheArtifactKind
     dataset_hash: str = Field(min_length=64, max_length=64)
     cache_key: str = Field(min_length=1)
+
+
+class AnalyzeBracketRequest(BaseModel):
+    """Request payload for a manual Bracket Lab analysis run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket: EditableBracket
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+
+
+class BracketLabBootstrap(BaseModel):
+    """Prepared Bracket Lab data required to render the manual editor."""
+
+    model_config = ConfigDict(frozen=True)
+
+    dataset_hash: str = Field(min_length=64, max_length=64)
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+    default_pool_settings: PoolSettings
+    teams: list[Team]
+    games: list[Game]

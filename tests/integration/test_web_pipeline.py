@@ -96,6 +96,42 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert "Top Champions" in dashboard_response.text
 
 
+def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+) -> None:
+    app = create_app(
+        bracket_lab_input=prepared_bracket_lab_dir,
+        enable_scheduler=False,
+    )
+    with TestClient(app) as client:
+        dashboard_response = client.get("/")
+        analyze_response = client.post(
+            "/api/bracket-lab/analyze",
+            json={
+                "bracket": {
+                    "picks": _editable_bracket_payload(synthetic_input_dir),
+                },
+                "pool_settings": {
+                    "pool_size": 12,
+                    "scoring_system": "round+seed",
+                },
+                "completion_mode": "manual",
+            },
+        )
+
+    assert dashboard_response.status_code == 200
+    assert "Manual Analyzer" in dashboard_response.text
+    assert "Analyze Bracket" in dashboard_response.text
+    assert "Dataset hash" in dashboard_response.text
+
+    assert analyze_response.status_code == 200
+    payload = analyze_response.json()
+    assert payload["public_percentile"] is None
+    assert payload["pool_settings"]["scoring_system"] == "round+seed"
+    assert payload["pick_diagnostics"][0]["tags"] is not None
+
+
 def _build_provider(
     *,
     challenge_payload: dict[str, Any],
@@ -130,3 +166,15 @@ def _write_team_id_ratings(path: Path, fixture_dir: Path) -> None:
     for idx, team in enumerate(sorted(teams, key=lambda row: row["team_id"]), start=1):
         lines.append(f"{team['team_id']},{200 - idx:.3f},{64 + (idx % 5):.1f}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _editable_bracket_payload(synthetic_input_dir: Path) -> list[dict[str, object]]:
+    entries = json.loads((synthetic_input_dir / "entries.json").read_text(encoding="utf-8"))
+    return [
+        {
+            "game_id": game_id,
+            "winner_team_id": winner_team_id,
+            "locked": False,
+        }
+        for game_id, winner_team_id in sorted(entries[0]["picks"].items())
+    ]

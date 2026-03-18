@@ -101,3 +101,8 @@ def graph(normalized_input: NormalizedInput) -> BracketGraph:
 @pytest.fixture(scope="session")
 def constraint_map(normalized_input: NormalizedInput, graph: BracketGraph) -> dict[str, str]:
     return validate_constraints(constraints=normalized_input.constraints, graph=graph)
+
+
+@pytest.fixture(scope="session")
+def prepared_bracket_lab_dir() -> Path:
+    return Path(__file__).resolve().parent / "fixtures" / "bracket_lab_prepared"

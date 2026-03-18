@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import cast
 
 import numpy as np
@@ -12,6 +13,7 @@ from bracket_sim.domain.models import PoolEntry
 from bracket_sim.domain.simulator import canonical_team_order
 
 _MAX_WINS = 6
+_DEFAULT_ROUND_VALUES = (1, 2, 4, 8, 16, 32)
 
 
 def validate_entries(entries: list[PoolEntry], graph: BracketGraph) -> None:
@@ -84,8 +86,12 @@ def build_predicted_wins_matrix(
 def score_entries(
     predicted_wins: npt.NDArray[np.int16],
     actual_wins: npt.NDArray[np.int16],
+    *,
+    round_values: Sequence[int] = _DEFAULT_ROUND_VALUES,
+    team_seeds: npt.NDArray[np.int16] | None = None,
+    seed_bonus: bool = False,
 ) -> npt.NDArray[np.int32]:
-    """Score each entry against each simulation using ESPN-style points."""
+    """Score each entry against each simulation using cumulative round values."""
 
     if predicted_wins.ndim != 2 or actual_wins.ndim != 2:
         msg = "Predicted and actual wins must be 2D arrays"
@@ -97,19 +103,47 @@ def score_entries(
         msg = "Predicted and actual wins arrays must have the same team dimension"
         raise ValueError(msg)
 
-    lookup = np.fromfunction(
-        lambda predicted, actual: (2 ** np.minimum(predicted, actual)) - 1,
-        (_MAX_WINS + 1, _MAX_WINS + 1),
-        dtype=np.int64,
-    ).astype(np.int16)
+    cumulative_round_values = _build_cumulative_round_values(round_values)
+    correct_wins_lookup = np.minimum(
+        np.arange(_MAX_WINS + 1)[:, None],
+        np.arange(_MAX_WINS + 1)[None, :],
+    )
+    lookup = cumulative_round_values[correct_wins_lookup].astype(np.int32, copy=False)
+    if seed_bonus:
+        if team_seeds is None:
+            msg = "team_seeds are required when seed_bonus is enabled"
+            raise ValueError(msg)
+        if team_seeds.shape != (n_teams,):
+            msg = "team_seeds must have one value per team"
+            raise ValueError(msg)
 
     scores = np.zeros((n_entries, n_sims), dtype=np.int32)
     for team_idx in range(n_teams):
         predicted_team = predicted_wins[:, team_idx][:, None]
         actual_team = actual_wins[:, team_idx][None, :]
+        correct_wins = np.minimum(predicted_team, actual_team).astype(np.int32, copy=False)
         scores += lookup[predicted_team, actual_team]
+        if seed_bonus:
+            assert team_seeds is not None
+            scores += correct_wins * int(team_seeds[team_idx])
 
     return scores
+
+
+def _build_cumulative_round_values(round_values: Sequence[int]) -> npt.NDArray[np.int32]:
+    if len(round_values) != _MAX_WINS:
+        msg = f"round_values must contain {_MAX_WINS} entries"
+        raise ValueError(msg)
+    if any(value <= 0 for value in round_values):
+        msg = "round_values must all be positive"
+        raise ValueError(msg)
+
+    cumulative = np.zeros(_MAX_WINS + 1, dtype=np.int32)
+    running_total = 0
+    for win_count, value in enumerate(round_values, start=1):
+        running_total += int(value)
+        cumulative[win_count] = running_total
+    return cumulative
 
 
 def aggregate_win_share_totals(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:

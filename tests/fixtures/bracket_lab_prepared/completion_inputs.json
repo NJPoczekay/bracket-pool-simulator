@@ -1,0 +1,851 @@
+{
+  "available_modes": [
+    "tournament_seeds",
+    "popular_picks",
+    "kenpom",
+    "internal_model_rank"
+  ],
+  "kenpom_rankings": [
+    {
+      "rank": 1,
+      "rating": 199.0,
+      "team_id": "east-01",
+      "team_name": "East Team 1",
+      "tempo": 65.0
+    },
+    {
+      "rank": 2,
+      "rating": 198.0,
+      "team_id": "east-02",
+      "team_name": "East Team 2",
+      "tempo": 66.0
+    },
+    {
+      "rank": 3,
+      "rating": 197.0,
+      "team_id": "east-03",
+      "team_name": "East Team 3",
+      "tempo": 67.0
+    },
+    {
+      "rank": 4,
+      "rating": 196.0,
+      "team_id": "east-04",
+      "team_name": "East Team 4",
+      "tempo": 68.0
+    },
+    {
+      "rank": 5,
+      "rating": 195.0,
+      "team_id": "east-05",
+      "team_name": "East Team 5",
+      "tempo": 64.0
+    },
+    {
+      "rank": 6,
+      "rating": 194.0,
+      "team_id": "east-06",
+      "team_name": "East Team 6",
+      "tempo": 65.0
+    },
+    {
+      "rank": 7,
+      "rating": 193.0,
+      "team_id": "east-07",
+      "team_name": "East Team 7",
+      "tempo": 66.0
+    },
+    {
+      "rank": 8,
+      "rating": 192.0,
+      "team_id": "east-08",
+      "team_name": "East Team 8",
+      "tempo": 67.0
+    },
+    {
+      "rank": 9,
+      "rating": 191.0,
+      "team_id": "east-09",
+      "team_name": "East Team 9",
+      "tempo": 68.0
+    },
+    {
+      "rank": 10,
+      "rating": 190.0,
+      "team_id": "east-10",
+      "team_name": "East Team 10",
+      "tempo": 64.0
+    },
+    {
+      "rank": 11,
+      "rating": 189.0,
+      "team_id": "east-11",
+      "team_name": "East Team 11",
+      "tempo": 65.0
+    },
+    {
+      "rank": 12,
+      "rating": 188.0,
+      "team_id": "east-12",
+      "team_name": "East Team 12",
+      "tempo": 66.0
+    },
+    {
+      "rank": 13,
+      "rating": 187.0,
+      "team_id": "east-13",
+      "team_name": "East Team 13",
+      "tempo": 67.0
+    },
+    {
+      "rank": 14,
+      "rating": 186.0,
+      "team_id": "east-14",
+      "team_name": "East Team 14",
+      "tempo": 68.0
+    },
+    {
+      "rank": 15,
+      "rating": 185.0,
+      "team_id": "east-15",
+      "team_name": "East Team 15",
+      "tempo": 64.0
+    },
+    {
+      "rank": 16,
+      "rating": 184.0,
+      "team_id": "east-16",
+      "team_name": "East Team 16",
+      "tempo": 65.0
+    },
+    {
+      "rank": 17,
+      "rating": 183.0,
+      "team_id": "midwest-01",
+      "team_name": "Midwest Team 1",
+      "tempo": 66.0
+    },
+    {
+      "rank": 18,
+      "rating": 182.0,
+      "team_id": "midwest-02",
+      "team_name": "Midwest Team 2",
+      "tempo": 67.0
+    },
+    {
+      "rank": 19,
+      "rating": 181.0,
+      "team_id": "midwest-03",
+      "team_name": "Midwest Team 3",
+      "tempo": 68.0
+    },
+    {
+      "rank": 20,
+      "rating": 180.0,
+      "team_id": "midwest-04",
+      "team_name": "Midwest Team 4",
+      "tempo": 64.0
+    },
+    {
+      "rank": 21,
+      "rating": 179.0,
+      "team_id": "midwest-05",
+      "team_name": "Midwest Team 5",
+      "tempo": 65.0
+    },
+    {
+      "rank": 22,
+      "rating": 178.0,
+      "team_id": "midwest-06",
+      "team_name": "Midwest Team 6",
+      "tempo": 66.0
+    },
+    {
+      "rank": 23,
+      "rating": 177.0,
+      "team_id": "midwest-07",
+      "team_name": "Midwest Team 7",
+      "tempo": 67.0
+    },
+    {
+      "rank": 24,
+      "rating": 176.0,
+      "team_id": "midwest-08",
+      "team_name": "Midwest Team 8",
+      "tempo": 68.0
+    },
+    {
+      "rank": 25,
+      "rating": 175.0,
+      "team_id": "midwest-09",
+      "team_name": "Midwest Team 9",
+      "tempo": 64.0
+    },
+    {
+      "rank": 26,
+      "rating": 174.0,
+      "team_id": "midwest-10",
+      "team_name": "Midwest Team 10",
+      "tempo": 65.0
+    },
+    {
+      "rank": 27,
+      "rating": 173.0,
+      "team_id": "midwest-11",
+      "team_name": "Midwest Team 11",
+      "tempo": 66.0
+    },
+    {
+      "rank": 28,
+      "rating": 172.0,
+      "team_id": "midwest-12",
+      "team_name": "Midwest Team 12",
+      "tempo": 67.0
+    },
+    {
+      "rank": 29,
+      "rating": 171.0,
+      "team_id": "midwest-13",
+      "team_name": "Midwest Team 13",
+      "tempo": 68.0
+    },
+    {
+      "rank": 30,
+      "rating": 170.0,
+      "team_id": "midwest-14",
+      "team_name": "Midwest Team 14",
+      "tempo": 64.0
+    },
+    {
+      "rank": 31,
+      "rating": 169.0,
+      "team_id": "midwest-15",
+      "team_name": "Midwest Team 15",
+      "tempo": 65.0
+    },
+    {
+      "rank": 32,
+      "rating": 168.0,
+      "team_id": "midwest-16",
+      "team_name": "Midwest Team 16",
+      "tempo": 66.0
+    },
+    {
+      "rank": 33,
+      "rating": 167.0,
+      "team_id": "south-01",
+      "team_name": "South Team 1",
+      "tempo": 67.0
+    },
+    {
+      "rank": 34,
+      "rating": 166.0,
+      "team_id": "south-02",
+      "team_name": "South Team 2",
+      "tempo": 68.0
+    },
+    {
+      "rank": 35,
+      "rating": 165.0,
+      "team_id": "south-03",
+      "team_name": "South Team 3",
+      "tempo": 64.0
+    },
+    {
+      "rank": 36,
+      "rating": 164.0,
+      "team_id": "south-04",
+      "team_name": "South Team 4",
+      "tempo": 65.0
+    },
+    {
+      "rank": 37,
+      "rating": 163.0,
+      "team_id": "south-05",
+      "team_name": "South Team 5",
+      "tempo": 66.0
+    },
+    {
+      "rank": 38,
+      "rating": 162.0,
+      "team_id": "south-06",
+      "team_name": "South Team 6",
+      "tempo": 67.0
+    },
+    {
+      "rank": 39,
+      "rating": 161.0,
+      "team_id": "south-07",
+      "team_name": "South Team 7",
+      "tempo": 68.0
+    },
+    {
+      "rank": 40,
+      "rating": 160.0,
+      "team_id": "south-08",
+      "team_name": "South Team 8",
+      "tempo": 64.0
+    },
+    {
+      "rank": 41,
+      "rating": 159.0,
+      "team_id": "south-09",
+      "team_name": "South Team 9",
+      "tempo": 65.0
+    },
+    {
+      "rank": 42,
+      "rating": 158.0,
+      "team_id": "south-10",
+      "team_name": "South Team 10",
+      "tempo": 66.0
+    },
+    {
+      "rank": 43,
+      "rating": 157.0,
+      "team_id": "south-11",
+      "team_name": "South Team 11",
+      "tempo": 67.0
+    },
+    {
+      "rank": 44,
+      "rating": 156.0,
+      "team_id": "south-12",
+      "team_name": "South Team 12",
+      "tempo": 68.0
+    },
+    {
+      "rank": 45,
+      "rating": 155.0,
+      "team_id": "south-13",
+      "team_name": "South Team 13",
+      "tempo": 64.0
+    },
+    {
+      "rank": 46,
+      "rating": 154.0,
+      "team_id": "south-14",
+      "team_name": "South Team 14",
+      "tempo": 65.0
+    },
+    {
+      "rank": 47,
+      "rating": 153.0,
+      "team_id": "south-15",
+      "team_name": "South Team 15",
+      "tempo": 66.0
+    },
+    {
+      "rank": 48,
+      "rating": 152.0,
+      "team_id": "south-16",
+      "team_name": "South Team 16",
+      "tempo": 67.0
+    },
+    {
+      "rank": 49,
+      "rating": 151.0,
+      "team_id": "west-01",
+      "team_name": "West Team 1",
+      "tempo": 68.0
+    },
+    {
+      "rank": 50,
+      "rating": 150.0,
+      "team_id": "west-02",
+      "team_name": "West Team 2",
+      "tempo": 64.0
+    },
+    {
+      "rank": 51,
+      "rating": 149.0,
+      "team_id": "west-03",
+      "team_name": "West Team 3",
+      "tempo": 65.0
+    },
+    {
+      "rank": 52,
+      "rating": 148.0,
+      "team_id": "west-04",
+      "team_name": "West Team 4",
+      "tempo": 66.0
+    },
+    {
+      "rank": 53,
+      "rating": 147.0,
+      "team_id": "west-05",
+      "team_name": "West Team 5",
+      "tempo": 67.0
+    },
+    {
+      "rank": 54,
+      "rating": 146.0,
+      "team_id": "west-06",
+      "team_name": "West Team 6",
+      "tempo": 68.0
+    },
+    {
+      "rank": 55,
+      "rating": 145.0,
+      "team_id": "west-07",
+      "team_name": "West Team 7",
+      "tempo": 64.0
+    },
+    {
+      "rank": 56,
+      "rating": 144.0,
+      "team_id": "west-08",
+      "team_name": "West Team 8",
+      "tempo": 65.0
+    },
+    {
+      "rank": 57,
+      "rating": 143.0,
+      "team_id": "west-09",
+      "team_name": "West Team 9",
+      "tempo": 66.0
+    },
+    {
+      "rank": 58,
+      "rating": 142.0,
+      "team_id": "west-10",
+      "team_name": "West Team 10",
+      "tempo": 67.0
+    },
+    {
+      "rank": 59,
+      "rating": 141.0,
+      "team_id": "west-11",
+      "team_name": "West Team 11",
+      "tempo": 68.0
+    },
+    {
+      "rank": 60,
+      "rating": 140.0,
+      "team_id": "west-12",
+      "team_name": "West Team 12",
+      "tempo": 64.0
+    },
+    {
+      "rank": 61,
+      "rating": 139.0,
+      "team_id": "west-13",
+      "team_name": "West Team 13",
+      "tempo": 65.0
+    },
+    {
+      "rank": 62,
+      "rating": 138.0,
+      "team_id": "west-14",
+      "team_name": "West Team 14",
+      "tempo": 66.0
+    },
+    {
+      "rank": 63,
+      "rating": 137.0,
+      "team_id": "west-15",
+      "team_name": "West Team 15",
+      "tempo": 67.0
+    },
+    {
+      "rank": 64,
+      "rating": 136.0,
+      "team_id": "west-16",
+      "team_name": "West Team 16",
+      "tempo": 68.0
+    }
+  ],
+  "mode_aliases": [
+    {
+      "alias_of": "kenpom",
+      "mode": "internal_model_rank"
+    }
+  ],
+  "popular_pick_source": "public_picks.csv",
+  "tournament_seeds": [
+    {
+      "region": "east",
+      "seed": 1,
+      "team_id": "east-01",
+      "team_name": "East Team 1"
+    },
+    {
+      "region": "east",
+      "seed": 2,
+      "team_id": "east-02",
+      "team_name": "East Team 2"
+    },
+    {
+      "region": "east",
+      "seed": 3,
+      "team_id": "east-03",
+      "team_name": "East Team 3"
+    },
+    {
+      "region": "east",
+      "seed": 4,
+      "team_id": "east-04",
+      "team_name": "East Team 4"
+    },
+    {
+      "region": "east",
+      "seed": 5,
+      "team_id": "east-05",
+      "team_name": "East Team 5"
+    },
+    {
+      "region": "east",
+      "seed": 6,
+      "team_id": "east-06",
+      "team_name": "East Team 6"
+    },
+    {
+      "region": "east",
+      "seed": 7,
+      "team_id": "east-07",
+      "team_name": "East Team 7"
+    },
+    {
+      "region": "east",
+      "seed": 8,
+      "team_id": "east-08",
+      "team_name": "East Team 8"
+    },
+    {
+      "region": "east",
+      "seed": 9,
+      "team_id": "east-09",
+      "team_name": "East Team 9"
+    },
+    {
+      "region": "east",
+      "seed": 10,
+      "team_id": "east-10",
+      "team_name": "East Team 10"
+    },
+    {
+      "region": "east",
+      "seed": 11,
+      "team_id": "east-11",
+      "team_name": "East Team 11"
+    },
+    {
+      "region": "east",
+      "seed": 12,
+      "team_id": "east-12",
+      "team_name": "East Team 12"
+    },
+    {
+      "region": "east",
+      "seed": 13,
+      "team_id": "east-13",
+      "team_name": "East Team 13"
+    },
+    {
+      "region": "east",
+      "seed": 14,
+      "team_id": "east-14",
+      "team_name": "East Team 14"
+    },
+    {
+      "region": "east",
+      "seed": 15,
+      "team_id": "east-15",
+      "team_name": "East Team 15"
+    },
+    {
+      "region": "east",
+      "seed": 16,
+      "team_id": "east-16",
+      "team_name": "East Team 16"
+    },
+    {
+      "region": "midwest",
+      "seed": 1,
+      "team_id": "midwest-01",
+      "team_name": "Midwest Team 1"
+    },
+    {
+      "region": "midwest",
+      "seed": 2,
+      "team_id": "midwest-02",
+      "team_name": "Midwest Team 2"
+    },
+    {
+      "region": "midwest",
+      "seed": 3,
+      "team_id": "midwest-03",
+      "team_name": "Midwest Team 3"
+    },
+    {
+      "region": "midwest",
+      "seed": 4,
+      "team_id": "midwest-04",
+      "team_name": "Midwest Team 4"
+    },
+    {
+      "region": "midwest",
+      "seed": 5,
+      "team_id": "midwest-05",
+      "team_name": "Midwest Team 5"
+    },
+    {
+      "region": "midwest",
+      "seed": 6,
+      "team_id": "midwest-06",
+      "team_name": "Midwest Team 6"
+    },
+    {
+      "region": "midwest",
+      "seed": 7,
+      "team_id": "midwest-07",
+      "team_name": "Midwest Team 7"
+    },
+    {
+      "region": "midwest",
+      "seed": 8,
+      "team_id": "midwest-08",
+      "team_name": "Midwest Team 8"
+    },
+    {
+      "region": "midwest",
+      "seed": 9,
+      "team_id": "midwest-09",
+      "team_name": "Midwest Team 9"
+    },
+    {
+      "region": "midwest",
+      "seed": 10,
+      "team_id": "midwest-10",
+      "team_name": "Midwest Team 10"
+    },
+    {
+      "region": "midwest",
+      "seed": 11,
+      "team_id": "midwest-11",
+      "team_name": "Midwest Team 11"
+    },
+    {
+      "region": "midwest",
+      "seed": 12,
+      "team_id": "midwest-12",
+      "team_name": "Midwest Team 12"
+    },
+    {
+      "region": "midwest",
+      "seed": 13,
+      "team_id": "midwest-13",
+      "team_name": "Midwest Team 13"
+    },
+    {
+      "region": "midwest",
+      "seed": 14,
+      "team_id": "midwest-14",
+      "team_name": "Midwest Team 14"
+    },
+    {
+      "region": "midwest",
+      "seed": 15,
+      "team_id": "midwest-15",
+      "team_name": "Midwest Team 15"
+    },
+    {
+      "region": "midwest",
+      "seed": 16,
+      "team_id": "midwest-16",
+      "team_name": "Midwest Team 16"
+    },
+    {
+      "region": "south",
+      "seed": 1,
+      "team_id": "south-01",
+      "team_name": "South Team 1"
+    },
+    {
+      "region": "south",
+      "seed": 2,
+      "team_id": "south-02",
+      "team_name": "South Team 2"
+    },
+    {
+      "region": "south",
+      "seed": 3,
+      "team_id": "south-03",
+      "team_name": "South Team 3"
+    },
+    {
+      "region": "south",
+      "seed": 4,
+      "team_id": "south-04",
+      "team_name": "South Team 4"
+    },
+    {
+      "region": "south",
+      "seed": 5,
+      "team_id": "south-05",
+      "team_name": "South Team 5"
+    },
+    {
+      "region": "south",
+      "seed": 6,
+      "team_id": "south-06",
+      "team_name": "South Team 6"
+    },
+    {
+      "region": "south",
+      "seed": 7,
+      "team_id": "south-07",
+      "team_name": "South Team 7"
+    },
+    {
+      "region": "south",
+      "seed": 8,
+      "team_id": "south-08",
+      "team_name": "South Team 8"
+    },
+    {
+      "region": "south",
+      "seed": 9,
+      "team_id": "south-09",
+      "team_name": "South Team 9"
+    },
+    {
+      "region": "south",
+      "seed": 10,
+      "team_id": "south-10",
+      "team_name": "South Team 10"
+    },
+    {
+      "region": "south",
+      "seed": 11,
+      "team_id": "south-11",
+      "team_name": "South Team 11"
+    },
+    {
+      "region": "south",
+      "seed": 12,
+      "team_id": "south-12",
+      "team_name": "South Team 12"
+    },
+    {
+      "region": "south",
+      "seed": 13,
+      "team_id": "south-13",
+      "team_name": "South Team 13"
+    },
+    {
+      "region": "south",
+      "seed": 14,
+      "team_id": "south-14",
+      "team_name": "South Team 14"
+    },
+    {
+      "region": "south",
+      "seed": 15,
+      "team_id": "south-15",
+      "team_name": "South Team 15"
+    },
+    {
+      "region": "south",
+      "seed": 16,
+      "team_id": "south-16",
+      "team_name": "South Team 16"
+    },
+    {
+      "region": "west",
+      "seed": 1,
+      "team_id": "west-01",
+      "team_name": "West Team 1"
+    },
+    {
+      "region": "west",
+      "seed": 2,
+      "team_id": "west-02",
+      "team_name": "West Team 2"
+    },
+    {
+      "region": "west",
+      "seed": 3,
+      "team_id": "west-03",
+      "team_name": "West Team 3"
+    },
+    {
+      "region": "west",
+      "seed": 4,
+      "team_id": "west-04",
+      "team_name": "West Team 4"
+    },
+    {
+      "region": "west",
+      "seed": 5,
+      "team_id": "west-05",
+      "team_name": "West Team 5"
+    },
+    {
+      "region": "west",
+      "seed": 6,
+      "team_id": "west-06",
+      "team_name": "West Team 6"
+    },
+    {
+      "region": "west",
+      "seed": 7,
+      "team_id": "west-07",
+      "team_name": "West Team 7"
+    },
+    {
+      "region": "west",
+      "seed": 8,
+      "team_id": "west-08",
+      "team_name": "West Team 8"
+    },
+    {
+      "region": "west",
+      "seed": 9,
+      "team_id": "west-09",
+      "team_name": "West Team 9"
+    },
+    {
+      "region": "west",
+      "seed": 10,
+      "team_id": "west-10",
+      "team_name": "West Team 10"
+    },
+    {
+      "region": "west",
+      "seed": 11,
+      "team_id": "west-11",
+      "team_name": "West Team 11"
+    },
+    {
+      "region": "west",
+      "seed": 12,
+      "team_id": "west-12",
+      "team_name": "West Team 12"
+    },
+    {
+      "region": "west",
+      "seed": 13,
+      "team_id": "west-13",
+      "team_name": "West Team 13"
+    },
+    {
+      "region": "west",
+      "seed": 14,
+      "team_id": "west-14",
+      "team_name": "West Team 14"
+    },
+    {
+      "region": "west",
+      "seed": 15,
+      "team_id": "west-15",
+      "team_name": "West Team 15"
+    },
+    {
+      "region": "west",
+      "seed": 16,
+      "team_id": "west-16",
+      "team_name": "West Team 16"
+    }
+  ]
+}

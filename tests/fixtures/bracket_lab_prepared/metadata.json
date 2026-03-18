@@ -1,0 +1,49 @@
+{
+  "canonical_sha256": "ab362838bf116e69dffe12c9865825386472e5d7a1b1344eb366a1166862bb1a",
+  "completion_modes": [
+    "tournament_seeds",
+    "popular_picks",
+    "kenpom",
+    "internal_model_rank"
+  ],
+  "counts": {
+    "constraints": 0,
+    "games": 63,
+    "play_in_slots": 0,
+    "public_picks": 384,
+    "ratings": 64,
+    "teams": 64
+  },
+  "mode_aliases": {
+    "internal_model_rank": "kenpom"
+  },
+  "national_picks": {
+    "challenge_state": "IN_PROGRESS",
+    "round_counts": {
+      "1": 32,
+      "2": 16,
+      "3": 8,
+      "4": 4,
+      "5": 2,
+      "6": 1
+    },
+    "source_url": "https://fantasy.espn.com/games/mock-challenge-2026/bracket",
+    "total_brackets": 1000
+  },
+  "ratings_source": "local:/Users/nathan/Documents/code/bracket-pool-simulator/tests/fixtures/bracket_lab_name_ratings.csv",
+  "schema_version": "prepare-bracket-lab-data.v1",
+  "source": {
+    "raw_canonical_sha256": "56179e8406eae749a92ca2da59a9819c3f48e93bee98b28e9571efbd4391e0fc",
+    "raw_schema_version": "refresh-bracket-lab-data.v1",
+    "upstream": {
+      "challenge": "mock-challenge-2026",
+      "challenge_key": "mock-challenge-2026",
+      "challenge_url": "https://fantasy.espn.com/games/mock-challenge-2026/bracket"
+    }
+  },
+  "storage": {
+    "dataset_slug": "mock-challenge-2026",
+    "season": "2026",
+    "workflow": "bracket-lab"
+  }
+}

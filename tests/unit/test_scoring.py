@@ -41,6 +41,43 @@ def test_score_entries_respects_exponential_round_values() -> None:
     assert np.array_equal(scores, expected)
 
 
+def test_score_entries_supports_linear_round_values() -> None:
+    predicted = np.array([[6], [3], [0]], dtype=np.int16)
+    actual = np.array([[6], [3], [0]], dtype=np.int16)
+
+    scores = score_entries(
+        predicted_wins=predicted,
+        actual_wins=actual,
+        round_values=(1, 2, 3, 4, 5, 6),
+    )
+
+    expected = np.array(
+        [
+            [21, 6, 0],
+            [6, 6, 0],
+            [0, 0, 0],
+        ],
+        dtype=np.int32,
+    )
+    assert np.array_equal(scores, expected)
+
+
+def test_score_entries_supports_round_plus_seed_bonus() -> None:
+    predicted = np.array([[2, 1]], dtype=np.int16)
+    actual = np.array([[2, 1]], dtype=np.int16)
+    team_seeds = np.array([12, 4], dtype=np.int16)
+
+    scores = score_entries(
+        predicted_wins=predicted,
+        actual_wins=actual,
+        round_values=(1, 2, 3, 4, 5, 6),
+        team_seeds=team_seeds,
+        seed_bonus=True,
+    )
+
+    assert np.array_equal(scores, np.array([[32]], dtype=np.int32))
+
+
 def test_tie_split_aggregation() -> None:
     scores = np.array(
         [
