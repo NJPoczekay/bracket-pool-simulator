@@ -400,7 +400,8 @@ def refresh_data_command(
         typer.Option(
             "--kenpom",
             help=(
-                "Fetch public ratings from KenPom instead of local file/cached snapshot"
+                "Load a saved KenPom HTML snapshot from data/kenpom_snapshots "
+                "instead of a local file/cached snapshot"
             ),
         ),
     ] = False,
@@ -475,7 +476,7 @@ def refresh_bracket_lab_data_command(
         bool,
         typer.Option(
             "--kenpom",
-            help="Fetch public ratings from KenPom instead of a local file",
+            help="Load a saved KenPom HTML snapshot from data/kenpom_snapshots",
         ),
     ] = False,
 ) -> None:

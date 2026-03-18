@@ -346,6 +346,48 @@ def test_fetch_national_picks_warns_on_inconsistent_totals(
     assert "National pick totals mismatch" in caplog.text
 
 
+def test_fetch_challenge_snapshot_normalizes_noncanonical_proposition_display_order(
+    synthetic_input_dir: Path,
+) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+
+    broken_payload = copy.deepcopy(challenge_payload)
+    assert isinstance(broken_payload["propositions"], list)
+    for proposition in broken_payload["propositions"]:
+        assert isinstance(proposition, dict)
+        round_number = int(cast(int, proposition["scoringPeriodId"]))
+        display_order = int(cast(int, proposition["displayOrder"]))
+        if round_number in {1, 3, 5, 6} or (round_number == 2 and display_order % 3 == 0):
+            proposition["displayOrder"] = display_order - 1
+        elif round_number == 4 and display_order == 4:
+            proposition["displayOrder"] = 3
+
+    provider = _build_provider(
+        challenge_payload=broken_payload,
+        group_payloads=[group_payload],
+    )
+
+    snapshot = provider.fetch_challenge_snapshot()
+
+    assert len(snapshot.results.games) == 63
+
+    observed_orders_by_round: dict[int, set[int]] = {}
+    for row in snapshot.national_picks.rows:
+        observed_orders_by_round.setdefault(row.round, set()).add(row.display_order)
+
+    assert observed_orders_by_round == {
+        1: set(range(1, 33)),
+        2: set(range(1, 17)),
+        3: set(range(1, 9)),
+        4: set(range(1, 5)),
+        5: set(range(1, 3)),
+        6: {1},
+    }
+
+
 def test_fetch_national_picks_rejects_unexpected_proposition_structure(
     synthetic_input_dir: Path,
 ) -> None:

@@ -6,49 +6,49 @@
       "entry_id": "entry_chalk",
       "entry_name": "Chalk Strategy",
       "win_share": 0.21166666666666667,
-      "average_score": 65.80333333333333
+      "average_score": 66.79
     },
     {
       "entry_id": "entry_balanced",
       "entry_name": "Balanced Strategy",
-      "win_share": 0.18666666666666668,
-      "average_score": 58.403333333333336
+      "win_share": 0.1827777777777778,
+      "average_score": 58.71
     },
     {
       "entry_id": "entry_west_bias",
       "entry_name": "West Region Bias",
-      "win_share": 0.16166666666666665,
-      "average_score": 65.65
+      "win_share": 0.15833333333333333,
+      "average_score": 66.84333333333333
     },
     {
       "entry_id": "entry_midwest_bias",
       "entry_name": "Midwest Region Bias",
-      "win_share": 0.13333333333333333,
-      "average_score": 62.25
+      "win_share": 0.13,
+      "average_score": 62.763333333333335
     },
     {
       "entry_id": "entry_east_bias",
       "entry_name": "East Region Bias",
-      "win_share": 0.12666666666666668,
-      "average_score": 65.93666666666667
+      "win_share": 0.12944444444444442,
+      "average_score": 67.17666666666666
     },
     {
       "entry_id": "entry_upsets",
       "entry_name": "Upset Hunter",
-      "win_share": 0.11666666666666667,
-      "average_score": 46.35666666666667
+      "win_share": 0.1211111111111111,
+      "average_score": 46.443333333333335
     },
     {
       "entry_id": "entry_south_bias",
       "entry_name": "South Region Bias",
-      "win_share": 0.05333333333333334,
-      "average_score": 62.38333333333333
+      "win_share": 0.06,
+      "average_score": 63.52333333333333
     },
     {
       "entry_id": "entry_chaos",
       "entry_name": "Chaos Theory",
-      "win_share": 0.01,
-      "average_score": 30.27
+      "win_share": 0.006666666666666667,
+      "average_score": 29.983333333333334
     }
   ],
   "champion_counts": {
@@ -56,28 +56,28 @@
     "east-02": 16,
     "east-03": 11,
     "east-04": 11,
-    "east-05": 6,
+    "east-05": 5,
     "east-06": 2,
     "east-07": 2,
     "east-08": 1,
-    "midwest-01": 27,
+    "midwest-01": 30,
     "midwest-02": 13,
-    "midwest-03": 14,
+    "midwest-03": 13,
     "midwest-04": 7,
     "midwest-05": 9,
     "midwest-06": 5,
-    "midwest-08": 2,
+    "midwest-08": 1,
     "midwest-09": 1,
-    "south-01": 23,
-    "south-02": 19,
-    "south-03": 11,
-    "south-04": 8,
+    "south-01": 24,
+    "south-02": 17,
+    "south-03": 14,
+    "south-04": 9,
     "south-05": 5,
     "south-06": 5,
-    "south-07": 3,
+    "south-07": 2,
     "south-09": 1,
-    "south-10": 2,
-    "west-01": 26,
+    "south-10": 1,
+    "west-01": 25,
     "west-02": 20,
     "west-03": 12,
     "west-04": 8,
@@ -88,7 +88,7 @@
     "west-09": 1
   },
   "run_metadata": {
-    "run_id": "fc4be464eca6fb3b",
+    "run_id": "116fbdc654716ddf",
     "engine": "numpy",
     "batch_size": 300,
     "batches_completed": 1,

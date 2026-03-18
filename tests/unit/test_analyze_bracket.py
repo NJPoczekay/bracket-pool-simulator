@@ -10,6 +10,7 @@ from bracket_sim.application.analyze_bracket import (
     _editable_bracket_to_entry,
     _sample_public_opponents,
     _weighted_slot_rating,
+    _weighted_slot_tempo,
 )
 from bracket_sim.domain.bracket_lab_models import PlayInCandidate, PlayInSlot
 from bracket_sim.domain.product_models import (
@@ -52,6 +53,36 @@ def test_weighted_slot_rating_uses_advancement_probabilities() -> None:
     )
 
     assert _weighted_slot_rating(slot) == 21.0
+
+
+def test_weighted_slot_tempo_uses_advancement_probabilities() -> None:
+    slot = PlayInSlot(
+        game_id="g001",
+        placeholder_team_id="placeholder-team",
+        placeholder_team_name="Team A/Team B",
+        seed=11,
+        region="East",
+        candidates=[
+            PlayInCandidate(
+                team_id="team-a",
+                team_name="Team A",
+                rank=1,
+                rating=24.0,
+                tempo=68.0,
+                advancement_probability=0.75,
+            ),
+            PlayInCandidate(
+                team_id="team-b",
+                team_name="Team B",
+                rank=2,
+                rating=12.0,
+                tempo=66.0,
+                advancement_probability=0.25,
+            ),
+        ],
+    )
+
+    assert _weighted_slot_tempo(slot) == 67.5
 
 
 def test_service_bootstrap_exposes_dataset_and_graph(prepared_bracket_lab_dir: Path) -> None:

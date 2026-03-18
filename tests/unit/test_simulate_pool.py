@@ -11,7 +11,7 @@ import pytest
 
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.bracket_graph import BracketGraph
-from bracket_sim.domain.models import SimulationConfig
+from bracket_sim.domain.models import RatingRecord, SimulationConfig
 from bracket_sim.domain.simulator import (
     TournamentSimulation,
 )
@@ -130,11 +130,11 @@ def test_simulate_pool_can_resume_from_checkpoint(
 
     def flaky_simulate_tournament(
         graph: BracketGraph,
-        ratings_by_team_id: dict[str, float],
+        rating_records_by_team_id: dict[str, RatingRecord],
         constraints_by_game_id: dict[str, str],
         n_sims: int,
         seed: int,
-        rating_scale: float,
+        point_spread_std_dev: float,
         engine: str = "numpy",
     ) -> TournamentSimulation:
         nonlocal call_count
@@ -143,11 +143,11 @@ def test_simulate_pool_can_resume_from_checkpoint(
             raise RuntimeError("synthetic crash before batch 2")
         return real_simulate_tournament(
             graph=graph,
-            ratings_by_team_id=ratings_by_team_id,
+            rating_records_by_team_id=rating_records_by_team_id,
             constraints_by_game_id=constraints_by_game_id,
             n_sims=n_sims,
             seed=seed,
-            rating_scale=rating_scale,
+            point_spread_std_dev=point_spread_std_dev,
             engine=engine,
         )
 

@@ -135,7 +135,7 @@ class SimulationConfig(BaseModel):
     input_dir: Path
     n_sims: int = Field(gt=0)
     seed: int
-    rating_scale: float = Field(default=10.0, gt=0)
+    rating_scale: float = Field(default=11.0, gt=0)
     batch_size: int | None = Field(default=None, gt=0)
     run_dir: Path | None = None
     resume: bool = False
@@ -192,7 +192,7 @@ class ReportConfig(BaseModel):
     output_dir: Path
     n_sims: int = Field(gt=0)
     seed: int
-    rating_scale: float = Field(default=10.0, gt=0)
+    rating_scale: float = Field(default=11.0, gt=0)
     batch_size: int | None = Field(default=None, gt=0)
     engine: str = Field(default="numpy")
 
@@ -424,7 +424,7 @@ class BenchmarkConfig(BaseModel):
     engine: str = Field(default="numpy")
     simulation_budget_ms: float = Field(default=1_500.0, gt=0)
     scoring_budget_ms: float = Field(default=750.0, gt=0)
-    rating_scale: float = Field(default=10.0, gt=0)
+    rating_scale: float = Field(default=11.0, gt=0)
 
     @field_validator("engine")
     @classmethod

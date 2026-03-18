@@ -15,7 +15,12 @@ from bracket_sim.infrastructure.providers.contracts import (
     ResultsProvider,
 )
 from bracket_sim.infrastructure.providers.espn_api import EspnApiProvider, parse_espn_group_url
-from bracket_sim.infrastructure.providers.ratings import KenPomRatingsProvider, LocalRatingsProvider
+from bracket_sim.infrastructure.providers.ratings import (
+    DEFAULT_KENPOM_SNAPSHOT_DIR,
+    KenPomRatingsProvider,
+    LocalRatingsProvider,
+)
+from bracket_sim.infrastructure.storage.path_defaults import season_from_challenge_key
 from bracket_sim.infrastructure.storage.raw_refresh_writer import (
     RefreshedRawDataset,
     write_refreshed_raw_dataset,
@@ -68,7 +73,10 @@ def refresh_data(
     owned_kenpom_provider: KenPomRatingsProvider | None = None
     if ratings_provider is None:
         if use_kenpom:
-            owned_kenpom_provider = KenPomRatingsProvider()
+            owned_kenpom_provider = KenPomRatingsProvider(
+                season=season_from_challenge_key(ref.challenge_key),
+                snapshot_dir=DEFAULT_KENPOM_SNAPSHOT_DIR,
+            )
             ratings_provider = owned_kenpom_provider
         else:
             ratings_provider = LocalRatingsProvider(ratings_file=ratings_file, fallback_dir=raw_dir)

@@ -28,8 +28,10 @@ def benchmark_hotspots(config: BenchmarkConfig) -> BenchmarkReport:
         graph=graph,
     )
 
-    ratings_by_team_id = {record.team_id: record.rating for record in normalized.ratings.records}
-    missing_team_ids = sorted(set(team_ids) - set(ratings_by_team_id))
+    rating_records_by_team_id = {
+        record.team_id: record for record in normalized.ratings.records
+    }
+    missing_team_ids = sorted(set(team_ids) - set(rating_records_by_team_id))
     if missing_team_ids:
         msg = f"Missing rating for team id(s): {missing_team_ids[:5]}"
         raise ValueError(msg)
@@ -41,11 +43,11 @@ def benchmark_hotspots(config: BenchmarkConfig) -> BenchmarkReport:
         started_sim = perf_counter()
         simulation = simulate_tournament(
             graph=graph,
-            ratings_by_team_id=ratings_by_team_id,
+            rating_records_by_team_id=rating_records_by_team_id,
             constraints_by_game_id=constraints_by_game_id,
             n_sims=config.n_sims,
             seed=10_000 + repeat_index,
-            rating_scale=config.rating_scale,
+            point_spread_std_dev=config.rating_scale,
             engine=config.engine,
         )
         simulation_timings_ms.append((perf_counter() - started_sim) * 1000)

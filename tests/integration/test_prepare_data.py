@@ -32,10 +32,10 @@ def test_prepare_data_generates_simulate_compatible_dataset(
     assert len(loaded.games) == 63
 
     prepared_result = simulate_pool(
-        SimulationConfig(input_dir=out_dir, n_sims=250, seed=21, rating_scale=10.0)
+        SimulationConfig(input_dir=out_dir, n_sims=250, seed=21, rating_scale=11.0)
     )
     baseline_result = simulate_pool(
-        SimulationConfig(input_dir=synthetic_input_dir, n_sims=250, seed=21, rating_scale=10.0)
+        SimulationConfig(input_dir=synthetic_input_dir, n_sims=250, seed=21, rating_scale=11.0)
     )
     assert prepared_result.entry_results == baseline_result.entry_results
     assert prepared_result.champion_counts == baseline_result.champion_counts

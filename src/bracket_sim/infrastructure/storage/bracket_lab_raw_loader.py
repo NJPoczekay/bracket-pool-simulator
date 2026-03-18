@@ -137,23 +137,79 @@ def _load_public_picks_csv(path: Path) -> list[PublicPickRecord]:
         msg = f"{path.name} must have columns {sorted(expected)}, got {fieldnames}"
         raise ValueError(msg)
 
-    payload = [
-        PublicPickRecord(
-            game_id=_require_text(row, "game_id", path),
-            round=int(_require_text(row, "round", path)),
-            display_order=int(_require_text(row, "display_order", path)),
-            outcome_id=_require_text(row, "outcome_id", path),
-            team_id=_require_text(row, "team_id", path),
-            team_name=_require_text(row, "team_name", path),
-            seed=int(_require_text(row, "seed", path)),
-            region=_require_text(row, "region", path),
-            matchup_position=int(_require_text(row, "matchup_position", path)),
-            pick_count=int(_require_text(row, "pick_count", path)),
-            pick_percentage=float(_require_text(row, "pick_percentage", path)),
-        )
+    parsed_rows = [
+        {
+            "game_id": _require_text(row, "game_id", path),
+            "round": int(_require_text(row, "round", path)),
+            "display_order": int(_require_text(row, "display_order", path)),
+            "outcome_id": _require_text(row, "outcome_id", path),
+            "team_id": _require_text(row, "team_id", path),
+            "team_name": _require_text(row, "team_name", path),
+            "seed": int(_require_text(row, "seed", path)),
+            "region": _require_text(row, "region", path),
+            "matchup_position": int(_require_text(row, "matchup_position", path)),
+            "pick_count": int(_require_text(row, "pick_count", path)),
+            "pick_percentage": float(_require_text(row, "pick_percentage", path)),
+        }
         for row in rows
     ]
+    normalized_display_order_by_game_id = _normalize_public_pick_display_orders(parsed_rows)
+    payload = [
+        PublicPickRecord(
+            game_id=row["game_id"],
+            round=row["round"],
+            display_order=normalized_display_order_by_game_id[row["game_id"]],
+            outcome_id=row["outcome_id"],
+            team_id=row["team_id"],
+            team_name=row["team_name"],
+            seed=row["seed"],
+            region=row["region"],
+            matchup_position=row["matchup_position"],
+            pick_count=row["pick_count"],
+            pick_percentage=row["pick_percentage"],
+        )
+        for row in parsed_rows
+    ]
     return payload
+
+
+def _normalize_public_pick_display_orders(rows: list[dict[str, Any]]) -> dict[str, int]:
+    games: dict[str, tuple[int, int]] = {}
+    for row in rows:
+        game_id = str(row["game_id"])
+        round_number = int(row["round"])
+        display_order = int(row["display_order"])
+
+        existing = games.get(game_id)
+        if existing is None:
+            games[game_id] = (round_number, display_order)
+            continue
+
+        if existing != (round_number, display_order):
+            msg = (
+                f"national_picks.csv contains inconsistent round/display_order values for game "
+                f"'{game_id}'"
+            )
+            raise ValueError(msg)
+
+    normalized: dict[str, int] = {}
+    rounds = sorted({round_number for round_number, _ in games.values()})
+    for round_number in rounds:
+        ordered_game_ids = [
+            game_id
+            for game_id, _round_number, _display_order in sorted(
+                (
+                    (game_id, game_round, game_display_order)
+                    for game_id, (game_round, game_display_order) in games.items()
+                    if game_round == round_number
+                ),
+                key=lambda item: (item[2], item[0]),
+            )
+        ]
+        for index, game_id in enumerate(ordered_game_ids, start=1):
+            normalized[game_id] = index
+
+    return normalized
 
 
 def _load_kenpom_csv(path: Path) -> list[RawRatingRow]:

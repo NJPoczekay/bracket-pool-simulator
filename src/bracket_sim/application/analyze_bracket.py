@@ -12,7 +12,7 @@ import numpy.typing as npt
 from bracket_sim.domain.bracket_graph import BracketGraph, build_bracket_graph
 from bracket_sim.domain.bracket_lab_models import PlayInSlot
 from bracket_sim.domain.constraints import validate_constraints
-from bracket_sim.domain.models import EntryPick, PoolEntry
+from bracket_sim.domain.models import EntryPick, PoolEntry, RatingRecord
 from bracket_sim.domain.product_models import (
     AnalyzeBracketRequest,
     BracketAnalysis,
@@ -39,7 +39,7 @@ from bracket_sim.infrastructure.storage.cache_keys import build_cache_key, captu
 
 _ANALYSIS_N_SIMS = 10_000
 _ANALYSIS_BATCH_SIZE = 1_000
-_ANALYSIS_RATING_SCALE = 10.0
+_ANALYSIS_POINT_SPREAD_STD_DEV = 11.0
 _DEFAULT_POOL_SETTINGS = PoolSettings(
     pool_size=10,
     scoring_system=ScoringSystemKey.ESPN,
@@ -59,7 +59,7 @@ class _BracketLabRuntime:
     graph: BracketGraph
     constraints_by_game_id: dict[str, str]
     dataset_hash: str
-    ratings_by_team_id: dict[str, float]
+    rating_records_by_team_id: dict[str, RatingRecord]
     team_ids: list[str]
     team_index: dict[str, int]
     team_seeds: npt.NDArray[np.int16]
@@ -84,7 +84,10 @@ class BracketLabService:
             graph=graph,
             constraints_by_game_id=constraints_by_game_id,
             dataset_hash=capture_dataset_hash(input_dir),
-            ratings_by_team_id=_build_ratings_by_team_id(prepared=prepared, graph=graph),
+            rating_records_by_team_id=_build_rating_records_by_team_id(
+                prepared=prepared,
+                graph=graph,
+            ),
             team_ids=team_ids,
             team_index=team_index,
             team_seeds=np.asarray(
@@ -171,11 +174,11 @@ class BracketLabService:
             )
             simulation = simulate_tournament(
                 graph=self._runtime.graph,
-                ratings_by_team_id=self._runtime.ratings_by_team_id,
+                rating_records_by_team_id=self._runtime.rating_records_by_team_id,
                 constraints_by_game_id=self._runtime.constraints_by_game_id,
                 n_sims=batch_n_sims,
                 seed=batch_seed,
-                rating_scale=_ANALYSIS_RATING_SCALE,
+                point_spread_std_dev=_ANALYSIS_POINT_SPREAD_STD_DEV,
             )
             scores = score_entries(
                 predicted_wins=predicted_wins,
@@ -379,27 +382,31 @@ def _editable_bracket_to_entry(*, bracket: EditableBracket, graph: BracketGraph)
     return entry
 
 
-def _build_ratings_by_team_id(
+def _build_rating_records_by_team_id(
     *,
     prepared: BracketLabPreparedInput,
     graph: BracketGraph,
-) -> dict[str, float]:
-    ratings_by_team_id = {row.team_id: row.rating for row in prepared.ratings}
+) -> dict[str, RatingRecord]:
+    rating_records_by_team_id = {row.team_id: row for row in prepared.ratings}
     play_in_slot_by_placeholder = {
         slot.placeholder_team_id: slot for slot in prepared.play_in_slots
     }
 
-    resolved: dict[str, float] = {}
+    resolved: dict[str, RatingRecord] = {}
     for team_id in graph.teams_by_id:
-        if team_id in ratings_by_team_id:
-            resolved[team_id] = ratings_by_team_id[team_id]
+        if team_id in rating_records_by_team_id:
+            resolved[team_id] = rating_records_by_team_id[team_id]
             continue
 
         slot = play_in_slot_by_placeholder.get(team_id)
         if slot is None:
             msg = f"Missing rating for team id: {team_id}"
             raise ValueError(msg)
-        resolved[team_id] = _weighted_slot_rating(slot)
+        resolved[team_id] = RatingRecord(
+            team_id=team_id,
+            rating=_weighted_slot_rating(slot),
+            tempo=_weighted_slot_tempo(slot),
+        )
 
     return resolved
 
@@ -408,6 +415,15 @@ def _weighted_slot_rating(slot: PlayInSlot) -> float:
     return float(
         sum(
             candidate.advancement_probability * candidate.rating
+            for candidate in slot.candidates
+        )
+    )
+
+
+def _weighted_slot_tempo(slot: PlayInSlot) -> float:
+    return float(
+        sum(
+            candidate.advancement_probability * candidate.tempo
             for candidate in slot.candidates
         )
     )

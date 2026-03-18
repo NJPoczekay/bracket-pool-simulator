@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import combinations
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -370,6 +370,10 @@ def _parse_results_payload(payload: dict[str, Any]) -> ResultsData:
         propositions.append(parsed)
 
     _validate_proposition_round_counts(propositions)
+    propositions = _canonicalize_proposition_display_orders(
+        propositions,
+        context="results payload",
+    )
 
     games = _build_games_from_propositions(propositions)
     constraints = _build_constraints(
@@ -544,6 +548,18 @@ def _parse_national_picks_payload(
             )
 
     round_counts = _validate_proposition_round_counts(parsed_propositions)
+    parsed_propositions = _canonicalize_proposition_display_orders(
+        parsed_propositions,
+        context="national picks payload",
+    )
+    display_order_by_proposition_id = {
+        proposition.proposition_id: proposition.display_order
+        for proposition in parsed_propositions
+    }
+    rows = [
+        replace(row, display_order=display_order_by_proposition_id[row.game_id])
+        for row in rows
+    ]
 
     first_proposition = proposition_payloads[0] if proposition_payloads else {}
     first_outcome = (
@@ -611,6 +627,46 @@ def _validate_proposition_round_counts(propositions: list[_ParsedProposition]) -
         raise ValueError(msg)
 
     return dict(round_counts)
+
+
+def _canonicalize_proposition_display_orders(
+    propositions: list[_ParsedProposition],
+    *,
+    context: str,
+) -> list[_ParsedProposition]:
+    normalized: list[_ParsedProposition] = []
+
+    for round_number in sorted(_EXPECTED_ROUND_COUNTS):
+        round_propositions = [
+            proposition
+            for proposition in propositions
+            if proposition.round_number == round_number
+        ]
+        ordered_round = sorted(
+            round_propositions,
+            key=lambda proposition: (proposition.display_order, proposition.proposition_id),
+        )
+        observed_orders = [proposition.display_order for proposition in ordered_round]
+        expected_orders = list(range(1, len(ordered_round) + 1))
+
+        if observed_orders != expected_orders and observed_orders:
+            _LOGGER.warning(
+                "Normalizing proposition displayOrder values for %s round %s "
+                "(min=%s max=%s unique=%s count=%s)",
+                context,
+                round_number,
+                min(observed_orders),
+                max(observed_orders),
+                len(set(observed_orders)),
+                len(observed_orders),
+            )
+
+        normalized.extend(
+            replace(proposition, display_order=index)
+            for index, proposition in enumerate(ordered_round, start=1)
+        )
+
+    return normalized
 
 
 def _build_games_from_propositions(propositions: list[_ParsedProposition]) -> list[RawGameRow]:

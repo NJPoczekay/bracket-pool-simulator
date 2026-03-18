@@ -80,13 +80,16 @@ uv run bracket-sim refresh-bracket-lab-data \
 
 Default raw output: `data/2026/bracket-lab/tournament-challenge-bracket-2026/raw`
 
-Or fetch the KenPom source rows directly:
+Or load the KenPom source rows from a saved HTML snapshot:
 
 ```bash
 uv run bracket-sim refresh-bracket-lab-data \
   --challenge tournament-challenge-bracket-2026 \
   --kenpom
 ```
+
+`--kenpom` looks for a file like
+`data/kenpom_snapshots/2026 Pomeroy College Basketball Ratings.html`.
 
 Expected raw Bracket Lab contents:
 
@@ -137,7 +140,7 @@ By default the command expects ratings from either:
 - `--ratings-file /path/to/ratings.csv`, or
 - an existing cached `ratings.csv` already present inside `--raw`
 
-You can also fetch ratings from KenPom instead:
+You can also load ratings from a saved KenPom HTML snapshot instead:
 
 ```bash
 uv run bracket-sim refresh-data \
@@ -145,11 +148,14 @@ uv run bracket-sim refresh-data \
   --kenpom
 ```
 
+When `--kenpom` is set, the CLI looks for a file like
+`data/kenpom_snapshots/2026 Pomeroy College Basketball Ratings.html`.
+
 Useful options:
 
 - `--min-usable-entries`: fail if too many ESPN entries are skipped during parsing
 - `--ratings-file`: read a local CSV with columns `team,rating,tempo` or `team_id,rating,tempo`
-- `--kenpom`: fetch public ratings from KenPom
+- `--kenpom`: load a saved KenPom HTML snapshot from `data/kenpom_snapshots`
 
 Expected raw directory contents after a successful refresh:
 

@@ -54,7 +54,7 @@ def test_materialize_play_in_slots_computes_advancement_probabilities() -> None:
             "playin-smu": 10,
             "playin-m-oh": 25,
         },
-        rating_scale=10.0,
+        point_spread_std_dev=11.0,
     )
 
     assert len(slots) == 1

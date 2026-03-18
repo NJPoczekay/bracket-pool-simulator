@@ -23,7 +23,7 @@ from bracket_sim.domain.bracket_lab_models import (
 )
 from bracket_sim.domain.constraints import validate_constraints
 from bracket_sim.domain.models import CompletedGameConstraint, RatingRecord, Team
-from bracket_sim.domain.probability_model import logistic_win_probability
+from bracket_sim.domain.probability_model import kenpom_win_probability
 from bracket_sim.domain.product_models import CompletionMode
 from bracket_sim.infrastructure.providers.contracts import RawAliasRow, RawRatingRow, RawTeamRow
 from bracket_sim.infrastructure.providers.ratings import normalize_rating_rows
@@ -34,7 +34,7 @@ from bracket_sim.infrastructure.storage.bracket_lab_prepared_writer import (
 from bracket_sim.infrastructure.storage.bracket_lab_raw_loader import load_bracket_lab_raw_input
 from bracket_sim.infrastructure.storage.path_defaults import bracket_lab_context_from_raw
 
-_DEFAULT_RATING_SCALE = 10.0
+_DEFAULT_POINT_SPREAD_STD_DEV = 11.0
 
 
 @dataclass(frozen=True)
@@ -124,7 +124,7 @@ def prepare_bracket_lab_data(*, raw_dir: Path, out_dir: Path) -> PrepareBracketL
         slot_specs=play_in_slots,
         normalized_ratings=normalized_ratings,
         rank_by_team_id=rank_by_team_id,
-        rating_scale=_DEFAULT_RATING_SCALE,
+        point_spread_std_dev=_DEFAULT_POINT_SPREAD_STD_DEV,
     )
     completion_inputs = _build_completion_inputs(
         teams=teams,
@@ -256,7 +256,7 @@ def _materialize_play_in_slots(
     slot_specs: list[_PlayInSlotSpec],
     normalized_ratings: list[RawRatingRow],
     rank_by_team_id: dict[str, int],
-    rating_scale: float,
+    point_spread_std_dev: float,
 ) -> list[PlayInSlot]:
     ratings_by_team_id = {row.team: row for row in normalized_ratings}
     slots: list[PlayInSlot] = []
@@ -270,10 +270,12 @@ def _materialize_play_in_slots(
             candidate_ratings.append(ratings_by_team_id[candidate.team_id])
 
         left_probability = float(
-            logistic_win_probability(
+            kenpom_win_probability(
                 np.array([candidate_ratings[0].rating], dtype=np.float64),
                 np.array([candidate_ratings[1].rating], dtype=np.float64),
-                rating_scale=rating_scale,
+                np.array([candidate_ratings[0].tempo], dtype=np.float64),
+                np.array([candidate_ratings[1].tempo], dtype=np.float64),
+                point_spread_std_dev=point_spread_std_dev,
             )[0]
         )
         probabilities = [left_probability, 1.0 - left_probability]

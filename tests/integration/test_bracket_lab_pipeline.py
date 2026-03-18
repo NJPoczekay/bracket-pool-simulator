@@ -262,6 +262,69 @@ def test_refresh_bracket_lab_data_is_deterministic(
         ).read_text(encoding="utf-8")
 
 
+def test_prepare_bracket_lab_data_normalizes_noncanonical_public_pick_display_order(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    challenge_payload, _, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+    ratings_path = tmp_path / "ratings_noncanonical.csv"
+    _write_name_ratings(ratings_path, synthetic_input_dir)
+
+    raw_dir = tmp_path / "raw_noncanonical_picks"
+    refresh_bracket_lab_data(
+        challenge="mock-challenge-2026",
+        raw_dir=raw_dir,
+        challenge_provider=_build_challenge_provider(challenge_payload=challenge_payload),
+        rating_source_provider=LocalRatingSourceProvider(ratings_file=ratings_path),
+        fetched_at=datetime(2026, 3, 15, 12, 0, tzinfo=UTC),
+    )
+
+    national_picks_path = raw_dir / "national_picks.csv"
+    with national_picks_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+        fieldnames = list(reader.fieldnames or [])
+
+    for row in rows:
+        round_number = int(str(row["round"]))
+        display_order = int(str(row["display_order"]))
+        if round_number in {1, 3, 5, 6} or (round_number == 2 and display_order % 3 == 0):
+            row["display_order"] = str(display_order - 1)
+        elif round_number == 4 and display_order == 4:
+            row["display_order"] = "3"
+
+    with national_picks_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    out_dir = tmp_path / "prepared_noncanonical_picks"
+    summary = prepare_bracket_lab_data(raw_dir=raw_dir, out_dir=out_dir)
+
+    assert summary.public_picks == 384
+
+    with (out_dir / "public_picks.csv").open("r", encoding="utf-8", newline="") as handle:
+        prepared_rows = list(csv.DictReader(handle))
+
+    orders_by_round: dict[int, set[int]] = {}
+    for row in prepared_rows:
+        round_number = int(str(row["round"]))
+        display_order = int(str(row["display_order"]))
+        orders_by_round.setdefault(round_number, set()).add(display_order)
+
+    assert orders_by_round == {
+        1: set(range(1, 33)),
+        2: set(range(1, 17)),
+        3: set(range(1, 9)),
+        4: set(range(1, 5)),
+        5: set(range(1, 3)),
+        6: {1},
+    }
+
+
 def test_prepare_bracket_lab_data_fails_when_placeholder_candidate_cannot_resolve(
     synthetic_input_dir: Path,
     tmp_path: Path,

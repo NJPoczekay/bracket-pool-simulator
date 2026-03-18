@@ -10,7 +10,7 @@ This document describes the validation artifacts and checks added for Phase 2.
     - input: `tests/fixtures/synthetic_64`
     - `n_sims=300`
     - `seed=99`
-    - `rating_scale=10.0`
+    - `rating_scale=11.0`
 - Golden regression integration test:
   - `tests/integration/test_golden_output.py`
 - Additional core validation tests:

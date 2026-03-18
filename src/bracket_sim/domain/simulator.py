@@ -9,7 +9,8 @@ import numpy as np
 import numpy.typing as npt
 
 from bracket_sim.domain.bracket_graph import BracketGraph
-from bracket_sim.domain.probability_model import logistic_win_probability
+from bracket_sim.domain.models import RatingRecord
+from bracket_sim.domain.probability_model import kenpom_win_probability
 
 try:
     from numba import njit  # type: ignore[import-not-found]
@@ -45,11 +46,11 @@ def canonical_team_order(graph: BracketGraph) -> list[str]:
 
 def simulate_tournament(
     graph: BracketGraph,
-    ratings_by_team_id: dict[str, float],
+    rating_records_by_team_id: dict[str, RatingRecord],
     constraints_by_game_id: dict[str, str],
     n_sims: int,
     seed: int,
-    rating_scale: float,
+    point_spread_std_dev: float,
     engine: str = "numpy",
 ) -> TournamentSimulation:
     """Simulate bracket outcomes in a deterministic, seed-controlled manner."""
@@ -58,11 +59,14 @@ def simulate_tournament(
     team_index = {team_id: idx for idx, team_id in enumerate(team_ids)}
 
     ratings = np.zeros(len(team_ids), dtype=np.float64)
+    tempos = np.zeros(len(team_ids), dtype=np.float64)
     for team_id, idx in team_index.items():
-        if team_id not in ratings_by_team_id:
+        if team_id not in rating_records_by_team_id:
             msg = f"Missing rating for team id: {team_id}"
             raise ValueError(msg)
-        ratings[idx] = ratings_by_team_id[team_id]
+        record = rating_records_by_team_id[team_id]
+        ratings[idx] = record.rating
+        tempos[idx] = record.tempo
 
     compiled = compile_tournament_arrays(
         graph=graph,
@@ -74,17 +78,19 @@ def simulate_tournament(
         team_wins, champions = _simulate_tournament_numpy(
             compiled=compiled,
             ratings=ratings,
+            tempos=tempos,
             n_sims=n_sims,
             seed=seed,
-            rating_scale=rating_scale,
+            point_spread_std_dev=point_spread_std_dev,
         )
     elif engine == "numba":
         team_wins, champions = _simulate_tournament_numba(
             compiled=compiled,
             ratings=ratings,
+            tempos=tempos,
             n_sims=n_sims,
             seed=seed,
-            rating_scale=rating_scale,
+            point_spread_std_dev=point_spread_std_dev,
         )
     else:
         msg = f"Unsupported simulation engine: {engine}"
@@ -138,9 +144,10 @@ def _simulate_tournament_numpy(
     *,
     compiled: CompiledTournament,
     ratings: npt.NDArray[np.float64],
+    tempos: npt.NDArray[np.float64],
     n_sims: int,
     seed: int,
-    rating_scale: float,
+    point_spread_std_dev: float,
 ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
     rng = np.random.default_rng(seed)
 
@@ -161,10 +168,14 @@ def _simulate_tournament_numpy(
         else:
             left_ratings = ratings[left_winners]
             right_ratings = ratings[right_winners]
-            left_probs = logistic_win_probability(
+            left_tempos = tempos[left_winners]
+            right_tempos = tempos[right_winners]
+            left_probs = kenpom_win_probability(
                 left_ratings=left_ratings,
                 right_ratings=right_ratings,
-                rating_scale=rating_scale,
+                left_tempos=left_tempos,
+                right_tempos=right_tempos,
+                point_spread_std_dev=point_spread_std_dev,
             )
             draws = rng.random(n_sims)
             winners = np.where(draws < left_probs, left_winners, right_winners).astype(np.int16)
@@ -180,9 +191,10 @@ def _simulate_tournament_numba(
     *,
     compiled: CompiledTournament,
     ratings: npt.NDArray[np.float64],
+    tempos: npt.NDArray[np.float64],
     n_sims: int,
     seed: int,
-    rating_scale: float,
+    point_spread_std_dev: float,
 ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
     if njit is None:
         msg = "Numba engine requested but numba is not installed"
@@ -192,6 +204,7 @@ def _simulate_tournament_numba(
         tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]],
         _simulate_tournament_numba_core(
             ratings,
+            tempos,
             compiled.round1_mask,
             compiled.left_refs,
             compiled.right_refs,
@@ -199,7 +212,7 @@ def _simulate_tournament_numba(
             compiled.championship_game_index,
             n_sims,
             seed,
-            rating_scale,
+            point_spread_std_dev,
         ),
     )
 
@@ -209,6 +222,7 @@ if njit is not None:
     @njit(cache=True)  # type: ignore[untyped-decorator]
     def _simulate_tournament_numba_core(
         ratings: npt.NDArray[np.float64],
+        tempos: npt.NDArray[np.float64],
         round1_mask: npt.NDArray[np.bool_],
         left_refs: npt.NDArray[np.int16],
         right_refs: npt.NDArray[np.int16],
@@ -216,7 +230,7 @@ if njit is not None:
         championship_game_index: int,
         n_sims: int,
         seed: int,
-        rating_scale: float,
+        point_spread_std_dev: float,
     ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
         np.random.seed(seed)
         team_wins = np.zeros((n_sims, len(ratings)), dtype=np.int16)
@@ -233,8 +247,24 @@ if njit is not None:
 
                 winner_idx = constrained_winners[game_idx]
                 if winner_idx < 0:
-                    delta = (ratings[left_winner] - ratings[right_winner]) / rating_scale
-                    left_prob = 1.0 / (1.0 + np.exp(-delta))
+                    point_diff = (
+                        (ratings[left_winner] - ratings[right_winner])
+                        * (tempos[left_winner] + tempos[right_winner])
+                        / 200.0
+                    )
+                    z_score = point_diff / point_spread_std_dev
+                    abs_z = abs(z_score)
+                    t = 1.0 / (1.0 + (0.2316419 * abs_z))
+                    polynomial = (
+                        (((((1.330274429 * t) - 1.821255978) * t) + 1.781477937) * t
+                        - 0.356563782)
+                        * t
+                        + 0.319381530
+                    ) * t
+                    positive_cdf = 1.0 - (
+                        0.3989422804014327 * np.exp(-0.5 * abs_z * abs_z) * polynomial
+                    )
+                    left_prob = positive_cdf if z_score >= 0.0 else 1.0 - positive_cdf
                     winner_idx = left_winner if np.random.random() < left_prob else right_winner
 
                 winners_by_game[game_idx, sim_idx] = winner_idx
@@ -247,6 +277,7 @@ else:
 
     def _simulate_tournament_numba_core(
         ratings: npt.NDArray[np.float64],
+        tempos: npt.NDArray[np.float64],
         round1_mask: npt.NDArray[np.bool_],
         left_refs: npt.NDArray[np.int16],
         right_refs: npt.NDArray[np.int16],
@@ -254,6 +285,6 @@ else:
         championship_game_index: int,
         n_sims: int,
         seed: int,
-        rating_scale: float,
+        point_spread_std_dev: float,
     ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
         raise AssertionError("numba core should not be called when numba is unavailable")

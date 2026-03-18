@@ -18,7 +18,7 @@ def test_golden_output_matches_expected_snapshot(synthetic_input_dir: Path) -> N
             input_dir=synthetic_input_dir,
             n_sims=300,
             seed=99,
-            rating_scale=10.0,
+            rating_scale=11.0,
         )
     )
 

@@ -23,6 +23,7 @@ from bracket_sim.infrastructure.providers.espn_api import (
     parse_espn_challenge_reference,
 )
 from bracket_sim.infrastructure.providers.ratings import (
+    DEFAULT_KENPOM_SNAPSHOT_DIR,
     KenPomRatingSourceProvider,
     LocalRatingSourceProvider,
 )
@@ -31,6 +32,7 @@ from bracket_sim.infrastructure.storage.bracket_lab_raw_writer import (
     BracketLabRawDataset,
     write_bracket_lab_raw_dataset,
 )
+from bracket_sim.infrastructure.storage.path_defaults import season_from_challenge_key
 
 
 @dataclass(frozen=True)
@@ -72,7 +74,10 @@ def refresh_bracket_lab_data(
     owned_kenpom_provider: KenPomRatingSourceProvider | None = None
     if rating_source_provider is None:
         if use_kenpom:
-            owned_kenpom_provider = KenPomRatingSourceProvider()
+            owned_kenpom_provider = KenPomRatingSourceProvider(
+                season=season_from_challenge_key(challenge_ref.challenge_key),
+                snapshot_dir=DEFAULT_KENPOM_SNAPSHOT_DIR,
+            )
             rating_source_provider = owned_kenpom_provider
         else:
             rating_source_provider = LocalRatingSourceProvider(ratings_file=ratings_file)

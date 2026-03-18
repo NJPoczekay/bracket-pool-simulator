@@ -7,6 +7,7 @@ import difflib
 import html
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -22,13 +23,33 @@ from bracket_sim.infrastructure.providers.contracts import (
 )
 
 _SPECIAL_ALIAS_EQUIVALENTS: dict[str, set[str]] = {
+    "ca baptist": {"cal baptist", "california baptist"},
+    "cal baptist": {"ca baptist", "california baptist"},
+    "california baptist": {"ca baptist", "cal baptist"},
+    "leh": {"lehigh"},
+    "lehigh": {"leh"},
+    "liu": {"long island"},
+    "long island": {"liu"},
+    "m oh": {"miami oh"},
+    "miami": {"miami fl"},
+    "miami fl": {"miami"},
+    "miami oh": {"m oh"},
+    "n dakota st": {"north dakota st", "north dakota state"},
+    "north dakota st": {"n dakota st", "ndsu"},
+    "north dakota state": {"n dakota st", "ndsu"},
+    "ndsu": {"n dakota st", "north dakota st", "north dakota state"},
     "uconn": {"connecticut"},
     "connecticut": {"uconn"},
     "ole miss": {"mississippi"},
     "mississippi": {"ole miss"},
     "omaha": {"nebraska omaha"},
     "nebraska omaha": {"omaha"},
+    "pv": {"prairie view a and m"},
+    "prairie view a and m": {"pv"},
 }
+
+DEFAULT_KENPOM_SNAPSHOT_DIR = Path("data") / "kenpom_snapshots"
+_KENPOM_SNAPSHOT_STEM = "Pomeroy College Basketball Ratings"
 
 
 @dataclass(frozen=True)
@@ -104,7 +125,7 @@ class LocalRatingsProvider(RatingsProvider):
 
 
 class KenPomRatingSourceProvider(RatingSourceProvider):
-    """Fetch raw rating rows from KenPom's public ratings page."""
+    """Fetch raw rating rows from a local KenPom snapshot or live page."""
 
     def __init__(
         self,
@@ -112,10 +133,16 @@ class KenPomRatingSourceProvider(RatingSourceProvider):
         url: str = "https://kenpom.com/",
         timeout_seconds: float = 20.0,
         client: httpx.Client | None = None,
+        snapshot_path: Path | None = None,
+        snapshot_dir: Path | None = None,
+        season: str | None = None,
     ) -> None:
         self._url = url
         self._client = client or httpx.Client(timeout=timeout_seconds, follow_redirects=True)
         self._owns_client = client is None
+        self._snapshot_path = snapshot_path
+        self._snapshot_dir = snapshot_dir
+        self._season = season
 
     def close(self) -> None:
         """Close owned HTTP resources."""
@@ -124,6 +151,19 @@ class KenPomRatingSourceProvider(RatingSourceProvider):
             self._client.close()
 
     def fetch_rating_source(self) -> RatingSourceData:
+        snapshot_path = self._resolve_snapshot_path()
+        if snapshot_path is not None:
+            try:
+                payload = snapshot_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                msg = f"Failed to read KenPom snapshot at {snapshot_path}: {exc}"
+                raise ValueError(msg) from exc
+
+            return RatingSourceData(
+                ratings=parse_kenpom_source_rows(payload),
+                source=f"kenpom_snapshot:{snapshot_path}",
+            )
+
         try:
             response = self._client.get(self._url)
         except httpx.HTTPError as exc:
@@ -148,9 +188,50 @@ class KenPomRatingSourceProvider(RatingSourceProvider):
             source="kenpom",
         )
 
+    def _resolve_snapshot_path(self) -> Path | None:
+        if self._snapshot_path is not None:
+            if not self._snapshot_path.exists():
+                msg = f"KenPom snapshot does not exist: {self._snapshot_path}"
+                raise ValueError(msg)
+            return self._snapshot_path
+
+        if self._snapshot_dir is None:
+            return None
+
+        if not self._snapshot_dir.exists():
+            msg = (
+                f"KenPom snapshot directory does not exist: {self._snapshot_dir}. "
+                "Save an HTML snapshot there or use --ratings-file."
+            )
+            raise ValueError(msg)
+
+        season = self._season or str(datetime.now(UTC).year)
+        exact_candidates = [
+            self._snapshot_dir / f"{season} {_KENPOM_SNAPSHOT_STEM}.html",
+            self._snapshot_dir / f"{season} {_KENPOM_SNAPSHOT_STEM}.htm",
+        ]
+        for candidate in exact_candidates:
+            if candidate.exists():
+                return candidate
+
+        pattern = f"{season}*{_KENPOM_SNAPSHOT_STEM}*.htm*"
+        fallback_candidates = sorted(
+            self._snapshot_dir.glob(pattern),
+            key=lambda path: (path.stat().st_mtime_ns, path.name),
+            reverse=True,
+        )
+        if fallback_candidates:
+            return fallback_candidates[0]
+
+        msg = (
+            f"No KenPom snapshot found for season {season} in {self._snapshot_dir}. "
+            f"Expected a file like '{season} {_KENPOM_SNAPSHOT_STEM}.html' or use --ratings-file."
+        )
+        raise ValueError(msg)
+
 
 class KenPomRatingsProvider(RatingsProvider):
-    """Fetch ratings from KenPom's public ratings page."""
+    """Fetch ratings from a local KenPom snapshot or live page."""
 
     def __init__(
         self,
@@ -158,11 +239,17 @@ class KenPomRatingsProvider(RatingsProvider):
         url: str = "https://kenpom.com/",
         timeout_seconds: float = 20.0,
         client: httpx.Client | None = None,
+        snapshot_path: Path | None = None,
+        snapshot_dir: Path | None = None,
+        season: str | None = None,
     ) -> None:
         self._source_provider = KenPomRatingSourceProvider(
             url=url,
             timeout_seconds=timeout_seconds,
             client=client,
+            snapshot_path=snapshot_path,
+            snapshot_dir=snapshot_dir,
+            season=season,
         )
 
     def close(self) -> None:
@@ -255,10 +342,25 @@ def _parse_kenpom_table(payload: str) -> list[_InputRatingRow]:
     parsed_rows: list[_InputRatingRow] = []
 
     for row_html in row_html_list:
-        header_cells = re.findall(r"<th[^>]*>(.*?)</th>", row_html, flags=re.IGNORECASE | re.DOTALL)
+        header_cells = re.findall(
+            r"<th([^>]*)>(.*?)</th>",
+            row_html,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
         if header_cells:
-            normalized_headers = [_normalize_header(_strip_tags(cell)) for cell in header_cells]
-            header_map = {header: idx for idx, header in enumerate(normalized_headers)}
+            normalized_headers: list[str] = []
+            for attrs, cell in header_cells:
+                normalized_header = _normalize_header(_strip_tags(cell))
+                colspan_match = re.search(
+                    r"colspan\s*=\s*[\"']?(\d+)[\"']?",
+                    attrs,
+                    flags=re.IGNORECASE,
+                )
+                colspan = int(colspan_match.group(1)) if colspan_match is not None else 1
+                normalized_headers.extend([normalized_header] * colspan)
+            header_map = {}
+            for idx, header in enumerate(normalized_headers):
+                header_map.setdefault(header, idx)
             continue
 
         data_cells = re.findall(r"<td[^>]*>(.*?)</td>", row_html, flags=re.IGNORECASE | re.DOTALL)
@@ -275,13 +377,19 @@ def _parse_kenpom_table(payload: str) -> list[_InputRatingRow]:
 
         required_headers = {"team", "adjem", "adjt"}
         if not required_headers.issubset(header_map):
-            msg = "KenPom ratings table missing expected columns Team/AdjEM/AdjT"
+            msg = "KenPom ratings table missing expected columns Team/AdjEM(or NetRtg)/AdjT"
             raise ValueError(msg)
 
         if max(header_map[header] for header in required_headers) >= len(data_cells):
             continue
 
-        team_raw = _strip_tags(data_cells[header_map["team"]])
+        team_cell_html = re.sub(
+            r"<span[^>]*class=[\"'][^\"']*\bseed\b[^\"']*[\"'][^>]*>.*?</span>",
+            "",
+            data_cells[header_map["team"]],
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        team_raw = _strip_tags(team_cell_html)
         rating_raw = _strip_tags(data_cells[header_map["adjem"]]).replace("+", "")
         tempo_raw = _strip_tags(data_cells[header_map["adjt"]])
 
@@ -472,7 +580,7 @@ def _normalize_header(value: str) -> str:
     key = _normalize_team_key(value).replace(" ", "")
     if key in {"team", "school"}:
         return "team"
-    if key in {"adjem"}:
+    if key in {"adjem", "netrtg", "adjnetrtg", "efficiencymargin"}:
         return "adjem"
     if key in {"adjt", "adjtempo", "tempo"}:
         return "adjt"
