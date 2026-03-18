@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import hashlib
 import json
 import re
@@ -101,6 +102,7 @@ def prepare_bracket_lab_data(*, raw_dir: Path, out_dir: Path) -> PrepareBracketL
         for slot in play_in_slots
         for candidate in slot.candidates
     ]
+    manual_aliases = [RawAliasRow(alias=row.alias, team_id=row.team_id) for row in raw.aliases]
     rating_target_teams = [
         RawTeamRow(team_id=team.team_id, name=team.name, seed=team.seed, region=team.region)
         for team in concrete_teams
@@ -108,7 +110,12 @@ def prepare_bracket_lab_data(*, raw_dir: Path, out_dir: Path) -> PrepareBracketL
     normalized_ratings, _ = normalize_rating_rows(
         input_rows=raw.kenpom_rows,
         teams=rating_target_teams,
-        aliases=[RawAliasRow(alias=row.alias, team_id=row.team_id) for row in raw.aliases],
+        aliases=manual_aliases,
+    )
+    _validate_explicit_play_in_candidate_sources(
+        slot_specs=play_in_slots,
+        input_rows=raw.kenpom_rows,
+        manual_aliases=manual_aliases,
     )
     rating_rows = [
         RatingRecord(team_id=row.team, rating=row.rating, tempo=row.tempo)
@@ -228,6 +235,47 @@ def _candidate_team_id(candidate_name: str) -> str:
     return f"playin-{collapsed}"
 
 
+def _validate_explicit_play_in_candidate_sources(
+    *,
+    slot_specs: list[_PlayInSlotSpec],
+    input_rows: list[RawRatingRow],
+    manual_aliases: list[RawAliasRow],
+) -> None:
+    candidate_by_team_id = {
+        candidate.team_id: candidate
+        for slot in slot_specs
+        for candidate in slot.candidates
+    }
+    if not candidate_by_team_id:
+        return
+
+    source_keys = {_normalize_alias_key(row.team) for row in input_rows}
+    manual_alias_keys_by_team_id: dict[str, set[str]] = {}
+    for alias in manual_aliases:
+        manual_alias_keys_by_team_id.setdefault(alias.team_id, set()).add(
+            _normalize_alias_key(alias.alias)
+        )
+
+    missing_candidates = [
+        candidate.team_name
+        for team_id, candidate in sorted(candidate_by_team_id.items())
+        if not (
+            {
+                _normalize_alias_key(candidate.team_id),
+                _normalize_alias_key(candidate.team_name),
+            }
+            | manual_alias_keys_by_team_id.get(team_id, set())
+        )
+        & source_keys
+    ]
+    if missing_candidates:
+        msg = (
+            "Missing ratings for tournament teams after alias normalization: "
+            f"{'; '.join(missing_candidates)}"
+        )
+        raise ValueError(msg)
+
+
 def _compute_rankings(
     *,
     normalized_ratings: list[RawRatingRow],
@@ -246,6 +294,13 @@ def _compute_rankings(
 
 def _normalize_rank_key(value: str) -> str:
     lowered = value.casefold().replace("&", " and ")
+    lowered = re.sub(r"[^a-z0-9 ]+", " ", lowered)
+    lowered = re.sub(r"\s+", " ", lowered)
+    return lowered.strip()
+
+
+def _normalize_alias_key(value: str) -> str:
+    lowered = html.unescape(value).casefold().replace("&", " and ").replace("'", "")
     lowered = re.sub(r"[^a-z0-9 ]+", " ", lowered)
     lowered = re.sub(r"\s+", " ", lowered)
     return lowered.strip()

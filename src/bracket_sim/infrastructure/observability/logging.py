@@ -11,6 +11,23 @@ from structlog.stdlib import BoundLogger
 from structlog.types import Processor
 
 
+class _LiveStderrHandler(logging.Handler):
+    """Write to the current stderr stream so pytest capture does not leave a stale handle."""
+
+    terminator = "\n"
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = self.format(record)
+            stream = sys.stderr
+            if getattr(stream, "closed", False):
+                stream = sys.__stderr__
+            stream.write(message + self.terminator)
+            stream.flush()
+        except Exception:
+            self.handleError(record)
+
+
 def configure_structured_logging(*, level: str, log_path: Path | None = None) -> BoundLogger:
     """Configure JSON logging to stderr and an optional log file."""
 
@@ -30,10 +47,10 @@ def configure_structured_logging(*, level: str, log_path: Path | None = None) ->
 
     logger = logging.getLogger("bracket_sim")
     logger.handlers.clear()
-    logger.propagate = False
+    logger.propagate = True
     logger.setLevel(_to_logging_level(level))
 
-    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler = _LiveStderrHandler()
     stderr_handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(stderr_handler)
 
