@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from dataclasses import dataclass
 from itertools import combinations
@@ -28,6 +29,7 @@ from bracket_sim.infrastructure.providers.contracts import (
 )
 
 _EXPECTED_ROUND_COUNTS: dict[int, int] = {1: 32, 2: 16, 3: 8, 4: 4, 5: 2, 6: 1}
+_LOGGER = logging.getLogger("bracket_sim.infrastructure.providers.espn_api")
 
 
 @dataclass(frozen=True)
@@ -534,11 +536,12 @@ def _parse_national_picks_payload(
         if total_brackets is None:
             total_brackets = proposition_total
         elif proposition_total != total_brackets:
-            msg = (
-                f"Proposition {proposition_id} total picks {proposition_total} do not match "
-                f"expected total {total_brackets}"
+            _LOGGER.warning(
+                "National pick totals mismatch for proposition %s: observed=%s expected=%s",
+                proposition_id,
+                proposition_total,
+                total_brackets,
             )
-            raise ValueError(msg)
 
     round_counts = _validate_proposition_round_counts(parsed_propositions)
 

@@ -306,7 +306,10 @@ def test_fetch_national_picks_requires_bracket_scoring_format(synthetic_input_di
         provider.fetch_national_picks()
 
 
-def test_fetch_national_picks_rejects_inconsistent_totals(synthetic_input_dir: Path) -> None:
+def test_fetch_national_picks_warns_on_inconsistent_totals(
+    synthetic_input_dir: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     challenge_payload, group_payload, _ = build_mock_payloads(
         fixture_dir=synthetic_input_dir,
         completed_game_ids=set(),
@@ -332,8 +335,15 @@ def test_fetch_national_picks_rejects_inconsistent_totals(synthetic_input_dir: P
         group_payloads=[group_payload],
     )
 
-    with pytest.raises(ValueError, match="total picks"):
-        provider.fetch_national_picks()
+    with caplog.at_level("WARNING", logger="bracket_sim.infrastructure.providers.espn_api"):
+        national_picks = provider.fetch_national_picks()
+
+    assert len(national_picks.rows) == 384
+    first_game_id = national_picks.rows[0].game_id
+    assert national_picks.total_brackets == sum(
+        row.pick_count for row in national_picks.rows if row.game_id == first_game_id
+    )
+    assert "National pick totals mismatch" in caplog.text
 
 
 def test_fetch_national_picks_rejects_unexpected_proposition_structure(

@@ -65,7 +65,7 @@ The refresh fails if ESPN's payload shape is not what the parser expects. v1 val
 - exactly one `choiceCounter` per outcome
 - `scoringFormatId == 5`
 - no missing counters
-- identical summed `pick_count` totals across every proposition
+- mismatched summed `pick_count` totals across propositions emit a warning but do not fail refresh
 
 ## Notes
 
