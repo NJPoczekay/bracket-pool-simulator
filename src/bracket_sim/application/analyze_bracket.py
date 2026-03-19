@@ -37,7 +37,7 @@ from bracket_sim.infrastructure.storage.bracket_lab_prepared_loader import (
 )
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key, capture_dataset_hash
 
-_ANALYSIS_N_SIMS = 10_000
+_ANALYSIS_N_SIMS = 100_000
 _ANALYSIS_BATCH_SIZE = 1_000
 _ANALYSIS_POINT_SPREAD_STD_DEV = 11.0
 _DEFAULT_POOL_SETTINGS = PoolSettings(
