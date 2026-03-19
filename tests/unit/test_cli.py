@@ -200,6 +200,29 @@ def test_report_command_defaults_out_dir_and_publishes_latest(
     assert (tmp_path / "reports/2026/tracker/main/latest/summary.json").exists()
 
 
+def test_matchup_table_command_emits_json(
+    prepared_bracket_lab_dir: Path,
+) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "matchup-table",
+            "--input",
+            str(prepared_bracket_lab_dir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["input_dir"] == str(prepared_bracket_lab_dir)
+    assert payload["round"] == 1
+    assert len(payload["matchup_rows"]) == 64
+    assert len(payload["value_rows"]) == 64
+    assert payload["matchup_rows"][0]["game_id"] == "g001"
+
+
 def test_prepare_data_command_runs(raw_canonical_dir: Path, tmp_path: Path) -> None:
     runner = CliRunner()
     out_dir = tmp_path / "prepared_cli"
