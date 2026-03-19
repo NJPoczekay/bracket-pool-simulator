@@ -15,12 +15,11 @@ from bracket_sim.application.bracket_completion import (
     select_game_winner,
 )
 from bracket_sim.application.bracket_lab_eval import (
+    ANALYSIS_N_SIMS,
     BracketFieldEvaluationContext,
     BracketLabRuntime,
     build_bracket_diagnostics,
-    build_field_evaluation_context,
-    derive_child_seed,
-    seed_from_cache_key,
+    build_shared_field_evaluation_context,
 )
 from bracket_sim.domain.product_models import (
     BracketPickChange,
@@ -35,8 +34,8 @@ from bracket_sim.domain.product_models import (
 )
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key
 
-_OPTIMIZER_COARSE_N_SIMS = 4_000
-_OPTIMIZER_FINAL_N_SIMS = 12_000
+_OPTIMIZER_COARSE_N_SIMS = ANALYSIS_N_SIMS
+_OPTIMIZER_FINAL_N_SIMS = ANALYSIS_N_SIMS
 _OPTIMIZER_BEAM_WIDTH = 12
 _OPTIMIZER_LOCAL_STARTS = 4
 _OPTIMIZER_MAX_PRIORITY_GAMES = 20
@@ -90,21 +89,12 @@ def optimize_bracket(
             "pick_four": request.pick_four,
         },
     )
-    base_seed = seed_from_cache_key(cache_key)
-    coarse_context = build_field_evaluation_context(
+    coarse_context = build_shared_field_evaluation_context(
         runtime=runtime,
         pool_settings=request.pool_settings,
-        opponent_seed=derive_child_seed(seed=base_seed, child_index=1),
-        simulation_seed=derive_child_seed(seed=base_seed, child_index=2),
         n_sims=_OPTIMIZER_COARSE_N_SIMS,
     )
-    final_context = build_field_evaluation_context(
-        runtime=runtime,
-        pool_settings=request.pool_settings,
-        opponent_seed=derive_child_seed(seed=base_seed, child_index=3),
-        simulation_seed=derive_child_seed(seed=base_seed, child_index=4),
-        n_sims=_OPTIMIZER_FINAL_N_SIMS,
-    )
+    final_context = coarse_context
 
     _, diagnostics = build_bracket_diagnostics(
         context=final_context,

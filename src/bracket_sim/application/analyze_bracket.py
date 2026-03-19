@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 from bracket_sim.application.bracket_completion import (
@@ -14,18 +13,13 @@ from bracket_sim.application.bracket_completion import (
     complete_bracket as complete_editable_bracket,
 )
 from bracket_sim.application.bracket_lab_eval import (
-    ANALYSIS_BATCH_SIZE,
     ANALYSIS_N_SIMS,
-    BRACKET_LAB_POINT_SPREAD_STD_DEV,
     DEFAULT_POOL_SETTINGS,
-    PickDiagnosticAccumulator,
+    build_bracket_diagnostics,
     bracket_to_entry,
     build_bracket_lab_runtime,
-    derive_batch_seed,
-    resolve_scoring_spec,
+    build_shared_field_evaluation_context,
     sample_public_opponents,
-    seed_from_cache_key,
-    user_win_shares_by_sim,
     weighted_slot_rating,
     weighted_slot_tempo,
 )
@@ -40,8 +34,6 @@ from bracket_sim.domain.product_models import (
     OptimizationResult,
     OptimizeBracketRequest,
 )
-from bracket_sim.domain.scoring import build_predicted_wins_matrix, score_entries, validate_entries
-from bracket_sim.domain.simulator import simulate_tournament
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key
 
 
@@ -118,10 +110,6 @@ class BracketLabService:
             constraints_by_game_id=self._runtime.constraints_by_game_id,
         )
         normalized_completion_mode = normalize_completion_mode(request.completion_mode)
-        user_entry = bracket_to_entry(
-            bracket=canonical_bracket,
-            graph=self._runtime.graph,
-        )
         cache_key = build_cache_key(
             artifact_kind="analysis",
             dataset_hash=self._runtime.dataset_hash,
@@ -131,61 +119,15 @@ class BracketLabService:
                 "completion_mode": normalized_completion_mode,
             },
         )
-        seed = seed_from_cache_key(cache_key)
-
-        opponent_entries = sample_public_opponents(
+        context = build_shared_field_evaluation_context(
             runtime=self._runtime,
-            opponent_count=max(request.pool_settings.pool_size - 1, 0),
-            seed=seed,
+            pool_settings=request.pool_settings,
+            n_sims=ANALYSIS_N_SIMS,
         )
-        entries = [user_entry, *opponent_entries]
-        validate_entries(entries=entries, graph=self._runtime.graph)
-        _, team_ids, predicted_wins = build_predicted_wins_matrix(
-            entries=entries,
-            graph=self._runtime.graph,
-        )
-        if team_ids != self._runtime.team_ids:
-            msg = "Bracket analysis team ordering drifted from prepared dataset"
-            raise RuntimeError(msg)
-
-        scoring_spec = resolve_scoring_spec(request.pool_settings.scoring_system)
-        diagnostics = PickDiagnosticAccumulator.build(
+        win_probability, pick_diagnostics = build_bracket_diagnostics(
+            context=context,
             bracket=canonical_bracket,
-            graph=self._runtime.graph,
-            team_index=self._runtime.team_index,
-            total_sims=ANALYSIS_N_SIMS,
         )
-
-        total_batches = math.ceil(ANALYSIS_N_SIMS / ANALYSIS_BATCH_SIZE)
-        for batch_index in range(total_batches):
-            batch_n_sims = min(
-                ANALYSIS_BATCH_SIZE,
-                ANALYSIS_N_SIMS - (batch_index * ANALYSIS_BATCH_SIZE),
-            )
-            batch_seed = derive_batch_seed(
-                seed=seed,
-                batch_index=batch_index,
-                total_batches=total_batches,
-            )
-            simulation = simulate_tournament(
-                graph=self._runtime.graph,
-                rating_records_by_team_id=self._runtime.rating_records_by_team_id,
-                constraints_by_game_id=self._runtime.constraints_by_game_id,
-                n_sims=batch_n_sims,
-                seed=batch_seed,
-                point_spread_std_dev=BRACKET_LAB_POINT_SPREAD_STD_DEV,
-            )
-            scores = score_entries(
-                predicted_wins=predicted_wins,
-                actual_wins=simulation.team_wins,
-                round_values=scoring_spec.round_values,
-                team_seeds=self._runtime.team_seeds,
-                seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
-            )
-            diagnostics.accumulate_batch(
-                team_wins=simulation.team_wins,
-                user_win_shares=user_win_shares_by_sim(scores),
-            )
 
         return BracketAnalysis(
             bracket=canonical_bracket,
@@ -193,9 +135,9 @@ class BracketLabService:
             completion_mode=request.completion_mode,
             dataset_hash=self._runtime.dataset_hash,
             cache_key=cache_key,
-            win_probability=diagnostics.win_probability,
+            win_probability=win_probability,
             public_percentile=None,
-            pick_diagnostics=diagnostics.build_pick_diagnostics(),
+            pick_diagnostics=pick_diagnostics,
         )
 
 
