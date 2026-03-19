@@ -128,6 +128,32 @@ def test_normalize_rating_rows_supports_curated_espn_to_kenpom_aliases() -> None
     ]
 
 
+def test_normalize_rating_rows_supports_additional_play_in_name_variants() -> None:
+    ratings, aliases = normalize_rating_rows(
+        input_rows=[
+            RawRatingRow(team="Miami Ohio", rating=8.27, tempo=70.0),
+            RawRatingRow(team="Prairie View", rating=-10.69, tempo=71.0),
+            RawRatingRow(team="Lehigh Mountain Hawks", rating=-10.41, tempo=66.9),
+        ],
+        teams=[
+            RawTeamRow(team_id="playin-m-oh", name="M-OH", seed=11, region="south"),
+            RawTeamRow(team_id="playin-pv", name="PV", seed=16, region="west"),
+            RawTeamRow(team_id="playin-leh", name="LEH", seed=16, region="west"),
+        ],
+    )
+
+    assert [row.team for row in ratings] == [
+        "playin-leh",
+        "playin-m-oh",
+        "playin-pv",
+    ]
+    assert aliases == [
+        RawAliasRow(alias="Lehigh Mountain Hawks", team_id="playin-leh"),
+        RawAliasRow(alias="Miami Ohio", team_id="playin-m-oh"),
+        RawAliasRow(alias="Prairie View", team_id="playin-pv"),
+    ]
+
+
 def test_kenpom_provider_uses_public_request_without_cookie(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
