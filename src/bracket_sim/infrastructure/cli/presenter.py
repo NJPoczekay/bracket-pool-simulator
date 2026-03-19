@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bracket_sim.application.generate_matchup_tables import MatchupTablesResult
 from bracket_sim.application.prepare_bracket_lab_data import PrepareBracketLabDataSummary
 from bracket_sim.application.prepare_data import PrepareDataSummary
 from bracket_sim.application.refresh_bracket_lab_data import RefreshBracketLabDataSummary
@@ -45,6 +46,59 @@ def format_result_table(result: SimulationResult) -> str:
         lines.append(
             f"{entry.entry_name[:24]:<24} {entry.win_share * 100:>10.2f} "
             f"{entry.average_score:>10.2f}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_matchup_tables(result: MatchupTablesResult) -> str:
+    """Render human-readable matchup win-probability and value tables."""
+
+    round_label = result.round_filter if result.round_filter is not None else "all"
+    lines = [
+        f"Input: {result.input_dir}",
+        (
+            f"Round: {round_label}  Games: {len({row.game_id for row in result.matchup_rows})}  "
+            f"Rows: {len(result.matchup_rows)}"
+        ),
+    ]
+
+    lines.extend(
+        [
+            "",
+            "Matchup Win Probabilities",
+            (
+                f"{'Game':<34} {'Team':<20} {'Seed':>4} "
+                f"{'Win Prob':>10} {'Public':>10} {'Value':>10}"
+            ),
+            f"{'-' * 34} {'-' * 20} {'-' * 4} {'-' * 10} {'-' * 10} {'-' * 10}",
+        ]
+    )
+    for row in result.matchup_rows:
+        lines.append(
+            f"{row.game_label[:34]:<34} {row.team_name[:20]:<20} {row.seed:>4} "
+            f"{_format_percent(row.win_probability):>10} "
+            f"{_format_percent(row.public_pick_rate):>10} "
+            f"{_format_value(row.value):>10}"
+        )
+
+    lines.extend(
+        [
+            "",
+            "Value Table",
+            (
+                f"{'Value':>10} {'Win Prob':>10} {'Public':>10} "
+                f"{'Team':<20} {'Game':<34}"
+            ),
+            f"{'-' * 10} {'-' * 10} {'-' * 10} {'-' * 20} {'-' * 34}",
+        ]
+    )
+    for row in result.value_rows:
+        lines.append(
+            f"{_format_value(row.value):>10} "
+            f"{_format_percent(row.win_probability):>10} "
+            f"{_format_percent(row.public_pick_rate):>10} "
+            f"{row.team_name[:20]:<20} {row.game_label[:34]:<34}"
         )
 
     return "\n".join(lines)
@@ -185,3 +239,13 @@ def _format_benchmark_row(name: str, measurement: BenchmarkMeasurement) -> str:
         f"{name:<12} {measurement.mean_ms:>10.3f} {measurement.min_ms:>10.3f} "
         f"{measurement.budget_ms:>10.3f} {status:>8}"
     )
+
+
+def _format_percent(value: float) -> str:
+    return f"{value:.2%}"
+
+
+def _format_value(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.3f}"
