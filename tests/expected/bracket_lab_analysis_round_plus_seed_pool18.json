@@ -325,7 +325,7 @@
   "completion_mode": "manual",
   "dataset_hash": "a7564b560868991201b63cd970231263beadbc64780017d4e6123653e2cd6473",
   "cache_key": "analysis-6a23efeda631e3ee",
-  "win_probability": 0.0399675,
+  "win_probability": 0.03663333333333333,
   "public_percentile": null,
   "pick_diagnostics": [
     {
@@ -333,9 +333,9 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 1,
-      "survival_probability": 0.81225,
-      "win_probability_if_picked": 0.04635272391505079,
-      "delta_win_probability_if_picked": 0.0063852239150507875,
+      "survival_probability": 0.81181,
+      "win_probability_if_picked": 0.04276862812727116,
+      "delta_win_probability_if_picked": 0.006135294793937832,
       "tags": []
     },
     {
@@ -343,9 +343,9 @@
       "team_id": "east-08",
       "team_name": "East Team 8",
       "round": 1,
-      "survival_probability": 0.52575,
-      "win_probability_if_picked": 0.045045173561578694,
-      "delta_win_probability_if_picked": 0.005077673561578691,
+      "survival_probability": 0.52618,
+      "win_probability_if_picked": 0.04829145919647269,
+      "delta_win_probability_if_picked": 0.011658125863139357,
       "tags": []
     },
     {
@@ -353,9 +353,9 @@
       "team_id": "east-05",
       "team_name": "East Team 5",
       "round": 1,
-      "survival_probability": 0.66135,
-      "win_probability_if_picked": 0.043078551447796175,
-      "delta_win_probability_if_picked": 0.0031110514477961718,
+      "survival_probability": 0.66024,
+      "win_probability_if_picked": 0.04025051496425542,
+      "delta_win_probability_if_picked": 0.0036171816309220894,
       "tags": []
     },
     {
@@ -363,9 +363,9 @@
       "team_id": "east-04",
       "team_name": "East Team 4",
       "round": 1,
-      "survival_probability": 0.70979,
-      "win_probability_if_picked": 0.04756688598036039,
-      "delta_win_probability_if_picked": 0.00759938598036039,
+      "survival_probability": 0.70915,
+      "win_probability_if_picked": 0.042858821593926996,
+      "delta_win_probability_if_picked": 0.006225488260593666,
       "tags": []
     },
     {
@@ -373,9 +373,9 @@
       "team_id": "east-11",
       "team_name": "East Team 11",
       "round": 1,
-      "survival_probability": 0.3859,
-      "win_probability_if_picked": 0.07388572168955689,
-      "delta_win_probability_if_picked": 0.03391822168955688,
+      "survival_probability": 0.38203,
+      "win_probability_if_picked": 0.06365119667739881,
+      "delta_win_probability_if_picked": 0.02701786334406548,
       "tags": []
     },
     {
@@ -383,9 +383,9 @@
       "team_id": "east-03",
       "team_name": "East Team 3",
       "round": 1,
-      "survival_probability": 0.74957,
-      "win_probability_if_picked": 0.043692828332688526,
-      "delta_win_probability_if_picked": 0.0037253283326885225,
+      "survival_probability": 0.75293,
+      "win_probability_if_picked": 0.03934407359692579,
+      "delta_win_probability_if_picked": 0.0027107402635924566,
       "tags": []
     },
     {
@@ -393,9 +393,9 @@
       "team_id": "east-07",
       "team_name": "East Team 7",
       "round": 1,
-      "survival_probability": 0.57175,
-      "win_probability_if_picked": 0.043887188456493226,
-      "delta_win_probability_if_picked": 0.003919688456493223,
+      "survival_probability": 0.5728,
+      "win_probability_if_picked": 0.04427083333333333,
+      "delta_win_probability_if_picked": 0.0076374999999999985,
       "tags": []
     },
     {
@@ -403,9 +403,9 @@
       "team_id": "east-02",
       "team_name": "East Team 2",
       "round": 1,
-      "survival_probability": 0.77935,
-      "win_probability_if_picked": 0.044297598426038795,
-      "delta_win_probability_if_picked": 0.004330098426038792,
+      "survival_probability": 0.78027,
+      "win_probability_if_picked": 0.039161657716773254,
+      "delta_win_probability_if_picked": 0.002528324383439924,
       "tags": []
     },
     {
@@ -413,9 +413,9 @@
       "team_id": "west-01",
       "team_name": "West Team 1",
       "round": 1,
-      "survival_probability": 0.82301,
-      "win_probability_if_picked": 0.04218964532630224,
-      "delta_win_probability_if_picked": 0.002222145326302237,
+      "survival_probability": 0.82267,
+      "win_probability_if_picked": 0.03919959805673397,
+      "delta_win_probability_if_picked": 0.0025662647234006367,
       "tags": []
     },
     {
@@ -423,9 +423,9 @@
       "team_id": "west-08",
       "team_name": "West Team 8",
       "round": 1,
-      "survival_probability": 0.52477,
-      "win_probability_if_picked": 0.04984882265881561,
-      "delta_win_probability_if_picked": 0.009881322658815604,
+      "survival_probability": 0.52236,
+      "win_probability_if_picked": 0.05019845827909232,
+      "delta_win_probability_if_picked": 0.01356512494575899,
       "tags": []
     },
     {
@@ -433,9 +433,9 @@
       "team_id": "west-05",
       "team_name": "West Team 5",
       "round": 1,
-      "survival_probability": 0.66203,
-      "win_probability_if_picked": 0.04525726427301885,
-      "delta_win_probability_if_picked": 0.005289764273018846,
+      "survival_probability": 0.66236,
+      "win_probability_if_picked": 0.04178744690701934,
+      "delta_win_probability_if_picked": 0.00515411357368601,
       "tags": []
     },
     {
@@ -443,9 +443,9 @@
       "team_id": "west-04",
       "team_name": "West Team 4",
       "round": 1,
-      "survival_probability": 0.70538,
-      "win_probability_if_picked": 0.04400937556116325,
-      "delta_win_probability_if_picked": 0.004041875561163248,
+      "survival_probability": 0.70551,
+      "win_probability_if_picked": 0.041731040901853506,
+      "delta_win_probability_if_picked": 0.005097707568520175,
       "tags": []
     },
     {
@@ -453,19 +453,21 @@
       "team_id": "west-06",
       "team_name": "West Team 6",
       "round": 1,
-      "survival_probability": 0.62139,
-      "win_probability_if_picked": 0.049894859374413285,
-      "delta_win_probability_if_picked": 0.009927359374413282,
-      "tags": []
+      "survival_probability": 0.61966,
+      "win_probability_if_picked": 0.037334990155891944,
+      "delta_win_probability_if_picked": 0.0007016568225586134,
+      "tags": [
+        "worst_pick"
+      ]
     },
     {
       "game_id": "g021",
       "team_id": "west-03",
       "team_name": "West Team 3",
       "round": 1,
-      "survival_probability": 0.74328,
-      "win_probability_if_picked": 0.042513139956230045,
-      "delta_win_probability_if_picked": 0.002545639956230042,
+      "survival_probability": 0.74197,
+      "win_probability_if_picked": 0.0432587121671586,
+      "delta_win_probability_if_picked": 0.006625378833825267,
       "tags": []
     },
     {
@@ -473,9 +475,9 @@
       "team_id": "west-07",
       "team_name": "West Team 7",
       "round": 1,
-      "survival_probability": 0.5724,
-      "win_probability_if_picked": 0.048124854414162595,
-      "delta_win_probability_if_picked": 0.008157354414162592,
+      "survival_probability": 0.57094,
+      "win_probability_if_picked": 0.04553017830244859,
+      "delta_win_probability_if_picked": 0.008896844969115261,
       "tags": []
     },
     {
@@ -483,9 +485,9 @@
       "team_id": "west-02",
       "team_name": "West Team 2",
       "round": 1,
-      "survival_probability": 0.78153,
-      "win_probability_if_picked": 0.04587902362459961,
-      "delta_win_probability_if_picked": 0.00591152362459961,
+      "survival_probability": 0.7806,
+      "win_probability_if_picked": 0.04031087197881971,
+      "delta_win_probability_if_picked": 0.0036775386454863807,
       "tags": []
     },
     {
@@ -493,9 +495,9 @@
       "team_id": "south-01",
       "team_name": "South Team 1",
       "round": 1,
-      "survival_probability": 0.82008,
-      "win_probability_if_picked": 0.04524253731343284,
-      "delta_win_probability_if_picked": 0.0052750373134328385,
+      "survival_probability": 0.81959,
+      "win_probability_if_picked": 0.04257006552056516,
+      "delta_win_probability_if_picked": 0.005936732187231827,
       "tags": []
     },
     {
@@ -503,21 +505,19 @@
       "team_id": "south-08",
       "team_name": "South Team 8",
       "round": 1,
-      "survival_probability": 0.52372,
-      "win_probability_if_picked": 0.04015663586140176,
-      "delta_win_probability_if_picked": 0.00018913586140175548,
-      "tags": [
-        "worst_pick"
-      ]
+      "survival_probability": 0.52262,
+      "win_probability_if_picked": 0.05039353003456941,
+      "delta_win_probability_if_picked": 0.013760196701236078,
+      "tags": []
     },
     {
       "game_id": "g033",
       "team_id": "south-05",
       "team_name": "South Team 5",
       "round": 1,
-      "survival_probability": 0.66507,
-      "win_probability_if_picked": 0.04171866620556232,
-      "delta_win_probability_if_picked": 0.0017511662055623156,
+      "survival_probability": 0.66455,
+      "win_probability_if_picked": 0.03791788929852281,
+      "delta_win_probability_if_picked": 0.0012845559651894767,
       "tags": []
     },
     {
@@ -525,9 +525,9 @@
       "team_id": "south-04",
       "team_name": "South Team 4",
       "round": 1,
-      "survival_probability": 0.69859,
-      "win_probability_if_picked": 0.04803604403154927,
-      "delta_win_probability_if_picked": 0.008068544031549267,
+      "survival_probability": 0.69944,
+      "win_probability_if_picked": 0.04183108391475084,
+      "delta_win_probability_if_picked": 0.005197750581417512,
       "tags": []
     },
     {
@@ -535,9 +535,9 @@
       "team_id": "south-06",
       "team_name": "South Team 6",
       "round": 1,
-      "survival_probability": 0.61813,
-      "win_probability_if_picked": 0.04567674545268255,
-      "delta_win_probability_if_picked": 0.005709245452682546,
+      "survival_probability": 0.61948,
+      "win_probability_if_picked": 0.04551397946664945,
+      "delta_win_probability_if_picked": 0.008880646133316121,
       "tags": []
     },
     {
@@ -545,9 +545,9 @@
       "team_id": "south-03",
       "team_name": "South Team 3",
       "round": 1,
-      "survival_probability": 0.74316,
-      "win_probability_if_picked": 0.043707501300751746,
-      "delta_win_probability_if_picked": 0.0037400013007517427,
+      "survival_probability": 0.74008,
+      "win_probability_if_picked": 0.04192564767772853,
+      "delta_win_probability_if_picked": 0.005292314344395199,
       "tags": []
     },
     {
@@ -555,9 +555,9 @@
       "team_id": "south-07",
       "team_name": "South Team 7",
       "round": 1,
-      "survival_probability": 0.5732,
-      "win_probability_if_picked": 0.05294981391021168,
-      "delta_win_probability_if_picked": 0.012982313910211679,
+      "survival_probability": 0.57519,
+      "win_probability_if_picked": 0.04616445580301001,
+      "delta_win_probability_if_picked": 0.009531122469676682,
       "tags": []
     },
     {
@@ -565,9 +565,9 @@
       "team_id": "south-02",
       "team_name": "South Team 2",
       "round": 1,
-      "survival_probability": 0.78829,
-      "win_probability_if_picked": 0.043863933324030505,
-      "delta_win_probability_if_picked": 0.0038964333240305016,
+      "survival_probability": 0.78437,
+      "win_probability_if_picked": 0.04216334977965331,
+      "delta_win_probability_if_picked": 0.00553001644631998,
       "tags": []
     },
     {
@@ -575,9 +575,9 @@
       "team_id": "midwest-01",
       "team_name": "Midwest Team 1",
       "round": 1,
-      "survival_probability": 0.81599,
-      "win_probability_if_picked": 0.0438914692582017,
-      "delta_win_probability_if_picked": 0.0039239692582016955,
+      "survival_probability": 0.81334,
+      "win_probability_if_picked": 0.03865542085720609,
+      "delta_win_probability_if_picked": 0.0020220875238727565,
       "tags": []
     },
     {
@@ -585,9 +585,9 @@
       "team_id": "midwest-08",
       "team_name": "Midwest Team 8",
       "round": 1,
-      "survival_probability": 0.52441,
-      "win_probability_if_picked": 0.04971459989956968,
-      "delta_win_probability_if_picked": 0.009747099899569678,
+      "survival_probability": 0.5263,
+      "win_probability_if_picked": 0.042953955285325224,
+      "delta_win_probability_if_picked": 0.0063206219519918935,
       "tags": []
     },
     {
@@ -595,9 +595,9 @@
       "team_id": "midwest-05",
       "team_name": "Midwest Team 5",
       "round": 1,
-      "survival_probability": 0.663,
-      "win_probability_if_picked": 0.045767973856209156,
-      "delta_win_probability_if_picked": 0.005800473856209153,
+      "survival_probability": 0.6649,
+      "win_probability_if_picked": 0.03990073695292525,
+      "delta_win_probability_if_picked": 0.0032674036195919215,
       "tags": []
     },
     {
@@ -605,9 +605,9 @@
       "team_id": "midwest-04",
       "team_name": "Midwest Team 4",
       "round": 1,
-      "survival_probability": 0.70567,
-      "win_probability_if_picked": 0.04747851923231351,
-      "delta_win_probability_if_picked": 0.007511019232313509,
+      "survival_probability": 0.70789,
+      "win_probability_if_picked": 0.04219582138467841,
+      "delta_win_probability_if_picked": 0.005562488051345078,
       "tags": []
     },
     {
@@ -615,9 +615,9 @@
       "team_id": "midwest-06",
       "team_name": "Midwest Team 6",
       "round": 1,
-      "survival_probability": 0.61926,
-      "win_probability_if_picked": 0.05351952330200563,
-      "delta_win_probability_if_picked": 0.013552023302005625,
+      "survival_probability": 0.61498,
+      "win_probability_if_picked": 0.048923000205968764,
+      "delta_win_probability_if_picked": 0.012289666872635434,
       "tags": []
     },
     {
@@ -625,9 +625,9 @@
       "team_id": "midwest-14",
       "team_name": "Midwest Team 14",
       "round": 1,
-      "survival_probability": 0.25501,
-      "win_probability_if_picked": 0.06328836777642707,
-      "delta_win_probability_if_picked": 0.02332086777642707,
+      "survival_probability": 0.25489,
+      "win_probability_if_picked": 0.06339335922685603,
+      "delta_win_probability_if_picked": 0.0267600258935227,
       "tags": []
     },
     {
@@ -635,9 +635,9 @@
       "team_id": "midwest-07",
       "team_name": "Midwest Team 7",
       "round": 1,
-      "survival_probability": 0.57241,
-      "win_probability_if_picked": 0.047090372285599494,
-      "delta_win_probability_if_picked": 0.007122872285599491,
+      "survival_probability": 0.57052,
+      "win_probability_if_picked": 0.04073184697001565,
+      "delta_win_probability_if_picked": 0.004098513636682323,
       "tags": []
     },
     {
@@ -645,9 +645,9 @@
       "team_id": "midwest-02",
       "team_name": "Midwest Team 2",
       "round": 1,
-      "survival_probability": 0.7814,
-      "win_probability_if_picked": 0.04297308250149305,
-      "delta_win_probability_if_picked": 0.003005582501493048,
+      "survival_probability": 0.78158,
+      "win_probability_if_picked": 0.03843922993594172,
+      "delta_win_probability_if_picked": 0.001805896602608388,
       "tags": []
     },
     {
@@ -655,9 +655,9 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 2,
-      "survival_probability": 0.54604,
-      "win_probability_if_picked": 0.06071899494542525,
-      "delta_win_probability_if_picked": 0.020751494945425247,
+      "survival_probability": 0.54637,
+      "win_probability_if_picked": 0.05427335566252417,
+      "delta_win_probability_if_picked": 0.01764002232919084,
       "tags": []
     },
     {
@@ -665,9 +665,9 @@
       "team_id": "east-04",
       "team_name": "East Team 4",
       "round": 2,
-      "survival_probability": 0.40812,
-      "win_probability_if_picked": 0.0566969682119638,
-      "delta_win_probability_if_picked": 0.016729468211963798,
+      "survival_probability": 0.41014,
+      "win_probability_if_picked": 0.0503974252694202,
+      "delta_win_probability_if_picked": 0.013764091936086867,
       "tags": []
     },
     {
@@ -675,9 +675,9 @@
       "team_id": "east-11",
       "team_name": "East Team 11",
       "round": 2,
-      "survival_probability": 0.14716,
-      "win_probability_if_picked": 0.10297182205309413,
-      "delta_win_probability_if_picked": 0.06300432205309413,
+      "survival_probability": 0.14321,
+      "win_probability_if_picked": 0.08498009915508693,
+      "delta_win_probability_if_picked": 0.0483467658217536,
       "tags": []
     },
     {
@@ -685,9 +685,9 @@
       "team_id": "east-02",
       "team_name": "East Team 2",
       "round": 2,
-      "survival_probability": 0.5033,
-      "win_probability_if_picked": 0.050470229816544136,
-      "delta_win_probability_if_picked": 0.010502729816544133,
+      "survival_probability": 0.50427,
+      "win_probability_if_picked": 0.0422624123320179,
+      "delta_win_probability_if_picked": 0.005629078998684568,
       "tags": []
     },
     {
@@ -695,9 +695,9 @@
       "team_id": "west-01",
       "team_name": "West Team 1",
       "round": 2,
-      "survival_probability": 0.55637,
-      "win_probability_if_picked": 0.0472003043538173,
-      "delta_win_probability_if_picked": 0.007232804353817297,
+      "survival_probability": 0.55596,
+      "win_probability_if_picked": 0.04541693647024966,
+      "delta_win_probability_if_picked": 0.008783603136916326,
       "tags": []
     },
     {
@@ -705,9 +705,9 @@
       "team_id": "west-04",
       "team_name": "West Team 4",
       "round": 2,
-      "survival_probability": 0.40748,
-      "win_probability_if_picked": 0.05264880075913746,
-      "delta_win_probability_if_picked": 0.012681300759137454,
+      "survival_probability": 0.40852,
+      "win_probability_if_picked": 0.045701556839322435,
+      "delta_win_probability_if_picked": 0.009068223505989105,
       "tags": []
     },
     {
@@ -715,9 +715,9 @@
       "team_id": "west-03",
       "team_name": "West Team 3",
       "round": 2,
-      "survival_probability": 0.45834,
-      "win_probability_if_picked": 0.04256847173132027,
-      "delta_win_probability_if_picked": 0.0026009717313202688,
+      "survival_probability": 0.45703,
+      "win_probability_if_picked": 0.04893187172249815,
+      "delta_win_probability_if_picked": 0.012298538389164823,
       "tags": []
     },
     {
@@ -725,9 +725,9 @@
       "team_id": "west-02",
       "team_name": "West Team 2",
       "round": 2,
-      "survival_probability": 0.5037,
-      "win_probability_if_picked": 0.05363807822116339,
-      "delta_win_probability_if_picked": 0.013670578221163389,
+      "survival_probability": 0.50264,
+      "win_probability_if_picked": 0.045738500716218364,
+      "delta_win_probability_if_picked": 0.009105167382885034,
       "tags": []
     },
     {
@@ -735,9 +735,9 @@
       "team_id": "south-01",
       "team_name": "South Team 1",
       "round": 2,
-      "survival_probability": 0.55094,
-      "win_probability_if_picked": 0.054950024806088994,
-      "delta_win_probability_if_picked": 0.014982524806088991,
+      "survival_probability": 0.55028,
+      "win_probability_if_picked": 0.05189176419277459,
+      "delta_win_probability_if_picked": 0.015258430859441258,
       "tags": []
     },
     {
@@ -745,9 +745,9 @@
       "team_id": "south-04",
       "team_name": "South Team 4",
       "round": 2,
-      "survival_probability": 0.40491,
-      "win_probability_if_picked": 0.054444197475982316,
-      "delta_win_probability_if_picked": 0.014476697475982313,
+      "survival_probability": 0.40377,
+      "win_probability_if_picked": 0.04793570597122124,
+      "delta_win_probability_if_picked": 0.011302372637887907,
       "tags": []
     },
     {
@@ -755,9 +755,9 @@
       "team_id": "south-03",
       "team_name": "South Team 3",
       "round": 2,
-      "survival_probability": 0.45571,
-      "win_probability_if_picked": 0.04841163605509352,
-      "delta_win_probability_if_picked": 0.008444136055093518,
+      "survival_probability": 0.45288,
+      "win_probability_if_picked": 0.04776099629040805,
+      "delta_win_probability_if_picked": 0.011127662957074722,
       "tags": []
     },
     {
@@ -765,9 +765,9 @@
       "team_id": "south-02",
       "team_name": "South Team 2",
       "round": 2,
-      "survival_probability": 0.5115,
-      "win_probability_if_picked": 0.04993320299771913,
-      "delta_win_probability_if_picked": 0.00996570299771913,
+      "survival_probability": 0.51034,
+      "win_probability_if_picked": 0.04941803503546655,
+      "delta_win_probability_if_picked": 0.012784701702133222,
       "tags": []
     },
     {
@@ -775,9 +775,9 @@
       "team_id": "midwest-01",
       "team_name": "Midwest Team 1",
       "round": 2,
-      "survival_probability": 0.54891,
-      "win_probability_if_picked": 0.04995050797641386,
-      "delta_win_probability_if_picked": 0.009983007976413855,
+      "survival_probability": 0.54767,
+      "win_probability_if_picked": 0.04247387416996854,
+      "delta_win_probability_if_picked": 0.005840540836635211,
       "tags": []
     },
     {
@@ -785,9 +785,9 @@
       "team_id": "midwest-04",
       "team_name": "Midwest Team 4",
       "round": 2,
-      "survival_probability": 0.408,
-      "win_probability_if_picked": 0.05541053921568628,
-      "delta_win_probability_if_picked": 0.01544303921568628,
+      "survival_probability": 0.41022,
+      "win_probability_if_picked": 0.04656038223392326,
+      "delta_win_probability_if_picked": 0.00992704890058993,
       "tags": []
     },
     {
@@ -795,9 +795,9 @@
       "team_id": "midwest-06",
       "team_name": "Midwest Team 6",
       "round": 2,
-      "survival_probability": 0.30686,
-      "win_probability_if_picked": 0.07947435312520366,
-      "delta_win_probability_if_picked": 0.03950685312520366,
+      "survival_probability": 0.30235,
+      "win_probability_if_picked": 0.07028829722727523,
+      "delta_win_probability_if_picked": 0.033654963893941896,
       "tags": []
     },
     {
@@ -805,9 +805,9 @@
       "team_id": "midwest-02",
       "team_name": "Midwest Team 2",
       "round": 2,
-      "survival_probability": 0.50612,
-      "win_probability_if_picked": 0.04840255275428753,
-      "delta_win_probability_if_picked": 0.008435052754287527,
+      "survival_probability": 0.50657,
+      "win_probability_if_picked": 0.044192642017226974,
+      "delta_win_probability_if_picked": 0.007559308683893644,
       "tags": []
     },
     {
@@ -815,9 +815,9 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 3,
-      "survival_probability": 0.34193,
-      "win_probability_if_picked": 0.08251201512980239,
-      "delta_win_probability_if_picked": 0.04254451512980238,
+      "survival_probability": 0.33976,
+      "win_probability_if_picked": 0.07049093477749,
+      "delta_win_probability_if_picked": 0.033857601444156664,
       "tags": []
     },
     {
@@ -825,9 +825,9 @@
       "team_id": "east-02",
       "team_name": "East Team 2",
       "round": 3,
-      "survival_probability": 0.2965,
-      "win_probability_if_picked": 0.056138279932546366,
-      "delta_win_probability_if_picked": 0.016170779932546363,
+      "survival_probability": 0.30149,
+      "win_probability_if_picked": 0.04455095249151436,
+      "delta_win_probability_if_picked": 0.007917619158181032,
       "tags": []
     },
     {
@@ -835,9 +835,9 @@
       "team_id": "west-01",
       "team_name": "West Team 1",
       "round": 3,
-      "survival_probability": 0.34759,
-      "win_probability_if_picked": 0.052264641291943574,
-      "delta_win_probability_if_picked": 0.012297141291943571,
+      "survival_probability": 0.34716,
+      "win_probability_if_picked": 0.05213254215155355,
+      "delta_win_probability_if_picked": 0.015499208818220221,
       "tags": []
     },
     {
@@ -845,9 +845,9 @@
       "team_id": "west-02",
       "team_name": "West Team 2",
       "round": 3,
-      "survival_probability": 0.29942,
-      "win_probability_if_picked": 0.05915603500100194,
-      "delta_win_probability_if_picked": 0.019188535001001934,
+      "survival_probability": 0.29865,
+      "win_probability_if_picked": 0.04690551928120989,
+      "delta_win_probability_if_picked": 0.010272185947876558,
       "tags": []
     },
     {
@@ -855,9 +855,9 @@
       "team_id": "south-01",
       "team_name": "South Team 1",
       "round": 3,
-      "survival_probability": 0.34351,
-      "win_probability_if_picked": 0.06288511736679185,
-      "delta_win_probability_if_picked": 0.022917617366791848,
+      "survival_probability": 0.34505,
+      "win_probability_if_picked": 0.062237356904796405,
+      "delta_win_probability_if_picked": 0.025604023571463075,
       "tags": []
     },
     {
@@ -865,9 +865,9 @@
       "team_id": "south-02",
       "team_name": "South Team 2",
       "round": 3,
-      "survival_probability": 0.30533,
-      "win_probability_if_picked": 0.052230373694035964,
-      "delta_win_probability_if_picked": 0.012262873694035961,
+      "survival_probability": 0.30297,
+      "win_probability_if_picked": 0.05540702599817363,
+      "delta_win_probability_if_picked": 0.018773692664840302,
       "tags": []
     },
     {
@@ -875,9 +875,9 @@
       "team_id": "midwest-01",
       "team_name": "Midwest Team 1",
       "round": 3,
-      "survival_probability": 0.33924,
-      "win_probability_if_picked": 0.050819478835043036,
-      "delta_win_probability_if_picked": 0.010851978835043033,
+      "survival_probability": 0.34102,
+      "win_probability_if_picked": 0.04321349676460813,
+      "delta_win_probability_if_picked": 0.006580163431274801,
       "tags": []
     },
     {
@@ -885,9 +885,9 @@
       "team_id": "midwest-06",
       "team_name": "Midwest Team 6",
       "round": 3,
-      "survival_probability": 0.15096,
-      "win_probability_if_picked": 0.10790937996820349,
-      "delta_win_probability_if_picked": 0.06794187996820349,
+      "survival_probability": 0.1477,
+      "win_probability_if_picked": 0.095937711577522,
+      "delta_win_probability_if_picked": 0.05930437824418867,
       "tags": []
     },
     {
@@ -895,9 +895,9 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 4,
-      "survival_probability": 0.20321,
-      "win_probability_if_picked": 0.11031281268966424,
-      "delta_win_probability_if_picked": 0.07034531268966424,
+      "survival_probability": 0.20193,
+      "win_probability_if_picked": 0.10001815810759504,
+      "delta_win_probability_if_picked": 0.06338482477426172,
       "tags": []
     },
     {
@@ -905,9 +905,9 @@
       "team_id": "west-01",
       "team_name": "West Team 1",
       "round": 4,
-      "survival_probability": 0.20645,
-      "win_probability_if_picked": 0.055178816501170576,
-      "delta_win_probability_if_picked": 0.015211316501170573,
+      "survival_probability": 0.20831,
+      "win_probability_if_picked": 0.05653433184516665,
+      "delta_win_probability_if_picked": 0.019900998511833322,
       "tags": []
     },
     {
@@ -915,9 +915,9 @@
       "team_id": "south-01",
       "team_name": "South Team 1",
       "round": 4,
-      "survival_probability": 0.20122,
-      "win_probability_if_picked": 0.06950932644203692,
-      "delta_win_probability_if_picked": 0.029541826442036914,
+      "survival_probability": 0.20534,
+      "win_probability_if_picked": 0.07015194311872991,
+      "delta_win_probability_if_picked": 0.03351860978539658,
       "tags": []
     },
     {
@@ -925,12 +925,11 @@
       "team_id": "midwest-06",
       "team_name": "Midwest Team 6",
       "round": 4,
-      "survival_probability": 0.07143,
-      "win_probability_if_picked": 0.1375005833216669,
-      "delta_win_probability_if_picked": 0.0975330833216669,
+      "survival_probability": 0.06898,
+      "win_probability_if_picked": 0.11208562868464289,
+      "delta_win_probability_if_picked": 0.07545229535130957,
       "tags": [
-        "best_pick",
-        "most_important"
+        "best_pick"
       ]
     },
     {
@@ -938,9 +937,9 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 5,
-      "survival_probability": 0.20289,
-      "win_probability_if_picked": 0.11028964792087669,
-      "delta_win_probability_if_picked": 0.07032214792087668,
+      "survival_probability": 0.20168,
+      "win_probability_if_picked": 0.09999338886685177,
+      "delta_win_probability_if_picked": 0.06336005553351845,
       "tags": []
     },
     {
@@ -948,9 +947,9 @@
       "team_id": "south-01",
       "team_name": "South Team 1",
       "round": 5,
-      "survival_probability": 0.0447,
-      "win_probability_if_picked": 0.07938105891126027,
-      "delta_win_probability_if_picked": 0.03941355891126026,
+      "survival_probability": 0.04562,
+      "win_probability_if_picked": 0.0926128890837352,
+      "delta_win_probability_if_picked": 0.05597955575040187,
       "tags": []
     },
     {
@@ -958,10 +957,12 @@
       "team_id": "east-01",
       "team_name": "East Team 1",
       "round": 6,
-      "survival_probability": 0.1806,
-      "win_probability_if_picked": 0.11485788113695092,
-      "delta_win_probability_if_picked": 0.07489038113695091,
-      "tags": []
+      "survival_probability": 0.17932,
+      "win_probability_if_picked": 0.10488698044464273,
+      "delta_win_probability_if_picked": 0.0682536471113094,
+      "tags": [
+        "most_important"
+      ]
     }
   ]
 }

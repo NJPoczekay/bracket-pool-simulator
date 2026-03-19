@@ -30,7 +30,7 @@ from bracket_sim.infrastructure.storage.bracket_lab_prepared_loader import (
     BracketLabPreparedInput,
     load_bracket_lab_prepared_input,
 )
-from bracket_sim.infrastructure.storage.cache_keys import capture_dataset_hash
+from bracket_sim.infrastructure.storage.cache_keys import build_cache_key, capture_dataset_hash
 
 ANALYSIS_N_SIMS = 100_000
 ANALYSIS_BATCH_SIZE = 1_000
@@ -341,6 +341,32 @@ def build_field_evaluation_context(
         actual_team_wins=simulation.team_wins,
         opponent_max_scores=opponent_max_scores,
         opponent_tie_counts=opponent_tie_counts,
+    )
+
+
+def shared_evaluation_seed(*, runtime: BracketLabRuntime) -> int:
+    return seed_from_cache_key(
+        build_cache_key(
+            artifact_kind="bracket-lab-evaluation",
+            dataset_hash=runtime.dataset_hash,
+            settings={"version": 1},
+        )
+    )
+
+
+def build_shared_field_evaluation_context(
+    *,
+    runtime: BracketLabRuntime,
+    pool_settings: PoolSettings,
+    n_sims: int,
+) -> BracketFieldEvaluationContext:
+    seed = shared_evaluation_seed(runtime=runtime)
+    return build_field_evaluation_context(
+        runtime=runtime,
+        pool_settings=pool_settings,
+        opponent_seed=derive_child_seed(seed=seed, child_index=1),
+        simulation_seed=derive_child_seed(seed=seed, child_index=2),
+        n_sims=n_sims,
     )
 
 

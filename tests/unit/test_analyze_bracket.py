@@ -18,6 +18,7 @@ from bracket_sim.domain.product_models import (
     BracketEditPick,
     CompletionMode,
     EditableBracket,
+    OptimizeBracketRequest,
     PickDiagnosticTag,
     PoolSettings,
     ScoringSystemKey,
@@ -157,6 +158,32 @@ def test_analyze_bracket_cache_key_changes_when_bracket_changes(
     assert original.cache_key != changed.cache_key
 
 
+def test_analyze_bracket_win_probability_is_stable_across_completion_modes(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+) -> None:
+    service = BracketLabService(prepared_bracket_lab_dir)
+    bracket = _editable_bracket_from_fixture(synthetic_input_dir)
+    manual = service.analyze_bracket(
+        AnalyzeBracketRequest(
+            bracket=bracket,
+            pool_settings=PoolSettings(pool_size=15, scoring_system=ScoringSystemKey.ESPN),
+            completion_mode=CompletionMode.MANUAL,
+        )
+    )
+    kenpom = service.analyze_bracket(
+        AnalyzeBracketRequest(
+            bracket=bracket,
+            pool_settings=PoolSettings(pool_size=15, scoring_system=ScoringSystemKey.ESPN),
+            completion_mode=CompletionMode.KENPOM,
+        )
+    )
+
+    assert manual.cache_key != kenpom.cache_key
+    assert manual.win_probability == kenpom.win_probability
+    assert manual.pick_diagnostics == kenpom.pick_diagnostics
+
+
 def test_analyze_bracket_rejects_pick_four_helper_mode(
     prepared_bracket_lab_dir: Path,
     synthetic_input_dir: Path,
@@ -199,6 +226,33 @@ def test_analyze_bracket_produces_expected_pick_tags(
         0.0 <= diagnostic.survival_probability <= 1.0
         for diagnostic in analysis.pick_diagnostics
     )
+
+
+def test_optimize_bracket_projection_matches_analyze_for_recommended_bracket(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+) -> None:
+    service = BracketLabService(prepared_bracket_lab_dir)
+    request = OptimizeBracketRequest(
+        bracket=_editable_bracket_from_fixture(synthetic_input_dir),
+        pool_settings=PoolSettings(
+            pool_size=18,
+            scoring_system=ScoringSystemKey.ROUND_PLUS_SEED,
+        ),
+    )
+
+    optimization = service.optimize_bracket(request)
+    analysis = service.analyze_bracket(
+        AnalyzeBracketRequest(
+            bracket=optimization.recommended_bracket,
+            pool_settings=request.pool_settings,
+            completion_mode=request.completion_mode,
+        )
+    )
+
+    assert optimization.projected_win_probability == analysis.win_probability
+    assert optimization.changed_pick_count >= 0
+    assert len(optimization.alternatives) <= 3
 
 
 def test_editable_bracket_to_entry_rejects_incomplete_bracket(
