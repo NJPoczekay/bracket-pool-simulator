@@ -9,6 +9,16 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+from bracket_sim.application.bracket_completion import (
+    build_initial_bracket,
+    canonicalize_bracket,
+    derive_region_champion_game_ids,
+    editable_bracket_to_entry,
+    normalize_completion_mode,
+)
+from bracket_sim.application.bracket_completion import (
+    complete_bracket as complete_editable_bracket,
+)
 from bracket_sim.domain.bracket_graph import BracketGraph, build_bracket_graph
 from bracket_sim.domain.bracket_lab_models import PlayInSlot
 from bracket_sim.domain.constraints import validate_constraints
@@ -16,8 +26,10 @@ from bracket_sim.domain.models import EntryPick, PoolEntry, RatingRecord
 from bracket_sim.domain.product_models import (
     AnalyzeBracketRequest,
     BracketAnalysis,
+    BracketCompletionResult,
     BracketEditPick,
     BracketLabBootstrap,
+    CompleteBracketRequest,
     CompletionMode,
     EditableBracket,
     PickDiagnostic,
@@ -60,10 +72,12 @@ class _BracketLabRuntime:
     constraints_by_game_id: dict[str, str]
     dataset_hash: str
     rating_records_by_team_id: dict[str, RatingRecord]
+    team_rank_by_team_id: dict[str, int]
     team_ids: list[str]
     team_index: dict[str, int]
     team_seeds: npt.NDArray[np.int16]
     public_pick_weights_by_game: dict[str, dict[str, float]]
+    region_champion_game_ids: dict[str, str]
 
 
 class BracketLabService:
@@ -76,6 +90,10 @@ class BracketLabService:
             constraints=prepared.constraints,
             graph=graph,
         )
+        rating_records_by_team_id = _build_rating_records_by_team_id(
+            prepared=prepared,
+            graph=graph,
+        )
         team_ids = canonical_team_order(graph)
         team_index = {team_id: idx for idx, team_id in enumerate(team_ids)}
         self._runtime = _BracketLabRuntime(
@@ -84,9 +102,11 @@ class BracketLabService:
             graph=graph,
             constraints_by_game_id=constraints_by_game_id,
             dataset_hash=capture_dataset_hash(input_dir),
-            rating_records_by_team_id=_build_rating_records_by_team_id(
+            rating_records_by_team_id=rating_records_by_team_id,
+            team_rank_by_team_id=_build_completion_rank_by_team_id(
                 prepared=prepared,
                 graph=graph,
+                rating_records_by_team_id=rating_records_by_team_id,
             ),
             team_ids=team_ids,
             team_index=team_index,
@@ -95,6 +115,7 @@ class BracketLabService:
                 dtype=np.int16,
             ),
             public_pick_weights_by_game=_build_public_pick_weights(prepared=prepared),
+            region_champion_game_ids=derive_region_champion_game_ids(graph),
         )
 
     @property
@@ -110,6 +131,12 @@ class BracketLabService:
             dataset_hash=self._runtime.dataset_hash,
             completion_mode=CompletionMode.MANUAL,
             default_pool_settings=_DEFAULT_POOL_SETTINGS,
+            initial_bracket=build_initial_bracket(
+                graph=self._runtime.graph,
+                constraints_by_game_id=self._runtime.constraints_by_game_id,
+            ),
+            completion_inputs=self._runtime.prepared.completion_inputs,
+            play_in_slots=self._runtime.prepared.play_in_slots,
             teams=sorted(self._runtime.prepared.teams, key=lambda team: team.team_id),
             games=sorted(
                 self._runtime.prepared.games,
@@ -117,24 +144,44 @@ class BracketLabService:
             ),
         )
 
+    def complete_bracket(self, request: CompleteBracketRequest) -> BracketCompletionResult:
+        """Auto-complete a partial bracket while preserving locked picks."""
+
+        return complete_editable_bracket(
+            request=request,
+            dataset_hash=self._runtime.dataset_hash,
+            graph=self._runtime.graph,
+            constraints_by_game_id=self._runtime.constraints_by_game_id,
+            public_pick_weights_by_game=self._runtime.public_pick_weights_by_game,
+            rating_records_by_team_id=self._runtime.rating_records_by_team_id,
+            team_rank_by_team_id=self._runtime.team_rank_by_team_id,
+            region_champion_game_ids=self._runtime.region_champion_game_ids,
+        )
+
     def analyze_bracket(self, request: AnalyzeBracketRequest) -> BracketAnalysis:
         """Run a deterministic full-bracket analysis against sampled public opponents."""
 
-        if request.completion_mode != CompletionMode.MANUAL:
-            msg = "Phase 2 analysis only supports completion_mode='manual'"
+        if request.completion_mode == CompletionMode.PICK_FOUR:
+            msg = "completion_mode='pick_four' is only valid as a completion helper"
             raise ValueError(msg)
 
-        user_entry = _editable_bracket_to_entry(
+        canonical_bracket = canonicalize_bracket(
             bracket=request.bracket,
+            graph=self._runtime.graph,
+            constraints_by_game_id=self._runtime.constraints_by_game_id,
+        )
+        normalized_completion_mode = normalize_completion_mode(request.completion_mode)
+        user_entry = _editable_bracket_to_entry(
+            bracket=canonical_bracket,
             graph=self._runtime.graph,
         )
         cache_key = build_cache_key(
             artifact_kind="analysis",
             dataset_hash=self._runtime.dataset_hash,
             settings={
-                "bracket": request.bracket,
+                "bracket": canonical_bracket,
                 "pool_settings": request.pool_settings,
-                "completion_mode": request.completion_mode,
+                "completion_mode": normalized_completion_mode,
             },
         )
         seed = _seed_from_cache_key(cache_key)
@@ -156,7 +203,7 @@ class BracketLabService:
 
         scoring_spec = _resolve_scoring_spec(request.pool_settings.scoring_system)
         diagnostics = _DiagnosticAccumulator.build(
-            bracket=request.bracket,
+            bracket=canonical_bracket,
             graph=self._runtime.graph,
             team_index=self._runtime.team_index,
         )
@@ -190,7 +237,7 @@ class BracketLabService:
             diagnostics.accumulate_batch(team_wins=simulation.team_wins, scores=scores)
 
         return BracketAnalysis(
-            bracket=request.bracket,
+            bracket=canonical_bracket,
             pool_settings=request.pool_settings,
             completion_mode=request.completion_mode,
             dataset_hash=self._runtime.dataset_hash,
@@ -351,37 +398,6 @@ def _pick_extreme_index(
         ),
     )
     return ordered[0]
-
-
-def _editable_bracket_to_entry(*, bracket: EditableBracket, graph: BracketGraph) -> PoolEntry:
-    pick_map = {pick.game_id: pick.winner_team_id for pick in bracket.picks}
-    expected_game_ids = set(graph.games_by_id)
-    if set(pick_map) != expected_game_ids:
-        missing = sorted(expected_game_ids - set(pick_map))
-        extra = sorted(set(pick_map) - expected_game_ids)
-        msg = (
-            "Bracket must include exactly one pick for every game. "
-            f"Missing={missing[:5]} Extra={extra[:5]}"
-        )
-        raise ValueError(msg)
-
-    missing_winners = sorted(game_id for game_id, team_id in pick_map.items() if team_id is None)
-    if missing_winners:
-        msg = f"Bracket is incomplete; winner_team_id is required for {missing_winners[:5]}"
-        raise ValueError(msg)
-
-    entry = PoolEntry(
-        entry_id="user-bracket",
-        entry_name="Your Bracket",
-        picks=[
-            EntryPick(game_id=game_id, winner_team_id=str(pick_map[game_id]))
-            for game_id in sorted(pick_map)
-        ],
-    )
-    validate_entries(entries=[entry], graph=graph)
-    return entry
-
-
 def _build_rating_records_by_team_id(
     *,
     prepared: BracketLabPreparedInput,
@@ -409,6 +425,37 @@ def _build_rating_records_by_team_id(
         )
 
     return resolved
+
+
+def _build_completion_rank_by_team_id(
+    *,
+    prepared: BracketLabPreparedInput,
+    graph: BracketGraph,
+    rating_records_by_team_id: dict[str, RatingRecord],
+) -> dict[str, int]:
+    ranks = {
+        row.team_id: row.rank for row in prepared.completion_inputs.kenpom_rankings
+    }
+    if len(ranks) == len(graph.teams_by_id):
+        return ranks
+
+    next_rank = max(ranks.values(), default=0) + 1
+    missing_team_ids = sorted(
+        (team_id for team_id in graph.teams_by_id if team_id not in ranks),
+        key=lambda team_id: (
+            -rating_records_by_team_id[team_id].rating,
+            graph.teams_by_id[team_id].seed,
+            team_id,
+        ),
+    )
+    for team_id in missing_team_ids:
+        ranks[team_id] = next_rank
+        next_rank += 1
+    return ranks
+
+
+def _editable_bracket_to_entry(*, bracket: EditableBracket, graph: BracketGraph) -> PoolEntry:
+    return editable_bracket_to_entry(bracket=bracket, graph=graph)
 
 
 def _weighted_slot_rating(slot: PlayInSlot) -> float:

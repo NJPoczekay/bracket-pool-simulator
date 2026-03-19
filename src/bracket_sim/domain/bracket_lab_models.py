@@ -93,3 +93,13 @@ class PlayInSlot(BaseModel):
     seed: int = Field(ge=1, le=16)
     region: str = Field(min_length=1)
     candidates: list[PlayInCandidate] = Field(min_length=2)
+
+
+from bracket_sim.domain.product_models import BracketLabBootstrap  # noqa: E402
+
+BracketLabBootstrap.model_rebuild(
+    _types_namespace={
+        "CompletionInputs": CompletionInputs,
+        "PlayInSlot": PlayInSlot,
+    }
+)

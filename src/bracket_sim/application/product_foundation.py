@@ -28,7 +28,7 @@ def build_product_foundation(
 
     return ProductFoundation(
         app_name="Bracket Pool Simulator",
-        roadmap_phase="phase_2_analyzer_mvp",
+        roadmap_phase="phase_3_completion_tools",
         workflows=_workflows(
             bracket_lab_enabled=bracket_lab_enabled,
             tracker_enabled=tracker_enabled,
@@ -115,7 +115,7 @@ def _workflows(
             label="Bracket Lab",
             timing="Pre-tournament",
             description=(
-                "Build and analyze full brackets before lock with public-pick aware scoring."
+                "Build, complete, and analyze brackets before lock with public-pick aware scoring."
             ),
             sequence=1,
             state=WorkflowState.LIVE if bracket_lab_enabled else WorkflowState.SETUP_REQUIRED,
@@ -146,26 +146,37 @@ def _completion_modes() -> list[CompletionModeOption]:
             mode=CompletionMode.TOURNAMENT_SEEDS,
             label="Tournament Seeds",
             description="Auto-complete by seed order.",
+            base_mode=True,
+            implemented=True,
         ),
         CompletionModeOption(
             mode=CompletionMode.POPULAR_PICKS,
             label="Popular Picks",
             description="Auto-complete from public pick rates.",
+            base_mode=True,
+            implemented=True,
         ),
         CompletionModeOption(
             mode=CompletionMode.INTERNAL_MODEL_RANK,
             label="Model Rank",
             description="Auto-complete from the same ranking input as KenPom for now.",
             alias_of=CompletionMode.KENPOM,
+            base_mode=True,
+            implemented=True,
         ),
         CompletionModeOption(
             mode=CompletionMode.KENPOM,
             label="KenPom",
             description="Auto-complete from KenPom rankings.",
+            base_mode=True,
+            implemented=True,
         ),
         CompletionModeOption(
             mode=CompletionMode.PICK_FOUR,
             label="Pick Four",
             description="Seed the search from Final Four choices before auto-completion.",
+            helper_only=True,
+            requires_base_mode=True,
+            implemented=True,
         ),
     ]

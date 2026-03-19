@@ -92,6 +92,8 @@ def test_service_bootstrap_exposes_dataset_and_graph(prepared_bracket_lab_dir: P
 
     assert bootstrap.completion_mode == CompletionMode.MANUAL
     assert bootstrap.default_pool_settings.pool_size == 10
+    assert len(bootstrap.initial_bracket.picks) == 63
+    assert bootstrap.completion_inputs.available_modes
     assert len(bootstrap.teams) == 64
     assert len(bootstrap.games) == 63
     assert bootstrap.dataset_hash == service.dataset_hash
@@ -155,18 +157,18 @@ def test_analyze_bracket_cache_key_changes_when_bracket_changes(
     assert original.cache_key != changed.cache_key
 
 
-def test_analyze_bracket_rejects_non_manual_completion_mode(
+def test_analyze_bracket_rejects_pick_four_helper_mode(
     prepared_bracket_lab_dir: Path,
     synthetic_input_dir: Path,
 ) -> None:
     service = BracketLabService(prepared_bracket_lab_dir)
 
-    with pytest.raises(ValueError, match="completion_mode='manual'"):
+    with pytest.raises(ValueError, match="only valid as a completion helper"):
         service.analyze_bracket(
             AnalyzeBracketRequest(
                 bracket=_editable_bracket_from_fixture(synthetic_input_dir),
                 pool_settings=PoolSettings(pool_size=10, scoring_system=ScoringSystemKey.ESPN),
-                completion_mode=CompletionMode.POPULAR_PICKS,
+                completion_mode=CompletionMode.PICK_FOUR,
             )
         )
 

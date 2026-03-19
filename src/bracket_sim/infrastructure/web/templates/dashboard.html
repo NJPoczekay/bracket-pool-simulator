@@ -338,6 +338,21 @@
         font: inherit;
       }
 
+      .control-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .secondary-button {
+        background: var(--olive);
+      }
+
+      .pick-four-panel {
+        margin-bottom: 18px;
+      }
+
       .bracket-editor {
         margin-top: 16px;
         min-width: 0;
@@ -503,6 +518,18 @@
         color: #fffaf5;
       }
 
+      .team-slot.is-locked {
+        background: var(--olive);
+        border-color: rgba(55, 84, 58, 0.36);
+        color: #fffaf5;
+      }
+
+      .team-slot.is-auto-filled {
+        background: rgba(163, 110, 42, 0.18);
+        border-color: rgba(163, 110, 42, 0.36);
+        color: var(--ink);
+      }
+
       .team-slot.is-placeholder {
         border-style: dashed;
         border-color: var(--line);
@@ -542,6 +569,10 @@
 
       .team-slot.is-selected .team-seed {
         background: rgba(255, 250, 245, 0.18);
+      }
+
+      .team-slot.is-auto-filled .team-seed {
+        background: rgba(29, 24, 15, 0.08);
       }
 
       .bracket-mobile {
@@ -752,9 +783,9 @@
           <div>
             <h2>Bracket Lab</h2>
             <p class="section-subtitle">
-              Manual full-bracket analysis for pre-lock planning. Build a full bracket, choose your
-              pool assumptions, and compare it against a sampled public field without crossing into
-              live Pool Tracker state.
+              Start from constraints or a partial draft, finish the open games with a completion
+              mode, then analyze the completed bracket against a sampled public field without
+              crossing into live Pool Tracker state.
             </p>
           </div>
           <span class="status-badge state-{{ workflow_by_key['bracket_lab'].state }}">
@@ -766,9 +797,9 @@
           <article class="panel bracket-lab-panel">
             <div class="panel-item">
               <div>
-                <h3 style="margin-bottom: 6px;">Manual Analyzer</h3>
+                <h3 style="margin-bottom: 6px;">Completion + Analyzer</h3>
                 <p class="muted" style="margin-bottom: 0;">
-                  Full 63-game editor backed by the prepared Bracket Lab dataset.
+                  Lock in your manual picks, auto-fill the rest, and analyze the finished bracket.
                 </p>
               </div>
               <span class="mini-badge implemented-live">live</span>
@@ -791,22 +822,58 @@
               </div>
               <div class="control-group">
                 <label for="completion-mode-input">Completion Mode</label>
-                <select id="completion-mode-input" disabled>
-                  <option value="manual" selected>manual</option>
+                <select id="completion-mode-input">
+                  {% for mode in foundation.completion_modes if mode.base_mode %}
+                  <option value="{{ mode.mode }}" {% if loop.first %}selected{% endif %}>
+                    {{ mode.label }}
+                  </option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="analyze-bracket-button" type="button" disabled>Analyze Bracket</button>
+                <div class="control-actions">
+                  <button id="finish-bracket-button" type="button" class="secondary-button">Finish Picks</button>
+                  <button id="analyze-bracket-button" type="button" disabled>Analyze Bracket</button>
+                </div>
               </div>
             </div>
+
+            <section class="summary-block pick-four-panel">
+              <div class="panel-item">
+                <div>
+                  <h3 style="margin-bottom: 6px;">Pick Four</h3>
+                  <p class="muted" style="margin-bottom: 0;">
+                    Optionally force one regional winner seed in each region before auto-fill.
+                  </p>
+                </div>
+                <span class="mini-badge implemented-live">helper</span>
+              </div>
+              <div class="control-grid" style="margin-top: 14px; margin-bottom: 0;">
+                {% for region in bracket_lab_editor_layout.regions %}
+                <div class="control-group">
+                  <label for="pick-four-{{ region.region }}">{{ region.title }} Winner Seed</label>
+                  <select
+                    id="pick-four-{{ region.region }}"
+                    class="pick-four-input"
+                    data-region="{{ region.region }}"
+                  >
+                    <option value="">No Pick Four Seed</option>
+                    {% for seed in range(1, 17) %}
+                    <option value="{{ seed }}">{{ seed }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endfor %}
+              </div>
+            </section>
 
             <p class="muted" style="margin-bottom: 0;">
               Dataset hash:
               <code>{{ bracket_lab_bootstrap.dataset_hash }}</code>
             </p>
             <p id="bracket-lab-status" class="muted inline-status">
-              63 picks remaining before analysis.
+              63 picks remaining before analysis. Manual picks stay locked.
             </p>
 
             <div id="bracket-lab-editor" class="bracket-editor">
@@ -856,7 +923,7 @@
             <h3>Bracket Lab Setup Required</h3>
             <p class="muted">
               Prepare a Bracket Lab dataset, then point the integrated app at the prepared
-              directory to enable the analyzer.
+              directory to enable the completion tools and analyzer.
             </p>
             <p><code>uv run bracket-sim prepare-bracket-lab-data --raw data/&lt;season&gt;/bracket-lab/&lt;challenge&gt;/raw</code></p>
             <p><code>uv run bracket-sim serve --bracket-lab-input /path/to/bracket-lab/prepared</code></p>
@@ -1035,14 +1102,31 @@
         const regionsById = Object.fromEntries(
           editorLayout.regions.map((region) => [region.region, region]),
         );
-        const picksByGameId = Object.fromEntries(games.map((game) => [game.game_id, null]));
+        const pickStateByGameId = Object.fromEntries(
+          bootstrap.initial_bracket.picks.map((pick) => [
+            pick.game_id,
+            {
+              game_id: pick.game_id,
+              winner_team_id: pick.winner_team_id,
+              locked: pick.locked,
+            },
+          ]),
+        );
+        const constraintLockedGameIds = new Set(
+          bootstrap.initial_bracket.picks
+            .filter((pick) => pick.locked && pick.winner_team_id !== null)
+            .map((pick) => pick.game_id),
+        );
         const desktopContainer = document.getElementById("bracket-lab-desktop");
         const mobileTabsContainer = document.getElementById("bracket-mobile-tabs");
         const mobilePanelContainer = document.getElementById("bracket-mobile-panel");
         const statusElement = document.getElementById("bracket-lab-status");
         const poolSizeInput = document.getElementById("pool-size-input");
         const scoringInput = document.getElementById("scoring-system-input");
+        const completionInput = document.getElementById("completion-mode-input");
+        const finishButton = document.getElementById("finish-bracket-button");
         const analyzeButton = document.getElementById("analyze-bracket-button");
+        const pickFourInputs = [...document.querySelectorAll(".pick-four-input")];
         const resultsSection = document.getElementById("analysis-results");
         const diagnosticsBody = document.getElementById("analysis-diagnostics-body");
         const winProbabilityElement = document.getElementById("analysis-win-probability");
@@ -1050,6 +1134,8 @@
         const cacheKeyElement = document.getElementById("analysis-cache-key");
         let activeMobileTab = editorLayout.regions[0].region;
         let isAnalyzing = false;
+        let isCompleting = false;
+        let lastCompletionResult = null;
 
         function roundLabel(roundNumber) {
           const labels = {
@@ -1063,11 +1149,18 @@
           return labels[roundNumber] || `Round ${roundNumber}`;
         }
 
+        function pickState(gameId) {
+          return pickStateByGameId[gameId];
+        }
+
         function entrantsBySlot(game) {
           if (game.round === 1) {
             return [game.left_team_id, game.right_team_id];
           }
-          return [picksByGameId[game.left_game_id], picksByGameId[game.right_game_id]];
+          return [
+            pickState(game.left_game_id).winner_team_id,
+            pickState(game.right_game_id).winner_team_id,
+          ];
         }
 
         function availableTeamIds(game) {
@@ -1077,8 +1170,16 @@
         function syncPicks() {
           for (const game of games) {
             const teamIds = availableTeamIds(game);
-            if (!teamIds.includes(picksByGameId[game.game_id])) {
-              picksByGameId[game.game_id] = null;
+            const current = pickState(game.game_id);
+            if (current.winner_team_id !== null && !teamIds.includes(current.winner_team_id)) {
+              if (constraintLockedGameIds.has(game.game_id)) {
+                continue;
+              }
+              pickStateByGameId[game.game_id] = {
+                game_id: game.game_id,
+                winner_team_id: null,
+                locked: false,
+              };
             }
           }
         }
@@ -1086,24 +1187,52 @@
         function remainingPickCount() {
           let remaining = 0;
           for (const game of games) {
-            if (picksByGameId[game.game_id] === null) {
+            if (pickState(game.game_id).winner_team_id === null) {
               remaining += 1;
             }
           }
           return remaining;
         }
 
-        function syncAnalyzeAvailability() {
-          analyzeButton.disabled = isAnalyzing || remainingPickCount() > 0;
+        function autoFilledPickCount() {
+          let count = 0;
+          for (const game of games) {
+            const current = pickState(game.game_id);
+            if (current.winner_team_id !== null && !current.locked) {
+              count += 1;
+            }
+          }
+          return count;
+        }
+
+        function currentAnalysisCompletionMode() {
+          return autoFilledPickCount() > 0 ? completionInput.value : "manual";
+        }
+
+        function syncActionAvailability() {
+          finishButton.disabled = isAnalyzing || isCompleting;
+          analyzeButton.disabled = isAnalyzing || isCompleting || remainingPickCount() > 0;
         }
 
         function renderBracketStatus() {
           const remaining = remainingPickCount();
+          const autoFilled = autoFilledPickCount();
           if (remaining === 0) {
-            statusElement.textContent = "Bracket complete. Ready to analyze against sampled public opponents.";
+            if (lastCompletionResult !== null) {
+              statusElement.textContent =
+                `${lastCompletionResult.auto_filled_pick_count} picks auto-filled using ` +
+                `${lastCompletionResult.completion_mode.replaceAll("_", " ")}. Ready to analyze.`;
+              return;
+            }
+            if (autoFilled > 0) {
+              statusElement.textContent = "Bracket complete with auto-filled picks. Ready to analyze.";
+              return;
+            }
+            statusElement.textContent = "Bracket complete with locked manual picks. Ready to analyze.";
             return;
           }
-          statusElement.textContent = `${remaining} picks remaining before analysis.`;
+          statusElement.textContent =
+            `${remaining} picks remaining before analysis. Manual picks stay locked.`;
         }
 
         function appendTeamContents(button, {name, seed = null}) {
@@ -1128,6 +1257,7 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "team-slot";
+          const currentPick = pickState(game.game_id);
 
           if (teamId === null) {
             button.classList.add("is-placeholder");
@@ -1140,22 +1270,45 @@
 
           const team = teamsById[teamId];
           button.classList.add("is-available");
-          if (picksByGameId[game.game_id] === teamId) {
+          if (currentPick.winner_team_id === teamId) {
             button.classList.add("is-selected");
+            if (currentPick.locked) {
+              button.classList.add("is-locked");
+            } else {
+              button.classList.add("is-auto-filled");
+            }
           }
           button.setAttribute(
             "aria-pressed",
-            picksByGameId[game.game_id] === teamId ? "true" : "false",
+            currentPick.winner_team_id === teamId ? "true" : "false",
           );
           appendTeamContents(button, {
             name: team.name,
             seed: String(team.seed),
           });
+          if (constraintLockedGameIds.has(game.game_id)) {
+            button.disabled = true;
+            return button;
+          }
           button.addEventListener("click", () => {
-            if (isAnalyzing) {
+            if (isAnalyzing || isCompleting) {
               return;
             }
-            picksByGameId[game.game_id] = teamId;
+            const latestPick = pickState(game.game_id);
+            if (latestPick.locked && latestPick.winner_team_id === teamId) {
+              pickStateByGameId[game.game_id] = {
+                game_id: game.game_id,
+                winner_team_id: null,
+                locked: false,
+              };
+            } else {
+              pickStateByGameId[game.game_id] = {
+                game_id: game.game_id,
+                winner_team_id: teamId,
+                locked: true,
+              };
+            }
+            lastCompletionResult = null;
             syncPicks();
             resultsSection.hidden = true;
             renderEditor();
@@ -1361,7 +1514,7 @@
           renderMobileTabs();
           renderMobilePanel();
           renderBracketStatus();
-          syncAnalyzeAvailability();
+          syncActionAvailability();
         }
 
         function percentage(value) {
@@ -1397,29 +1550,109 @@
             .join("");
         }
 
+        function serializedBracket() {
+          return {
+            picks: games.map((game) => ({
+              game_id: game.game_id,
+              winner_team_id: pickState(game.game_id).winner_team_id,
+              locked: pickState(game.game_id).locked,
+            })),
+          };
+        }
+
+        function applyBracket(bracket) {
+          for (const pick of bracket.picks) {
+            pickStateByGameId[pick.game_id] = {
+              game_id: pick.game_id,
+              winner_team_id: pick.winner_team_id,
+              locked: pick.locked,
+            };
+          }
+        }
+
+        function pickFourPayload() {
+          const selected = {};
+          let selectedCount = 0;
+          for (const input of pickFourInputs) {
+            if (input.value === "") {
+              continue;
+            }
+            selected[input.dataset.region] = Number.parseInt(input.value, 10);
+            selectedCount += 1;
+          }
+          if (selectedCount === 0) {
+            return {payload: null, error: null};
+          }
+          if (selectedCount !== pickFourInputs.length) {
+            return {
+              payload: null,
+              error: "Pick Four requires one regional winner seed in each region or none at all.",
+            };
+          }
+          return {
+            payload: {
+              regional_winner_seeds: selected,
+            },
+            error: null,
+          };
+        }
+
+        async function finishBracket() {
+          const pickFour = pickFourPayload();
+          if (pickFour.error !== null) {
+            statusElement.textContent = pickFour.error;
+            return;
+          }
+
+          isCompleting = true;
+          syncActionAvailability();
+          statusElement.textContent = "Finishing bracket with deterministic auto-fill...";
+          try {
+            const response = await fetch("/api/bracket-lab/complete", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                bracket: serializedBracket(),
+                completion_mode: completionInput.value,
+                pick_four: pickFour.payload,
+              }),
+            });
+            const responseBody = await response.json();
+            if (!response.ok) {
+              throw new Error(responseBody.detail || "Completion failed");
+            }
+            applyBracket(responseBody.completed_bracket);
+            lastCompletionResult = responseBody;
+            resultsSection.hidden = true;
+            renderEditor();
+          } catch (error) {
+            statusElement.textContent =
+              error instanceof Error ? error.message : "Completion failed";
+          } finally {
+            isCompleting = false;
+            syncActionAvailability();
+          }
+        }
+
         async function analyzeBracket() {
           if (remainingPickCount() > 0) {
             renderBracketStatus();
-            syncAnalyzeAvailability();
+            syncActionAvailability();
             return;
           }
 
           isAnalyzing = true;
-          syncAnalyzeAvailability();
+          syncActionAvailability();
           statusElement.textContent = "Running deterministic analysis...";
           const payload = {
-            bracket: {
-              picks: games.map((game) => ({
-                game_id: game.game_id,
-                winner_team_id: picksByGameId[game.game_id],
-                locked: false,
-              })),
-            },
+            bracket: serializedBracket(),
             pool_settings: {
               pool_size: Number.parseInt(poolSizeInput.value, 10),
               scoring_system: scoringInput.value,
             },
-            completion_mode: "manual",
+            completion_mode: currentAnalysisCompletionMode(),
           };
 
           try {
@@ -1440,18 +1673,31 @@
             statusElement.textContent = error instanceof Error ? error.message : "Analysis failed";
           } finally {
             isAnalyzing = false;
-            syncAnalyzeAvailability();
+            syncActionAvailability();
           }
         }
 
+        finishButton.addEventListener("click", finishBracket);
         analyzeButton.addEventListener("click", analyzeBracket);
         poolSizeInput.addEventListener("input", () => {
           resultsSection.hidden = true;
-          syncAnalyzeAvailability();
+          syncActionAvailability();
         });
         scoringInput.addEventListener("change", () => {
           resultsSection.hidden = true;
-          syncAnalyzeAvailability();
+          syncActionAvailability();
+        });
+        completionInput.addEventListener("change", () => {
+          lastCompletionResult = null;
+          resultsSection.hidden = true;
+          renderBracketStatus();
+        });
+        pickFourInputs.forEach((input) => {
+          input.addEventListener("change", () => {
+            lastCompletionResult = null;
+            resultsSection.hidden = true;
+            renderBracketStatus();
+          });
         });
         renderEditor();
       }

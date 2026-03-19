@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from bracket_sim.domain.models import Game, Team
+
+if TYPE_CHECKING:
+    from bracket_sim.domain.bracket_lab_models import CompletionInputs, PlayInSlot
 
 
 class ScoringSystemKey(StrEnum):
@@ -35,6 +39,14 @@ class PickDiagnosticTag(StrEnum):
     BEST_PICK = "best_pick"
     WORST_PICK = "worst_pick"
     MOST_IMPORTANT = "most_important"
+
+
+class BracketCompletionState(StrEnum):
+    """Classification for one editable bracket draft."""
+
+    INCOMPLETE = "incomplete"
+    COMPLETE = "complete"
+    AUTO_COMPLETED = "auto_completed"
 
 
 class CacheArtifactKind(StrEnum):
@@ -213,7 +225,38 @@ class CompletionModeOption(BaseModel):
     label: str = Field(min_length=1)
     description: str = Field(min_length=1)
     alias_of: CompletionMode | None = None
+    base_mode: bool = False
+    helper_only: bool = False
+    requires_base_mode: bool = False
     implemented: bool = False
+
+
+class PickFourSelection(BaseModel):
+    """Optional regional-winner seed constraints applied before auto-completion."""
+
+    model_config = ConfigDict(frozen=True)
+
+    regional_winner_seeds: dict[str, int]
+
+    @field_validator("regional_winner_seeds")
+    @classmethod
+    def validate_regional_winner_seeds(cls, value: dict[str, int]) -> dict[str, int]:
+        """Require one winner seed for each region."""
+
+        if len(value) != 4:
+            msg = "Pick Four requires exactly four regional winner seeds"
+            raise ValueError(msg)
+        normalized: dict[str, int] = {}
+        for region, seed in value.items():
+            region_key = region.strip()
+            if region_key == "":
+                msg = "Pick Four regions must be non-blank"
+                raise ValueError(msg)
+            if seed < 1 or seed > 16:
+                msg = f"Pick Four seed for region {region_key!r} must be between 1 and 16"
+                raise ValueError(msg)
+            normalized[region_key] = seed
+        return normalized
 
 
 class CachePolicy(BaseModel):
@@ -275,7 +318,7 @@ class CacheKeyPreview(BaseModel):
 
 
 class AnalyzeBracketRequest(BaseModel):
-    """Request payload for a manual Bracket Lab analysis run."""
+    """Request payload for a full Bracket Lab analysis run."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -284,13 +327,39 @@ class AnalyzeBracketRequest(BaseModel):
     completion_mode: CompletionMode = CompletionMode.MANUAL
 
 
+class CompleteBracketRequest(BaseModel):
+    """Request payload for deterministic bracket auto-completion."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket: EditableBracket
+    completion_mode: CompletionMode
+    pick_four: PickFourSelection | None = None
+
+
+class BracketCompletionResult(BaseModel):
+    """Stable response contract for bracket auto-completion results."""
+
+    model_config = ConfigDict(frozen=True)
+
+    completed_bracket: EditableBracket
+    state: BracketCompletionState
+    completion_mode: CompletionMode
+    dataset_hash: str = Field(min_length=64, max_length=64)
+    preserved_locked_pick_count: int = Field(ge=0)
+    auto_filled_pick_count: int = Field(ge=0)
+
+
 class BracketLabBootstrap(BaseModel):
-    """Prepared Bracket Lab data required to render the manual editor."""
+    """Prepared Bracket Lab data required to render the editor."""
 
     model_config = ConfigDict(frozen=True)
 
     dataset_hash: str = Field(min_length=64, max_length=64)
     completion_mode: CompletionMode = CompletionMode.MANUAL
     default_pool_settings: PoolSettings
+    initial_bracket: EditableBracket
+    completion_inputs: CompletionInputs
+    play_in_slots: list[PlayInSlot]
     teams: list[Team]
     games: list[Game]

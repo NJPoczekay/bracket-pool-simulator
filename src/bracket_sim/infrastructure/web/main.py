@@ -22,9 +22,11 @@ from bracket_sim.application.product_foundation import (
 from bracket_sim.domain.product_models import (
     AnalyzeBracketRequest,
     BracketAnalysis,
+    BracketCompletionResult,
     BracketLabBootstrap,
     CacheKeyPreview,
     CacheKeyPreviewRequest,
+    CompleteBracketRequest,
     ProductFoundation,
 )
 from bracket_sim.infrastructure.web.app import PoolScheduler
@@ -134,6 +136,18 @@ def create_app(
 
         try:
             return _bracket_lab_service_or_503(request).analyze_bracket(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/bracket-lab/complete", response_model=BracketCompletionResult)
+    def complete_bracket_api(
+        payload: CompleteBracketRequest,
+        request: Request,
+    ) -> BracketCompletionResult:
+        """Auto-complete one partial user bracket without mutating locked picks."""
+
+        try:
+            return _bracket_lab_service_or_503(request).complete_bracket(payload)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

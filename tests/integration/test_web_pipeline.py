@@ -106,6 +106,28 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
     )
     with TestClient(app) as client:
         dashboard_response = client.get("/")
+        complete_response = client.post(
+            "/api/bracket-lab/complete",
+            json={
+                "bracket": {
+                    "picks": [
+                        {
+                            **_editable_bracket_payload(synthetic_input_dir)[0],
+                            "locked": True,
+                        }
+                    ],
+                },
+                "completion_mode": "tournament_seeds",
+                "pick_four": {
+                    "regional_winner_seeds": {
+                        "east": 1,
+                        "west": 1,
+                        "south": 1,
+                        "midwest": 1,
+                    }
+                },
+            },
+        )
         analyze_response = client.post(
             "/api/bracket-lab/analyze",
             json={
@@ -121,13 +143,24 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
         )
 
     assert dashboard_response.status_code == 200
-    assert "Manual Analyzer" in dashboard_response.text
+    assert "Completion + Analyzer" in dashboard_response.text
+    assert "Finish Picks" in dashboard_response.text
+    assert "Pick Four" in dashboard_response.text
     assert "Analyze Bracket" in dashboard_response.text
     assert "Dataset hash" in dashboard_response.text
     assert 'id="bracket-lab-editor-layout"' in dashboard_response.text
     assert 'id="bracket-mobile-tabs"' in dashboard_response.text
     assert 'id="bracket-lab-desktop"' in dashboard_response.text
-    assert "63 picks remaining before analysis." in dashboard_response.text
+    assert (
+        "63 picks remaining before analysis. Manual picks stay locked."
+        in dashboard_response.text
+    )
+
+    assert complete_response.status_code == 200
+    completion_payload = complete_response.json()
+    assert completion_payload["state"] == "auto_completed"
+    assert completion_payload["completion_mode"] == "tournament_seeds"
+    assert completion_payload["auto_filled_pick_count"] == 62
 
     assert analyze_response.status_code == 200
     payload = analyze_response.json()

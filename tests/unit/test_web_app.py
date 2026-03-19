@@ -25,7 +25,7 @@ def test_foundation_endpoint_exposes_analyzer_mvp_contracts() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["roadmap_phase"] == "phase_2_analyzer_mvp"
+    assert payload["roadmap_phase"] == "phase_3_completion_tools"
     assert [workflow["key"] for workflow in payload["workflows"]] == [
         "bracket_lab",
         "pool_tracker",
@@ -44,6 +44,12 @@ def test_foundation_endpoint_exposes_analyzer_mvp_contracts() -> None:
         mode for mode in payload["completion_modes"] if mode["mode"] == "internal_model_rank"
     )
     assert model_rank_mode["alias_of"] == "kenpom"
+    assert model_rank_mode["base_mode"] is True
+    pick_four_mode = next(
+        mode for mode in payload["completion_modes"] if mode["mode"] == "pick_four"
+    )
+    assert pick_four_mode["helper_only"] is True
+    assert pick_four_mode["requires_base_mode"] is True
     assert all(
         mode["mode"] not in {"ap_poll", "ncaa_net"} for mode in payload["completion_modes"]
     )
@@ -117,6 +123,15 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     )
 
     bootstrap_response = client.get("/api/bracket-lab/bootstrap")
+    complete_response = client.post(
+        "/api/bracket-lab/complete",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir)[:2],
+            },
+            "completion_mode": "kenpom",
+        },
+    )
     analyze_response = client.post(
         "/api/bracket-lab/analyze",
         json={
@@ -134,8 +149,16 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     assert bootstrap_response.status_code == 200
     bootstrap = bootstrap_response.json()
     assert bootstrap["completion_mode"] == "manual"
+    assert len(bootstrap["initial_bracket"]["picks"]) == 63
+    assert bootstrap["completion_inputs"]["available_modes"]
     assert len(bootstrap["teams"]) == 64
     assert len(bootstrap["games"]) == 63
+
+    assert complete_response.status_code == 200
+    completion = complete_response.json()
+    assert completion["completion_mode"] == "kenpom"
+    assert completion["state"] == "auto_completed"
+    assert len(completion["completed_bracket"]["picks"]) == 63
 
     assert analyze_response.status_code == 200
     analysis = analyze_response.json()
@@ -161,7 +184,9 @@ def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(
     assert 'id="bracket-lab-editor-layout"' in response.text
     assert 'id="bracket-lab-desktop"' in response.text
     assert 'id="bracket-mobile-tabs"' in response.text
-    assert "63 picks remaining before analysis." in response.text
+    assert "Finish Picks" in response.text
+    assert "Pick Four" in response.text
+    assert "63 picks remaining before analysis. Manual picks stay locked." in response.text
     assert 'id="analyze-bracket-button" type="button" disabled' in response.text
 
 
