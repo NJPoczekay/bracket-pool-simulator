@@ -15,8 +15,8 @@ from bracket_sim.application.bracket_completion import (
 from bracket_sim.application.bracket_lab_eval import (
     ANALYSIS_N_SIMS,
     DEFAULT_POOL_SETTINGS,
-    build_bracket_diagnostics,
     bracket_to_entry,
+    build_bracket_diagnostics,
     build_bracket_lab_runtime,
     build_shared_field_evaluation_context,
     sample_public_opponents,
