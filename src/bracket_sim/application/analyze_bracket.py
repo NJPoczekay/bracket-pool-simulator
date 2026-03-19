@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from bracket_sim.application.bracket_completion import (
+    _team_id_for_region_seed,
     build_initial_bracket,
     canonicalize_bracket,
     derive_region_champion_game_ids,
@@ -32,6 +33,9 @@ from bracket_sim.domain.product_models import (
     CompleteBracketRequest,
     CompletionMode,
     EditableBracket,
+    OptimizationAlternative,
+    OptimizationResult,
+    OptimizeBracketRequest,
     PickDiagnostic,
     PickDiagnosticTag,
     PoolSettings,
@@ -49,9 +53,9 @@ from bracket_sim.infrastructure.storage.bracket_lab_prepared_loader import (
 )
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key, capture_dataset_hash
 
-_ANALYSIS_N_SIMS = 100_000
-_ANALYSIS_BATCH_SIZE = 1_000
-_ANALYSIS_POINT_SPREAD_STD_DEV = 11.0
+_BRACKET_LAB_EVALUATION_N_SIMS = 100_000
+_BRACKET_LAB_EVALUATION_BATCH_SIZE = 1_000
+_BRACKET_LAB_POINT_SPREAD_STD_DEV = 11.0
 _DEFAULT_POOL_SETTINGS = PoolSettings(
     pool_size=10,
     scoring_system=ScoringSystemKey.ESPN,
@@ -78,6 +82,19 @@ class _BracketLabRuntime:
     team_seeds: npt.NDArray[np.int16]
     public_pick_weights_by_game: dict[str, dict[str, float]]
     region_champion_game_ids: dict[str, str]
+
+
+@dataclass(frozen=True)
+class _BracketEvaluationResult:
+    win_probabilities: dict[str, float]
+    diagnostics: _DiagnosticAccumulator | None = None
+
+
+@dataclass(frozen=True)
+class _OptimizationCandidate:
+    label: str
+    bracket: EditableBracket
+    summary: str | None = None
 
 
 class BracketLabService:
@@ -190,57 +207,17 @@ class BracketLabService:
                 "completion_mode": normalized_completion_mode,
             },
         )
-        seed = _seed_from_cache_key(cache_key)
-
-        opponent_entries = _sample_public_opponents(
+        validate_entries(entries=[user_entry], graph=self._runtime.graph)
+        evaluation = _evaluate_brackets(
             runtime=self._runtime,
-            opponent_count=max(request.pool_settings.pool_size - 1, 0),
-            seed=seed,
+            candidate_brackets={"requested": canonical_bracket},
+            pool_settings=request.pool_settings,
+            diagnostics_target_key="requested",
         )
-        entries = [user_entry, *opponent_entries]
-        validate_entries(entries=entries, graph=self._runtime.graph)
-        _, team_ids, predicted_wins = build_predicted_wins_matrix(
-            entries=entries,
-            graph=self._runtime.graph,
-        )
-        if team_ids != self._runtime.team_ids:
-            msg = "Bracket analysis team ordering drifted from prepared dataset"
+        diagnostics = evaluation.diagnostics
+        if diagnostics is None:
+            msg = "Bracket analysis diagnostics were not collected"
             raise RuntimeError(msg)
-
-        scoring_spec = _resolve_scoring_spec(request.pool_settings.scoring_system)
-        diagnostics = _DiagnosticAccumulator.build(
-            bracket=canonical_bracket,
-            graph=self._runtime.graph,
-            team_index=self._runtime.team_index,
-        )
-
-        total_batches = math.ceil(_ANALYSIS_N_SIMS / _ANALYSIS_BATCH_SIZE)
-        for batch_index in range(total_batches):
-            batch_n_sims = min(
-                _ANALYSIS_BATCH_SIZE,
-                _ANALYSIS_N_SIMS - (batch_index * _ANALYSIS_BATCH_SIZE),
-            )
-            batch_seed = _derive_batch_seed(
-                seed=seed,
-                batch_index=batch_index,
-                total_batches=total_batches,
-            )
-            simulation = simulate_tournament(
-                graph=self._runtime.graph,
-                rating_records_by_team_id=self._runtime.rating_records_by_team_id,
-                constraints_by_game_id=self._runtime.constraints_by_game_id,
-                n_sims=batch_n_sims,
-                seed=batch_seed,
-                point_spread_std_dev=_ANALYSIS_POINT_SPREAD_STD_DEV,
-            )
-            scores = score_entries(
-                predicted_wins=predicted_wins,
-                actual_wins=simulation.team_wins,
-                round_values=scoring_spec.round_values,
-                team_seeds=self._runtime.team_seeds,
-                seed_bonus=scoring_spec.seed_bonus,
-            )
-            diagnostics.accumulate_batch(team_wins=simulation.team_wins, scores=scores)
 
         return BracketAnalysis(
             bracket=canonical_bracket,
@@ -248,10 +225,173 @@ class BracketLabService:
             completion_mode=request.completion_mode,
             dataset_hash=self._runtime.dataset_hash,
             cache_key=cache_key,
-            win_probability=diagnostics.win_probability,
+            win_probability=evaluation.win_probabilities["requested"],
             public_percentile=None,
             pick_diagnostics=diagnostics.build_pick_diagnostics(),
         )
+
+    def optimize_bracket(self, request: OptimizeBracketRequest) -> OptimizationResult:
+        """Return deterministic bracket recommendations scored on the shared evaluation base."""
+
+        if request.completion_mode == CompletionMode.PICK_FOUR:
+            msg = "completion_mode='pick_four' is only valid as a completion helper"
+            raise ValueError(msg)
+
+        canonical_bracket = canonicalize_bracket(
+            bracket=request.bracket,
+            graph=self._runtime.graph,
+            constraints_by_game_id=self._runtime.constraints_by_game_id,
+        )
+        validate_entries(
+            entries=[_editable_bracket_to_entry(bracket=canonical_bracket, graph=self._runtime.graph)],
+            graph=self._runtime.graph,
+        )
+        normalized_completion_mode = normalize_completion_mode(request.completion_mode)
+        cache_key = build_cache_key(
+            artifact_kind="optimization",
+            dataset_hash=self._runtime.dataset_hash,
+            settings={
+                "bracket": canonical_bracket,
+                "pool_settings": request.pool_settings,
+                "completion_mode": normalized_completion_mode,
+            },
+        )
+
+        candidates = self._build_optimization_candidates(current_bracket=canonical_bracket)
+        evaluation = _evaluate_brackets(
+            runtime=self._runtime,
+            candidate_brackets={
+                candidate_id: candidate.bracket for candidate_id, candidate in candidates.items()
+            },
+            pool_settings=request.pool_settings,
+        )
+        ordered_candidate_ids = sorted(
+            candidates,
+            key=lambda candidate_id: (
+                -evaluation.win_probabilities[candidate_id],
+                _changed_pick_count(
+                    baseline=canonical_bracket,
+                    candidate=candidates[candidate_id].bracket,
+                ),
+                candidate_id,
+            ),
+        )
+        recommended_id = ordered_candidate_ids[0]
+        recommended_candidate = candidates[recommended_id]
+        alternatives: list[OptimizationAlternative] = []
+        for candidate_id in ordered_candidate_ids[1:]:
+            candidate = candidates[candidate_id]
+            alternatives.append(
+                OptimizationAlternative(
+                    label=candidate.label,
+                    bracket=candidate.bracket,
+                    projected_win_probability=evaluation.win_probabilities[candidate_id],
+                    changed_pick_count=_changed_pick_count(
+                        baseline=canonical_bracket,
+                        candidate=candidate.bracket,
+                    ),
+                    summary=candidate.summary,
+                )
+            )
+            if len(alternatives) == 3:
+                break
+
+        return OptimizationResult(
+            pool_settings=request.pool_settings,
+            completion_mode=request.completion_mode,
+            dataset_hash=self._runtime.dataset_hash,
+            cache_key=cache_key,
+            recommended_bracket=recommended_candidate.bracket,
+            projected_win_probability=evaluation.win_probabilities[recommended_id],
+            changed_pick_count=_changed_pick_count(
+                baseline=canonical_bracket,
+                candidate=recommended_candidate.bracket,
+            ),
+            alternatives=alternatives,
+        )
+
+    def _build_optimization_candidates(
+        self,
+        *,
+        current_bracket: EditableBracket,
+    ) -> dict[str, _OptimizationCandidate]:
+        candidates: dict[str, _OptimizationCandidate] = {}
+        seen_brackets: set[tuple[tuple[str, str | None], ...]] = set()
+
+        def add(candidate_id: str, candidate: _OptimizationCandidate) -> None:
+            bracket_key = tuple(
+                (pick.game_id, pick.winner_team_id)
+                for pick in candidate.bracket.picks
+            )
+            if bracket_key in seen_brackets:
+                return
+            seen_brackets.add(bracket_key)
+            candidates[candidate_id] = candidate
+
+        add(
+            "current",
+            _OptimizationCandidate(
+                label="Current Bracket",
+                bracket=current_bracket,
+                summary="Your current bracket on the shared 100k evaluation base.",
+            ),
+        )
+
+        for mode, label in (
+            (CompletionMode.TOURNAMENT_SEEDS, "Tournament Seeds"),
+            (CompletionMode.POPULAR_PICKS, "Popular Picks"),
+            (CompletionMode.KENPOM, "KenPom"),
+        ):
+            completed = self.complete_bracket(
+                CompleteBracketRequest(
+                    bracket=EditableBracket(picks=[]),
+                    completion_mode=mode,
+                )
+            )
+            add(
+                mode.value,
+                _OptimizationCandidate(
+                    label=label,
+                    bracket=completed.completed_bracket,
+                    summary=f"{label} baseline evaluated with the same opponent field and tournament draws.",
+                ),
+            )
+
+        championship_game_id = self._runtime.graph.championship_game_id
+        for region in sorted(self._runtime.region_champion_game_ids):
+            for seed in (1, 2):
+                team_id = _team_id_for_region_seed(
+                    graph=self._runtime.graph,
+                    region=region,
+                    seed=seed,
+                )
+                completed = self.complete_bracket(
+                    CompleteBracketRequest(
+                        bracket=EditableBracket(
+                            picks=[
+                                BracketEditPick(
+                                    game_id=championship_game_id,
+                                    winner_team_id=team_id,
+                                    locked=True,
+                                )
+                            ]
+                        ),
+                        completion_mode=CompletionMode.POPULAR_PICKS,
+                    )
+                )
+                add(
+                    f"popular-{region}-{seed}",
+                    _OptimizationCandidate(
+                        label=f"Popular Picks: {region.title()} {seed}-Seed Champion",
+                        bracket=completed.completed_bracket,
+                        summary=(
+                            f"Public-pick bracket with the {region.title()} {seed}-seed forced "
+                            "to win the title."
+                        ),
+                    ),
+                )
+
+        return candidates
 
 
 @dataclass
@@ -266,7 +406,7 @@ class _DiagnosticAccumulator:
     miss_counts: npt.NDArray[np.int64]
     hit_win_share_totals: npt.NDArray[np.float64]
     miss_win_share_totals: npt.NDArray[np.float64]
-    total_sims: int = _ANALYSIS_N_SIMS
+    total_sims: int = _BRACKET_LAB_EVALUATION_N_SIMS
 
     @classmethod
     def build(
@@ -581,6 +721,126 @@ def _derive_batch_seed(*, seed: int, batch_index: int, total_batches: int) -> in
 
     sequence = np.random.SeedSequence([seed, batch_index])
     return int(sequence.generate_state(1, dtype=np.uint64)[0])
+
+
+def _shared_evaluation_seed(*, runtime: _BracketLabRuntime) -> int:
+    return _seed_from_cache_key(
+        build_cache_key(
+            artifact_kind="bracket-lab-evaluation",
+            dataset_hash=runtime.dataset_hash,
+            settings={"version": 1},
+        )
+    )
+
+
+def _evaluate_brackets(
+    *,
+    runtime: _BracketLabRuntime,
+    candidate_brackets: dict[str, EditableBracket],
+    pool_settings: PoolSettings,
+    diagnostics_target_key: str | None = None,
+) -> _BracketEvaluationResult:
+    if not candidate_brackets:
+        msg = "At least one candidate bracket is required"
+        raise ValueError(msg)
+
+    scoring_spec = _resolve_scoring_spec(pool_settings.scoring_system)
+    evaluation_seed = _shared_evaluation_seed(runtime=runtime)
+    opponent_entries = _sample_public_opponents(
+        runtime=runtime,
+        opponent_count=max(pool_settings.pool_size - 1, 0),
+        seed=evaluation_seed,
+    )
+    validate_entries(entries=opponent_entries, graph=runtime.graph)
+
+    if opponent_entries:
+        _, team_ids, opponent_predicted_wins = build_predicted_wins_matrix(
+            entries=opponent_entries,
+            graph=runtime.graph,
+        )
+        if team_ids != runtime.team_ids:
+            msg = "Bracket evaluation opponent ordering drifted from prepared dataset"
+            raise RuntimeError(msg)
+    else:
+        opponent_predicted_wins = np.zeros((0, len(runtime.team_ids)), dtype=np.int16)
+
+    predicted_wins_by_key: dict[str, npt.NDArray[np.int16]] = {}
+    for candidate_key, bracket in candidate_brackets.items():
+        entry = _editable_bracket_to_entry(bracket=bracket, graph=runtime.graph)
+        _, team_ids, user_predicted_wins = build_predicted_wins_matrix(
+            entries=[entry],
+            graph=runtime.graph,
+        )
+        if team_ids != runtime.team_ids:
+            msg = "Bracket evaluation team ordering drifted from prepared dataset"
+            raise RuntimeError(msg)
+        predicted_wins_by_key[candidate_key] = np.vstack(
+            [user_predicted_wins, opponent_predicted_wins]
+        )
+
+    diagnostics = (
+        _DiagnosticAccumulator.build(
+            bracket=candidate_brackets[diagnostics_target_key],
+            graph=runtime.graph,
+            team_index=runtime.team_index,
+        )
+        if diagnostics_target_key is not None
+        else None
+    )
+    totals = {candidate_key: 0.0 for candidate_key in candidate_brackets}
+    total_batches = math.ceil(
+        _BRACKET_LAB_EVALUATION_N_SIMS / _BRACKET_LAB_EVALUATION_BATCH_SIZE
+    )
+    for batch_index in range(total_batches):
+        batch_n_sims = min(
+            _BRACKET_LAB_EVALUATION_BATCH_SIZE,
+            _BRACKET_LAB_EVALUATION_N_SIMS
+            - (batch_index * _BRACKET_LAB_EVALUATION_BATCH_SIZE),
+        )
+        batch_seed = _derive_batch_seed(
+            seed=evaluation_seed,
+            batch_index=batch_index,
+            total_batches=total_batches,
+        )
+        simulation = simulate_tournament(
+            graph=runtime.graph,
+            rating_records_by_team_id=runtime.rating_records_by_team_id,
+            constraints_by_game_id=runtime.constraints_by_game_id,
+            n_sims=batch_n_sims,
+            seed=batch_seed,
+            point_spread_std_dev=_BRACKET_LAB_POINT_SPREAD_STD_DEV,
+        )
+        for candidate_key, predicted_wins in predicted_wins_by_key.items():
+            scores = score_entries(
+                predicted_wins=predicted_wins,
+                actual_wins=simulation.team_wins,
+                round_values=scoring_spec.round_values,
+                team_seeds=runtime.team_seeds,
+                seed_bonus=scoring_spec.seed_bonus,
+            )
+            user_win_shares = _user_win_shares_by_sim(scores)
+            totals[candidate_key] += float(np.sum(user_win_shares))
+            if diagnostics_target_key == candidate_key and diagnostics is not None:
+                diagnostics.accumulate_batch(team_wins=simulation.team_wins, scores=scores)
+
+    return _BracketEvaluationResult(
+        win_probabilities={
+            candidate_key: total / _BRACKET_LAB_EVALUATION_N_SIMS
+            for candidate_key, total in totals.items()
+        },
+        diagnostics=diagnostics,
+    )
+
+
+def _changed_pick_count(*, baseline: EditableBracket, candidate: EditableBracket) -> int:
+    baseline_by_game_id = {
+        pick.game_id: pick.winner_team_id
+        for pick in baseline.picks
+    }
+    return sum(
+        baseline_by_game_id.get(pick.game_id) != pick.winner_team_id
+        for pick in candidate.picks
+    )
 
 
 def _user_win_shares_by_sim(scores: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:

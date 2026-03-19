@@ -149,6 +149,19 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
             "completion_mode": "manual",
         },
     )
+    optimize_response = client.post(
+        "/api/bracket-lab/optimize",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir),
+            },
+            "pool_settings": {
+                "pool_size": 18,
+                "scoring_system": "2-3-5-8-13-21",
+            },
+            "completion_mode": "manual",
+        },
+    )
 
     assert bootstrap_response.status_code == 200
     bootstrap = bootstrap_response.json()
@@ -170,6 +183,13 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     assert analysis["pool_settings"]["scoring_system"] == "2-3-5-8-13-21"
     assert len(analysis["pick_diagnostics"]) == 63
     assert analysis["cache_key"].startswith("analysis-")
+
+    assert optimize_response.status_code == 200
+    optimization = optimize_response.json()
+    assert optimization["cache_key"].startswith("optimization-")
+    assert optimization["projected_win_probability"] >= 0.0
+    assert optimization["changed_pick_count"] >= 0
+    assert len(optimization["alternatives"]) <= 3
 
 
 def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(

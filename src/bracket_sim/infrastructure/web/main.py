@@ -27,6 +27,8 @@ from bracket_sim.domain.product_models import (
     CacheKeyPreview,
     CacheKeyPreviewRequest,
     CompleteBracketRequest,
+    OptimizationResult,
+    OptimizeBracketRequest,
     ProductFoundation,
     SaveBracketRequest,
     SavedBracket,
@@ -152,6 +154,18 @@ def create_app(
 
         try:
             return _bracket_lab_service_or_503(request).analyze_bracket(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/bracket-lab/optimize", response_model=OptimizationResult)
+    def optimize_bracket_api(
+        payload: OptimizeBracketRequest,
+        request: Request,
+    ) -> OptimizationResult:
+        """Optimize one complete user bracket on the shared Bracket Lab evaluation base."""
+
+        try:
+            return _bracket_lab_service_or_503(request).optimize_bracket(payload)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

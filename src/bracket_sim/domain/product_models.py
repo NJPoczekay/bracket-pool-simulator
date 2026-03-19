@@ -328,6 +328,16 @@ class AnalyzeBracketRequest(BaseModel):
     completion_mode: CompletionMode = CompletionMode.MANUAL
 
 
+class OptimizeBracketRequest(BaseModel):
+    """Request payload for a deterministic Bracket Lab optimization run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket: EditableBracket
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+
+
 class CompleteBracketRequest(BaseModel):
     """Request payload for deterministic bracket auto-completion."""
 
