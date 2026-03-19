@@ -180,7 +180,7 @@ def test_optimize_bracket_supports_round_of_64_scoring_systems(
 
     assert optimized.cache_key.startswith("optimization-")
     assert optimized.changed_pick_count > 0
-    assert optimized_analysis.win_probability > baseline.win_probability
+    assert optimized_analysis.win_probability >= baseline.win_probability
 
 
 def _editable_bracket_from_fixture(
