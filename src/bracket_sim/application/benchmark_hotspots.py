@@ -8,7 +8,12 @@ from time import perf_counter
 from bracket_sim.domain.bracket_graph import build_bracket_graph
 from bracket_sim.domain.constraints import validate_constraints
 from bracket_sim.domain.models import BenchmarkConfig, BenchmarkMeasurement, BenchmarkReport
-from bracket_sim.domain.scoring import build_predicted_wins_matrix, score_entries, validate_entries
+from bracket_sim.domain.scoring import (
+    ESPN_ROUND_VALUES,
+    build_predicted_wins_matrix,
+    score_entries,
+    validate_entries,
+)
 from bracket_sim.domain.simulator import simulate_tournament
 from bracket_sim.infrastructure.storage.normalized_loader import load_normalized_input
 
@@ -53,7 +58,11 @@ def benchmark_hotspots(config: BenchmarkConfig) -> BenchmarkReport:
         simulation_timings_ms.append((perf_counter() - started_sim) * 1000)
 
         started_scoring = perf_counter()
-        score_entries(predicted_wins=predicted_wins, actual_wins=simulation.team_wins)
+        score_entries(
+            predicted_wins=predicted_wins,
+            actual_wins=simulation.team_wins,
+            round_values=ESPN_ROUND_VALUES,
+        )
         scoring_timings_ms.append((perf_counter() - started_scoring) * 1000)
 
     return BenchmarkReport(

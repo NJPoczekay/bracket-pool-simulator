@@ -13,6 +13,7 @@ from bracket_sim.domain.models import PoolEntry
 from bracket_sim.domain.simulator import canonical_team_order
 
 _MAX_WINS = 6
+ESPN_ROUND_VALUES = (10, 20, 40, 80, 160, 320)
 _DEFAULT_ROUND_VALUES = (1, 2, 4, 8, 16, 32)
 _NO_SEED_BONUS_ROUNDS = (False, False, False, False, False, False)
 

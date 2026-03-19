@@ -1105,8 +1105,7 @@
                     {% for entry in pool.latest_report.summary.top_entries %}
                     <li>
                       {{ entry.entry_name }}:
-                      {{ "%.4f"|format(entry.win_share) }}
-                      win share,
+                      {{ "%.2f"|format(entry.win_share * 100) }}% win percentage,
                       {{ "%.2f"|format(entry.average_score) }}
                       avg score
                     </li>

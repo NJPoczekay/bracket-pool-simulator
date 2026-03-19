@@ -212,7 +212,7 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
     )
     (report_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
     (report_dir / "entry_summary.csv").write_text(
-        "entry_id,win_share\nentry-1,0.55\n",
+        "entry_id,win_percentage\nentry-1,55.0\n",
         encoding="utf-8",
     )
     (report_dir / "team_advancement_odds.csv").write_text(

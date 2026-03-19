@@ -24,7 +24,12 @@ from bracket_sim.domain.product_models import (
     PoolSettings,
     ScoringSystemKey,
 )
-from bracket_sim.domain.scoring import build_predicted_wins_matrix, score_entries, validate_entries
+from bracket_sim.domain.scoring import (
+    ESPN_ROUND_VALUES,
+    build_predicted_wins_matrix,
+    score_entries,
+    validate_entries,
+)
 from bracket_sim.domain.simulator import canonical_team_order, simulate_tournament
 from bracket_sim.infrastructure.storage.bracket_lab_prepared_loader import (
     BracketLabPreparedInput,
@@ -542,7 +547,7 @@ def sample_game_winner(
 
 def resolve_scoring_spec(scoring_system: ScoringSystemKey) -> ScoringSpec:
     if scoring_system == ScoringSystemKey.ESPN:
-        return ScoringSpec(round_values=(1, 2, 4, 8, 16, 32))
+        return ScoringSpec(round_values=ESPN_ROUND_VALUES)
     if scoring_system == ScoringSystemKey.LINEAR:
         return ScoringSpec(round_values=(1, 2, 3, 4, 5, 6))
     if scoring_system == ScoringSystemKey.FIBONACCI:

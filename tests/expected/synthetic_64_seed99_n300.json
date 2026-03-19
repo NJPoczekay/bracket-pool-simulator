@@ -6,49 +6,49 @@
       "entry_id": "entry_chalk",
       "entry_name": "Chalk Strategy",
       "win_share": 0.21166666666666667,
-      "average_score": 66.79
+      "average_score": 667.9
     },
     {
       "entry_id": "entry_balanced",
       "entry_name": "Balanced Strategy",
       "win_share": 0.1827777777777778,
-      "average_score": 58.71
+      "average_score": 587.1
     },
     {
       "entry_id": "entry_west_bias",
       "entry_name": "West Region Bias",
       "win_share": 0.15833333333333333,
-      "average_score": 66.84333333333333
+      "average_score": 668.4333333333333
     },
     {
       "entry_id": "entry_midwest_bias",
       "entry_name": "Midwest Region Bias",
       "win_share": 0.13,
-      "average_score": 62.763333333333335
+      "average_score": 627.6333333333333
     },
     {
       "entry_id": "entry_east_bias",
       "entry_name": "East Region Bias",
       "win_share": 0.12944444444444442,
-      "average_score": 67.17666666666666
+      "average_score": 671.7666666666667
     },
     {
       "entry_id": "entry_upsets",
       "entry_name": "Upset Hunter",
       "win_share": 0.1211111111111111,
-      "average_score": 46.443333333333335
+      "average_score": 464.43333333333334
     },
     {
       "entry_id": "entry_south_bias",
       "entry_name": "South Region Bias",
       "win_share": 0.06,
-      "average_score": 63.52333333333333
+      "average_score": 635.2333333333333
     },
     {
       "entry_id": "entry_chaos",
       "entry_name": "Chaos Theory",
       "win_share": 0.006666666666666667,
-      "average_score": 29.983333333333334
+      "average_score": 299.8333333333333
     }
   ],
   "champion_counts": {
