@@ -8,6 +8,7 @@ from pathlib import Path
 from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import ReportConfig, SimulationConfig
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 
 
 def test_generate_reports_writes_deterministic_bundle(
@@ -101,6 +102,47 @@ def test_generate_reports_entry_summary_matches_simulation_results(
     champion_rows = report_result.summary.top_champions
     assert champion_rows
     assert champion_rows[0].probability >= champion_rows[-1].probability
+
+
+def test_generate_reports_supports_round_of_64_seed_scoring(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "report_r64_seed"
+    report_result = generate_reports(
+        ReportConfig(
+            input_dir=synthetic_input_dir,
+            output_dir=output_dir,
+            n_sims=180,
+            seed=23,
+            batch_size=60,
+            scoring_system=ScoringSystemKey.ROUND_OF_64_SEED,
+        )
+    )
+    simulation_result = simulate_pool(
+        SimulationConfig(
+            input_dir=synthetic_input_dir,
+            n_sims=180,
+            seed=23,
+            batch_size=60,
+            scoring_system=ScoringSystemKey.ROUND_OF_64_SEED,
+        )
+    )
+
+    manifest_payload = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest_payload["scoring_system"] == "round-of-64-seed"
+
+    entry_rows = _read_csv_rows(output_dir / "entry_summary.csv")
+    actual_by_entry = {
+        row["entry_id"]: (float(row["win_percentage"]), float(row["average_score"]))
+        for row in entry_rows
+    }
+    for entry in simulation_result.entry_results:
+        win_percentage, average_score = actual_by_entry[entry.entry_id]
+        assert win_percentage == entry.win_share * 100
+        assert average_score == entry.average_score
+
+    assert report_result.summary.n_sims == 180
 
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]]:

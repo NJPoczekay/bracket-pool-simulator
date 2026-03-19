@@ -23,12 +23,13 @@ from bracket_sim.domain.models import (
     SimulationRunMetadata,
 )
 from bracket_sim.domain.scoring import (
-    ESPN_ROUND_VALUES,
     aggregate_win_share_totals,
     build_predicted_wins_matrix,
+    build_team_seeds_array,
     score_entries,
     validate_entries,
 )
+from bracket_sim.domain.scoring_systems import resolve_scoring_spec
 from bracket_sim.domain.simulator import simulate_tournament
 from bracket_sim.infrastructure.observability.logging import configure_structured_logging
 from bracket_sim.infrastructure.storage.normalized_loader import load_normalized_input
@@ -73,6 +74,8 @@ def simulate_pool(config: SimulationConfig) -> SimulationResult:
         entries=normalized.entries,
         graph=graph,
     )
+    scoring_spec = resolve_scoring_spec(config.scoring_system)
+    team_seeds = build_team_seeds_array(team_ids=team_ids, teams=normalized.teams)
 
     rating_records_by_team_id = {
         record.team_id: record for record in normalized.ratings.records
@@ -148,7 +151,9 @@ def simulate_pool(config: SimulationConfig) -> SimulationResult:
         scores = score_entries(
             predicted_wins=predicted_wins,
             actual_wins=simulation.team_wins,
-            round_values=ESPN_ROUND_VALUES,
+            round_values=scoring_spec.round_values,
+            team_seeds=team_seeds,
+            seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
         )
         accumulator.win_share_totals += aggregate_win_share_totals(scores)
         accumulator.score_totals += np.sum(scores, axis=1, dtype=np.int64)

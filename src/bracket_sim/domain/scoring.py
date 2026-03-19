@@ -9,13 +9,22 @@ import numpy as np
 import numpy.typing as npt
 
 from bracket_sim.domain.bracket_graph import BracketGraph
-from bracket_sim.domain.models import PoolEntry
+from bracket_sim.domain.models import PoolEntry, Team
+from bracket_sim.domain.scoring_systems import ESPN_ROUND_VALUES, NO_SEED_BONUS_ROUNDS
 from bracket_sim.domain.simulator import canonical_team_order
 
 _MAX_WINS = 6
-ESPN_ROUND_VALUES = (10, 20, 40, 80, 160, 320)
 _DEFAULT_ROUND_VALUES = (1, 2, 4, 8, 16, 32)
-_NO_SEED_BONUS_ROUNDS = (False, False, False, False, False, False)
+
+__all__ = [
+    "ESPN_ROUND_VALUES",
+    "aggregate_win_share_totals",
+    "aggregate_win_shares",
+    "build_predicted_wins_matrix",
+    "build_team_seeds_array",
+    "score_entries",
+    "validate_entries",
+]
 
 
 def validate_entries(entries: list[PoolEntry], graph: BracketGraph) -> None:
@@ -91,7 +100,7 @@ def score_entries(
     *,
     round_values: Sequence[int] = _DEFAULT_ROUND_VALUES,
     team_seeds: npt.NDArray[np.int16] | None = None,
-    seed_bonus_rounds: Sequence[bool] = _NO_SEED_BONUS_ROUNDS,
+    seed_bonus_rounds: Sequence[bool] = NO_SEED_BONUS_ROUNDS,
 ) -> npt.NDArray[np.int32]:
     """Score each entry against each simulation with round-aware seed bonuses."""
 
@@ -134,6 +143,22 @@ def score_entries(
             ).astype(np.int32, copy=False)
 
     return scores
+
+
+def build_team_seeds_array(
+    *,
+    team_ids: Sequence[str],
+    teams: Sequence[Team],
+) -> npt.NDArray[np.int16]:
+    """Return aligned team seeds for canonical team-order scoring."""
+
+    seed_by_team_id = {team.team_id: team.seed for team in teams}
+    missing = sorted(set(team_ids) - set(seed_by_team_id))
+    if missing:
+        msg = f"Missing seed for team id(s): {missing[:5]}"
+        raise ValueError(msg)
+
+    return np.asarray([seed_by_team_id[team_id] for team_id in team_ids], dtype=np.int16)
 
 
 def _build_cumulative_round_values(round_values: Sequence[int]) -> npt.NDArray[np.int32]:

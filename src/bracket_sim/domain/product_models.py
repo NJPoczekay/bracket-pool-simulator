@@ -9,20 +9,10 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from bracket_sim.domain.models import Game, Team
+from bracket_sim.domain.scoring_systems import ScoringSystemKey as ScoringSystemKey
 
 if TYPE_CHECKING:
     from bracket_sim.domain.bracket_lab_models import CompletionInputs, PlayInSlot
-
-
-class ScoringSystemKey(StrEnum):
-    """Supported scoring system identifiers."""
-
-    ESPN = "1-2-4-8-16-32"
-    LINEAR = "1-2-3-4-5-6"
-    FIBONACCI = "2-3-5-8-13-21"
-    ROUND_PLUS_SEED = "round+seed"
-    ROUND_OF_64_FLAT = "round-of-64-flat"
-    ROUND_OF_64_SEED = "round-of-64-seed"
 
 
 class CompletionMode(StrEnum):

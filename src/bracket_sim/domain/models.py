@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
+
 _ALLOWED_ENGINES = {"numpy", "numba"}
 _ALLOWED_LOG_LEVELS = {"debug", "info", "warning", "error"}
 
@@ -141,6 +143,7 @@ class SimulationConfig(BaseModel):
     resume: bool = False
     engine: str = Field(default="numpy")
     log_level: str = Field(default="warning")
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
 
     @field_validator("engine")
     @classmethod
@@ -195,6 +198,7 @@ class ReportConfig(BaseModel):
     rating_scale: float = Field(default=11.0, gt=0)
     batch_size: int | None = Field(default=None, gt=0)
     engine: str = Field(default="numpy")
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
 
     @field_validator("engine")
     @classmethod
@@ -233,6 +237,7 @@ class RunManifest(BaseModel):
     batch_size: int = Field(gt=0)
     engine: str
     log_level: str
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
     entry_ids: list[str]
     team_ids: list[str]
 
@@ -322,6 +327,7 @@ class ReportBundleManifest(BaseModel):
     rating_scale: float = Field(gt=0)
     batch_size: int = Field(gt=0)
     engine: str
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
     entry_ids: list[str]
     team_ids: list[str]
     artifacts: list[ReportArtifact]
@@ -425,6 +431,7 @@ class BenchmarkConfig(BaseModel):
     simulation_budget_ms: float = Field(default=1_500.0, gt=0)
     scoring_budget_ms: float = Field(default=750.0, gt=0)
     rating_scale: float = Field(default=11.0, gt=0)
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
 
     @field_validator("engine")
     @classmethod

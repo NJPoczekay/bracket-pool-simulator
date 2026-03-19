@@ -241,6 +241,7 @@ uv run bracket-sim simulate \
 Useful options:
 
 - `--engine`: `numpy` or `numba`
+- `--scoring-system`: pick scoring model (`1-2-4-8-16-32`, `round-of-64-flat`, `round-of-64-seed`, etc.)
 - `--batch-size`: split large runs into checkpointed batches
 - `--run-dir`: write resumable artifacts
 - `--resume`: continue a prior run from `--run-dir`
@@ -289,6 +290,8 @@ uv run bracket-sim benchmark \
   --scoring-budget-ms 750
 ```
 
+`benchmark` also accepts `--scoring-system`, so you can profile Round of 64-only scoring pools directly.
+
 ### 5. Generate offline report bundles
 
 `report` turns a prepared dataset into machine-friendly artifacts for downstream analysis without requiring manual CLI inspection.
@@ -308,6 +311,7 @@ Useful options:
 
 - `--batch-size`: split deterministic report generation into batches
 - `--engine`: `numpy` or `numba`
+- `--scoring-system`: match report scoring to your pool rules (`round-of-64-flat`, `round-of-64-seed`, etc.)
 - `--json`: print the summary bundle metadata as JSON
 
 Output includes:
@@ -367,6 +371,8 @@ If those tracker path fields are omitted, they default to:
 - `reports/<season>/tracker/<pool-id>`
 
 The tracker config is intentionally tracker-only. Keep pre-lock optimizer assumptions out of this file because Bracket Lab and Pool Tracker do not share mutable state.
+
+Each pool can also set `scoring_system` (default: `1-2-4-8-16-32`). Use `round-of-64-flat` or `round-of-64-seed` for R64-only pool formats.
 
 Launch the integrated app with live tracker data:
 

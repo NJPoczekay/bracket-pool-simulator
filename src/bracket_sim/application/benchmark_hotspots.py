@@ -9,11 +9,12 @@ from bracket_sim.domain.bracket_graph import build_bracket_graph
 from bracket_sim.domain.constraints import validate_constraints
 from bracket_sim.domain.models import BenchmarkConfig, BenchmarkMeasurement, BenchmarkReport
 from bracket_sim.domain.scoring import (
-    ESPN_ROUND_VALUES,
     build_predicted_wins_matrix,
+    build_team_seeds_array,
     score_entries,
     validate_entries,
 )
+from bracket_sim.domain.scoring_systems import resolve_scoring_spec
 from bracket_sim.domain.simulator import simulate_tournament
 from bracket_sim.infrastructure.storage.normalized_loader import load_normalized_input
 
@@ -32,6 +33,8 @@ def benchmark_hotspots(config: BenchmarkConfig) -> BenchmarkReport:
         entries=normalized.entries,
         graph=graph,
     )
+    scoring_spec = resolve_scoring_spec(config.scoring_system)
+    team_seeds = build_team_seeds_array(team_ids=team_ids, teams=normalized.teams)
 
     rating_records_by_team_id = {
         record.team_id: record for record in normalized.ratings.records
@@ -61,7 +64,9 @@ def benchmark_hotspots(config: BenchmarkConfig) -> BenchmarkReport:
         score_entries(
             predicted_wins=predicted_wins,
             actual_wins=simulation.team_wins,
-            round_values=ESPN_ROUND_VALUES,
+            round_values=scoring_spec.round_values,
+            team_seeds=team_seeds,
+            seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
         )
         scoring_timings_ms.append((perf_counter() - started_scoring) * 1000)
 

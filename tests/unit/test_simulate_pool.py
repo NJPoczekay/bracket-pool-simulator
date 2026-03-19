@@ -12,6 +12,7 @@ import pytest
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.bracket_graph import BracketGraph
 from bracket_sim.domain.models import RatingRecord, SimulationConfig
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.domain.simulator import (
     TournamentSimulation,
 )
@@ -230,3 +231,30 @@ def test_simulate_pool_numba_feature_flag(synthetic_input_dir: Path) -> None:
 
     assert numba_result.entry_results == numpy_result.entry_results
     assert numba_result.champion_counts == numpy_result.champion_counts
+
+
+def test_simulate_pool_supports_round_of_64_pool_scoring(
+    synthetic_input_dir: Path,
+) -> None:
+    flat_result = simulate_pool(
+        SimulationConfig(
+            input_dir=synthetic_input_dir,
+            n_sims=120,
+            seed=31,
+            scoring_system=ScoringSystemKey.ROUND_OF_64_FLAT,
+        )
+    )
+    seed_result = simulate_pool(
+        SimulationConfig(
+            input_dir=synthetic_input_dir,
+            n_sims=120,
+            seed=31,
+            scoring_system=ScoringSystemKey.ROUND_OF_64_SEED,
+        )
+    )
+
+    assert sum(flat_result.champion_counts.values()) == 120
+    assert sum(seed_result.champion_counts.values()) == 120
+    assert [entry.average_score for entry in flat_result.entry_results] != [
+        entry.average_score for entry in seed_result.entry_results
+    ]

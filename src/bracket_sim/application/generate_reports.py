@@ -22,12 +22,13 @@ from bracket_sim.domain.models import (
     TeamAdvancementOddsRow,
 )
 from bracket_sim.domain.scoring import (
-    ESPN_ROUND_VALUES,
     aggregate_win_share_totals,
     build_predicted_wins_matrix,
+    build_team_seeds_array,
     score_entries,
     validate_entries,
 )
+from bracket_sim.domain.scoring_systems import resolve_scoring_spec
 from bracket_sim.domain.simulator import simulate_tournament
 from bracket_sim.infrastructure.storage.normalized_loader import load_normalized_input
 from bracket_sim.infrastructure.storage.report_bundle import (
@@ -75,6 +76,8 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         entries=normalized.entries,
         graph=graph,
     )
+    scoring_spec = resolve_scoring_spec(config.scoring_system)
+    team_seeds = build_team_seeds_array(team_ids=team_ids, teams=normalized.teams)
     team_index = {team_id: idx for idx, team_id in enumerate(team_ids)}
 
     rating_records_by_team_id = {
@@ -115,7 +118,9 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         scores = score_entries(
             predicted_wins=predicted_wins,
             actual_wins=simulation.team_wins,
-            round_values=ESPN_ROUND_VALUES,
+            round_values=scoring_spec.round_values,
+            team_seeds=team_seeds,
+            seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
         )
         _accumulate_batch(
             accumulator=accumulator,

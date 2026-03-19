@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from bracket_sim.application.run_pool_pipeline import PoolPipelineConfig
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.providers.espn_api import parse_espn_group_url
 from bracket_sim.infrastructure.storage.path_defaults import (
     build_tracker_paths,
@@ -105,6 +106,7 @@ class PoolProfileSource(BaseModel):
     seed: int
     batch_size: int | None = Field(default=None, gt=0)
     engine: str = Field(default="numpy")
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
     schedule: PoolSchedule | None = None
 
 
@@ -176,6 +178,7 @@ def load_pool_registry(path: Path) -> PoolRegistry:
                     "seed": pool.seed,
                     "batch_size": pool.batch_size,
                     "engine": pool.engine,
+                    "scoring_system": pool.scoring_system,
                     "schedule": pool.schedule,
                 }
             )

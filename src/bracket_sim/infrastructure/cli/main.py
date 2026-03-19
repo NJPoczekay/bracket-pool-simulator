@@ -23,6 +23,7 @@ from bracket_sim.domain.models import (
     ReportConfig,
     SimulationConfig,
 )
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.cli.presenter import (
     format_benchmark_report,
     format_matchup_tables,
@@ -107,6 +108,16 @@ def simulate_command(
         str,
         typer.Option("--log-level", help="Structured log verbosity: debug, info, warning, error"),
     ] = "warning",
+    scoring_system: Annotated[
+        ScoringSystemKey,
+        typer.Option(
+            "--scoring-system",
+            help=(
+                "Pool scoring system: 1-2-4-8-16-32, 1-2-3-4-5-6, 2-3-5-8-13-21, "
+                "round+seed, round-of-64-flat, round-of-64-seed"
+            ),
+        ),
+    ] = ScoringSystemKey.ESPN,
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit structured JSON instead of table output"),
@@ -124,6 +135,7 @@ def simulate_command(
             resume=resume,
             engine=engine,
             log_level=log_level,
+            scoring_system=scoring_system,
         )
         result = simulate_pool(config)
     except ValueError as exc:
@@ -164,6 +176,16 @@ def benchmark_command(
         float,
         typer.Option("--scoring-budget-ms", help="Maximum allowed scoring runtime in ms"),
     ] = 750.0,
+    scoring_system: Annotated[
+        ScoringSystemKey,
+        typer.Option(
+            "--scoring-system",
+            help=(
+                "Pool scoring system: 1-2-4-8-16-32, 1-2-3-4-5-6, 2-3-5-8-13-21, "
+                "round+seed, round-of-64-flat, round-of-64-seed"
+            ),
+        ),
+    ] = ScoringSystemKey.ESPN,
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit structured JSON instead of table output"),
@@ -179,6 +201,7 @@ def benchmark_command(
             engine=engine,
             simulation_budget_ms=simulation_budget_ms,
             scoring_budget_ms=scoring_budget_ms,
+            scoring_system=scoring_system,
         )
         report = benchmark_hotspots(config)
     except ValueError as exc:
@@ -234,6 +257,16 @@ def report_command(
         str,
         typer.Option("--engine", help="Simulation engine to use: numpy or numba"),
     ] = "numpy",
+    scoring_system: Annotated[
+        ScoringSystemKey,
+        typer.Option(
+            "--scoring-system",
+            help=(
+                "Pool scoring system: 1-2-4-8-16-32, 1-2-3-4-5-6, 2-3-5-8-13-21, "
+                "round+seed, round-of-64-flat, round-of-64-seed"
+            ),
+        ),
+    ] = ScoringSystemKey.ESPN,
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit bundle summary JSON instead of text output"),
@@ -263,6 +296,7 @@ def report_command(
             seed=seed,
             batch_size=batch_size,
             engine=engine,
+            scoring_system=scoring_system,
         )
         result = generate_reports(config)
         if publish_latest and latest_dir is not None:

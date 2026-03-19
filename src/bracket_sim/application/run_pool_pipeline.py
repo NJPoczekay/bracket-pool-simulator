@@ -12,6 +12,7 @@ from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.prepare_data import PrepareDataSummary, prepare_data
 from bracket_sim.application.refresh_data import RefreshDataSummary, refresh_data
 from bracket_sim.domain.models import ReportBundleResult, ReportConfig
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.providers.contracts import (
     EntriesProvider,
     RatingsProvider,
@@ -41,6 +42,7 @@ class PoolPipelineConfig(BaseModel):
     seed: int
     batch_size: int | None = Field(default=None, gt=0)
     engine: str = Field(default="numpy")
+    scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
 
     @field_validator("engine")
     @classmethod
@@ -135,6 +137,7 @@ def run_pool_pipeline(
             seed=config.seed,
             batch_size=config.batch_size,
             engine=config.engine,
+            scoring_system=config.scoring_system,
         )
     )
     publish_latest_report(

@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from tests.helpers.mock_espn_payloads import build_mock_payloads
 
 from bracket_sim.application.run_pool_pipeline import PoolPipelineResult, run_pool_pipeline
+from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.providers.espn_api import EspnApiProvider
 from bracket_sim.infrastructure.providers.ratings import LocalRatingsProvider
 from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
@@ -47,6 +48,7 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
                 seed=7,
                 batch_size=40,
                 engine="numpy",
+                scoring_system=ScoringSystemKey.ROUND_OF_64_FLAT,
             )
         ]
     )
@@ -82,6 +84,7 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
 
     latest_payload = latest_response.json()["latest_report"]
     report_dir = Path(latest_payload["report_dir"])
+    manifest_payload = json.loads((report_dir / "manifest.json").read_text(encoding="utf-8"))
 
     assert (tmp_path / "raw" / "teams.csv").exists()
     assert (tmp_path / "raw" / "entries.json").exists()
@@ -89,6 +92,7 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert (tmp_path / "prepared" / "ratings.csv").exists()
     assert (report_dir / "summary.json").exists()
     assert (report_dir / "manifest.json").exists()
+    assert manifest_payload["scoring_system"] == "round-of-64-flat"
     assert (report_dir / "entry_summary.csv").exists()
     assert (tmp_path / "reports" / "latest" / "summary.json").exists()
     assert "Bracket Lab" in dashboard_response.text

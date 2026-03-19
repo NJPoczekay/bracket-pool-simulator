@@ -22,13 +22,16 @@ from bracket_sim.domain.product_models import (
     PickDiagnostic,
     PickDiagnosticTag,
     PoolSettings,
-    ScoringSystemKey,
 )
 from bracket_sim.domain.scoring import (
-    ESPN_ROUND_VALUES,
     build_predicted_wins_matrix,
     score_entries,
     validate_entries,
+)
+from bracket_sim.domain.scoring_systems import (
+    ScoringSpec,
+    ScoringSystemKey,
+    resolve_scoring_spec,
 )
 from bracket_sim.domain.simulator import canonical_team_order, simulate_tournament
 from bracket_sim.infrastructure.storage.bracket_lab_prepared_loader import (
@@ -44,19 +47,6 @@ DEFAULT_POOL_SETTINGS = PoolSettings(
     pool_size=10,
     scoring_system=ScoringSystemKey.ESPN,
 )
-
-
-@dataclass(frozen=True)
-class ScoringSpec:
-    round_values: tuple[int, int, int, int, int, int]
-    seed_bonus_rounds: tuple[bool, bool, bool, bool, bool, bool] = (
-        False,
-        False,
-        False,
-        False,
-        False,
-        False,
-    )
 
 
 @dataclass(frozen=True)
@@ -543,30 +533,6 @@ def sample_game_winner(
         probabilities = probabilities / total
 
     return str(rng.choice(available_team_ids, p=probabilities))
-
-
-def resolve_scoring_spec(scoring_system: ScoringSystemKey) -> ScoringSpec:
-    if scoring_system == ScoringSystemKey.ESPN:
-        return ScoringSpec(round_values=ESPN_ROUND_VALUES)
-    if scoring_system == ScoringSystemKey.LINEAR:
-        return ScoringSpec(round_values=(1, 2, 3, 4, 5, 6))
-    if scoring_system == ScoringSystemKey.FIBONACCI:
-        return ScoringSpec(round_values=(2, 3, 5, 8, 13, 21))
-    if scoring_system == ScoringSystemKey.ROUND_PLUS_SEED:
-        return ScoringSpec(
-            round_values=(1, 2, 3, 4, 5, 6),
-            seed_bonus_rounds=(True, True, True, True, True, True),
-        )
-    if scoring_system == ScoringSystemKey.ROUND_OF_64_FLAT:
-        return ScoringSpec(round_values=(1, 0, 0, 0, 0, 0))
-    if scoring_system == ScoringSystemKey.ROUND_OF_64_SEED:
-        return ScoringSpec(
-            round_values=(0, 0, 0, 0, 0, 0),
-            seed_bonus_rounds=(True, False, False, False, False, False),
-        )
-
-    msg = f"Unsupported scoring system: {scoring_system}"
-    raise ValueError(msg)
 
 
 def weighted_slot_rating(slot: PlayInSlot) -> float:

@@ -92,6 +92,7 @@ def generate_report_id(*, config: ReportConfig) -> str:
         "rating_scale": config.rating_scale,
         "batch_size": config.effective_batch_size,
         "engine": config.engine,
+        "scoring_system": config.scoring_system,
     }
     encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:16]
@@ -121,6 +122,7 @@ def build_report_manifest(
         rating_scale=config.rating_scale,
         batch_size=config.effective_batch_size,
         engine=config.engine,
+        scoring_system=config.scoring_system,
         entry_ids=entry_ids,
         team_ids=team_ids,
         artifacts=artifacts,

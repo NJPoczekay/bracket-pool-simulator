@@ -57,6 +57,7 @@ def generate_run_id(*, config: SimulationConfig) -> str:
         "rating_scale": config.rating_scale,
         "batch_size": config.effective_batch_size,
         "engine": config.engine,
+        "scoring_system": config.scoring_system,
     }
     encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:16]
@@ -91,6 +92,7 @@ def build_run_manifest(
         batch_size=config.effective_batch_size,
         engine=config.engine,
         log_level=config.log_level,
+        scoring_system=config.scoring_system,
         entry_ids=entry_ids,
         team_ids=team_ids,
     )
@@ -118,6 +120,7 @@ def verify_run_manifest(
         "rating_scale": (manifest.rating_scale, config.rating_scale),
         "batch_size": (manifest.batch_size, config.effective_batch_size),
         "engine": (manifest.engine, config.engine),
+        "scoring_system": (manifest.scoring_system, config.scoring_system),
         "input_hashes": (manifest.input_hashes, expected_hashes),
         "entry_ids": (manifest.entry_ids, entry_ids),
         "team_ids": (manifest.team_ids, team_ids),

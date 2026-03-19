@@ -64,6 +64,32 @@ def test_simulate_command_json_output_is_stable(synthetic_input_dir: Path) -> No
     assert payload["run_metadata"]["engine"] == "numpy"
 
 
+def test_simulate_command_accepts_round_of_64_scoring_system(
+    synthetic_input_dir: Path,
+) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "simulate",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "100",
+            "--seed",
+            "7",
+            "--scoring-system",
+            "round-of-64-seed",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["n_sims"] == 100
+    assert len(payload["entry_results"]) == 8
+
+
 def test_simulate_command_supports_run_artifact_flags(
     synthetic_input_dir: Path,
     tmp_path: Path,
@@ -164,6 +190,40 @@ def test_report_command_writes_bundle_and_emits_json(
     assert (out_dir / "team_advancement_odds.csv").exists()
     assert (out_dir / "entry_summary.csv").exists()
     assert (out_dir / "champion_sensitivity.csv").exists()
+
+
+def test_report_command_accepts_round_of_64_scoring_system(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "report_cli_r64"
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            "--input",
+            str(synthetic_input_dir),
+            "--out",
+            str(out_dir),
+            "--n-sims",
+            "120",
+            "--seed",
+            "7",
+            "--batch-size",
+            "40",
+            "--scoring-system",
+            "round-of-64-flat",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["n_sims"] == 120
+    manifest_payload = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest_payload["scoring_system"] == "round-of-64-flat"
 
 
 def test_report_command_defaults_out_dir_and_publishes_latest(

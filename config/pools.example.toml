@@ -12,6 +12,7 @@ n_sims = 100000
 seed = 42
 batch_size = 50000
 engine = "numpy"
+scoring_system = "1-2-4-8-16-32"
 
 [pools.schedule]
 enabled = true
@@ -29,3 +30,4 @@ n_sims = 100000
 seed = 42
 batch_size = 50000
 engine = "numpy"
+scoring_system = "1-2-4-8-16-32"

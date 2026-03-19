@@ -25,6 +25,7 @@ n_sims = 5000
 seed = 11
 batch_size = 1000
 engine = "numpy"
+scoring_system = "round-of-64-seed"
 
 [pools.schedule]
 enabled = true
@@ -46,6 +47,7 @@ timezone = "America/Los_Angeles"
     assert pool.schedule is not None
     assert pool.schedule.enabled is True
     assert pool.schedule.timezone == "America/Los_Angeles"
+    assert pool.scoring_system.value == "round-of-64-seed"
 
 
 def test_load_pool_registry_defaults_tracker_dirs_from_pool_id(tmp_path: Path) -> None:
