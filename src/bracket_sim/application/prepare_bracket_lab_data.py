@@ -27,7 +27,7 @@ from bracket_sim.domain.models import CompletedGameConstraint, RatingRecord, Tea
 from bracket_sim.domain.probability_model import kenpom_win_probability
 from bracket_sim.domain.product_models import CompletionMode
 from bracket_sim.infrastructure.providers.contracts import RawAliasRow, RawRatingRow, RawTeamRow
-from bracket_sim.infrastructure.providers.ratings import normalize_rating_rows
+from bracket_sim.infrastructure.providers.ratings import normalize_rating_rows, team_alias_variants
 from bracket_sim.infrastructure.storage.bracket_lab_prepared_writer import (
     BracketLabPreparedDataset,
     write_bracket_lab_prepared_dataset,
@@ -242,28 +242,24 @@ def _validate_explicit_play_in_candidate_sources(
     manual_aliases: list[RawAliasRow],
 ) -> None:
     candidate_by_team_id = {
-        candidate.team_id: candidate
-        for slot in slot_specs
-        for candidate in slot.candidates
+        candidate.team_id: candidate for slot in slot_specs for candidate in slot.candidates
     }
     if not candidate_by_team_id:
         return
 
-    source_keys = {_normalize_alias_key(row.team) for row in input_rows}
+    source_keys = {alias for row in input_rows for alias in team_alias_variants(row.team)}
     manual_alias_keys_by_team_id: dict[str, set[str]] = {}
     for alias in manual_aliases:
-        manual_alias_keys_by_team_id.setdefault(alias.team_id, set()).add(
-            _normalize_alias_key(alias.alias)
+        manual_alias_keys_by_team_id.setdefault(alias.team_id, set()).update(
+            team_alias_variants(alias.alias)
         )
 
     missing_candidates = [
         candidate.team_name
         for team_id, candidate in sorted(candidate_by_team_id.items())
         if not (
-            {
-                _normalize_alias_key(candidate.team_id),
-                _normalize_alias_key(candidate.team_name),
-            }
+            team_alias_variants(candidate.team_id)
+            | team_alias_variants(candidate.team_name)
             | manual_alias_keys_by_team_id.get(team_id, set())
         )
         & source_keys
