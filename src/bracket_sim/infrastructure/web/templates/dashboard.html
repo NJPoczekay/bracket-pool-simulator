@@ -651,6 +651,57 @@
         display: none;
       }
 
+      .optimizer-card-grid {
+        display: grid;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .optimizer-card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 251, 246, 0.9);
+        padding: 18px;
+      }
+
+      .optimizer-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .optimizer-card-header h3 {
+        margin-bottom: 6px;
+      }
+
+      .optimizer-card-stats {
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-align: right;
+      }
+
+      .optimizer-card-summary {
+        margin-top: 12px;
+      }
+
+      .change-list {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+      }
+
+      .change-list li + li {
+        margin-top: 6px;
+      }
+
+      .optimizer-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
       .analysis-table-wrap {
         margin-top: 16px;
         overflow-x: auto;
@@ -822,10 +873,10 @@
           <article class="panel bracket-lab-panel">
             <div class="panel-item">
               <div>
-                <h3 style="margin-bottom: 6px;">Completion + Analyzer</h3>
+                <h3 style="margin-bottom: 6px;">Completion + Analyzer + Optimizer</h3>
                 <p class="muted" style="margin-bottom: 0;">
                   Lock in manual picks, auto-fill the rest, save drafts locally, and analyze the
-                  finished bracket.
+                  finished bracket, then optimize around the picks you keep locked.
                 </p>
               </div>
               <span class="mini-badge implemented-live">live</span>
@@ -861,6 +912,7 @@
                 <div class="control-actions">
                   <button id="finish-bracket-button" type="button" class="secondary-button">Finish Picks</button>
                   <button id="analyze-bracket-button" type="button" disabled>Analyze Bracket</button>
+                  <button id="optimize-bracket-button" type="button" disabled>Optimize Bracket</button>
                 </div>
               </div>
             </div>
@@ -968,6 +1020,28 @@
                   </thead>
                   <tbody id="analysis-diagnostics-body"></tbody>
                 </table>
+              </div>
+            </section>
+
+            <section id="optimizer-results" class="analysis-results" hidden>
+              <div class="analysis-grid">
+                <article class="summary-block">
+                  <h3>Projected Win Probability</h3>
+                  <p id="optimizer-win-probability" style="margin-bottom: 0;"></p>
+                </article>
+                <article class="summary-block">
+                  <h3>Pool Settings</h3>
+                  <p id="optimizer-pool-settings" style="margin-bottom: 0;"></p>
+                </article>
+                <article class="summary-block">
+                  <h3>Cache Identity</h3>
+                  <p id="optimizer-cache-key" style="margin-bottom: 0;"></p>
+                </article>
+              </div>
+
+              <div class="optimizer-card-grid">
+                <div id="optimizer-recommended-card"></div>
+                <div id="optimizer-alternatives"></div>
               </div>
             </section>
           </article>
@@ -1154,12 +1228,19 @@
         const completionInput = document.getElementById("completion-mode-input");
         const finishButton = document.getElementById("finish-bracket-button");
         const analyzeButton = document.getElementById("analyze-bracket-button");
+        const optimizeButton = document.getElementById("optimize-bracket-button");
         const pickFourInputs = [...document.querySelectorAll(".pick-four-input")];
         const resultsSection = document.getElementById("analysis-results");
+        const optimizerResultsSection = document.getElementById("optimizer-results");
         const diagnosticsBody = document.getElementById("analysis-diagnostics-body");
         const winProbabilityElement = document.getElementById("analysis-win-probability");
         const poolSettingsElement = document.getElementById("analysis-pool-settings");
         const cacheKeyElement = document.getElementById("analysis-cache-key");
+        const optimizerWinProbabilityElement = document.getElementById("optimizer-win-probability");
+        const optimizerPoolSettingsElement = document.getElementById("optimizer-pool-settings");
+        const optimizerCacheKeyElement = document.getElementById("optimizer-cache-key");
+        const optimizerRecommendedCard = document.getElementById("optimizer-recommended-card");
+        const optimizerAlternatives = document.getElementById("optimizer-alternatives");
         const savedBracketSelect = document.getElementById("saved-bracket-select");
         const savedBracketNameInput = document.getElementById("saved-bracket-name-input");
         const saveBracketButton = document.getElementById("save-bracket-button");
@@ -1168,6 +1249,7 @@
         let activeMobileTab = editorLayout.regions[0].region;
         let isAnalyzing = false;
         let isCompleting = false;
+        let isOptimizing = false;
         let lastCompletionResult = null;
         let isSavingBracket = false;
         let savedBracketSummaries = [];
@@ -1252,11 +1334,24 @@
           return parsed;
         }
 
+        function hideResultPanels() {
+          resultsSection.hidden = true;
+          optimizerResultsSection.hidden = true;
+        }
+
         function syncControls() {
-          finishButton.disabled = isAnalyzing || isCompleting || isSavingBracket;
+          finishButton.disabled = isAnalyzing || isCompleting || isOptimizing || isSavingBracket;
           analyzeButton.disabled = (
             isAnalyzing
             || isCompleting
+            || isOptimizing
+            || isSavingBracket
+            || remainingPickCount() > 0
+          );
+          optimizeButton.disabled = (
+            isAnalyzing
+            || isCompleting
+            || isOptimizing
             || isSavingBracket
             || remainingPickCount() > 0
           );
@@ -1269,8 +1364,12 @@
             return;
           }
           const hasName = savedBracketNameInput.value.trim().length > 0;
-          saveBracketButton.disabled = isAnalyzing || isCompleting || isSavingBracket || !hasName;
-          newBracketButton.disabled = isAnalyzing || isCompleting || isSavingBracket || !hasName;
+          saveBracketButton.disabled = (
+            isAnalyzing || isCompleting || isOptimizing || isSavingBracket || !hasName
+          );
+          newBracketButton.disabled = (
+            isAnalyzing || isCompleting || isOptimizing || isSavingBracket || !hasName
+          );
         }
 
         function renderBracketStatus() {
@@ -1280,14 +1379,14 @@
             if (lastCompletionResult !== null) {
               statusElement.textContent =
                 `${lastCompletionResult.auto_filled_pick_count} picks auto-filled using ` +
-                `${lastCompletionResult.completion_mode.replaceAll("_", " ")}. Ready to analyze.`;
+                `${lastCompletionResult.completion_mode.replaceAll("_", " ")}. Ready to analyze or optimize.`;
               return;
             }
             if (autoFilled > 0) {
-              statusElement.textContent = "Bracket complete with auto-filled picks. Ready to analyze.";
+              statusElement.textContent = "Bracket complete with auto-filled picks. Ready to analyze or optimize.";
               return;
             }
-            statusElement.textContent = "Bracket complete with locked manual picks. Ready to analyze.";
+            statusElement.textContent = "Bracket complete with locked manual picks. Ready to analyze or optimize.";
             return;
           }
           statusElement.textContent =
@@ -1350,7 +1449,7 @@
             return button;
           }
           button.addEventListener("click", () => {
-            if (isAnalyzing || isCompleting || isSavingBracket) {
+            if (isAnalyzing || isCompleting || isOptimizing || isSavingBracket) {
               return;
             }
             const latestPick = pickState(game.game_id);
@@ -1369,7 +1468,7 @@
             }
             lastCompletionResult = null;
             syncPicks();
-            resultsSection.hidden = true;
+            hideResultPanels();
             renderEditor();
           });
           return button;
@@ -1590,6 +1689,7 @@
         }
 
         function renderResults(payload) {
+          optimizerResultsSection.hidden = true;
           resultsSection.hidden = false;
           winProbabilityElement.textContent = percentage(payload.win_probability);
           poolSettingsElement.textContent = `${payload.pool_settings.pool_size} entries, ${payload.pool_settings.scoring_system}`;
@@ -1607,6 +1707,100 @@
               </tr>
             `)
             .join("");
+        }
+
+        function renderPickChanges(changes) {
+          if (!changes.length) {
+            return '<p class="muted optimizer-card-summary">No pick changes from your current bracket.</p>';
+          }
+          return `
+            <ul class="change-list">
+              ${changes.map((change) => `
+                <li>
+                  <strong>${roundLabel(change.round)}:</strong>
+                  ${change.from_team_name} to ${change.to_team_name}
+                </li>
+              `).join("")}
+            </ul>
+          `;
+        }
+
+        function applyOptimizedBracket(bracket, message) {
+          applyBracket(bracket);
+          lastCompletionResult = null;
+          hideResultPanels();
+          renderEditor();
+          statusElement.textContent = message;
+        }
+
+        function buildOptimizationCard({title, result, message}) {
+          const card = document.createElement("article");
+          card.className = "optimizer-card";
+          card.innerHTML = `
+            <div class="optimizer-card-header">
+              <div>
+                <h3>${title}</h3>
+                <p class="muted" style="margin-bottom: 0;">${result.summary || ""}</p>
+              </div>
+              <div class="optimizer-card-stats">
+                <div>${percentage(result.projected_win_probability)}</div>
+                <div>${result.changed_pick_count} changed picks</div>
+              </div>
+            </div>
+            <div class="optimizer-card-summary">
+              ${renderPickChanges(result.changed_picks)}
+            </div>
+            <div class="optimizer-actions">
+              <button type="button" class="secondary-button">Apply Bracket</button>
+            </div>
+          `;
+          const button = card.querySelector("button");
+          if (button !== null) {
+            button.addEventListener("click", () => {
+              applyOptimizedBracket(result.bracket, message);
+            });
+          }
+          return card;
+        }
+
+        function renderOptimizationResults(payload) {
+          resultsSection.hidden = true;
+          optimizerResultsSection.hidden = false;
+          optimizerWinProbabilityElement.textContent = percentage(payload.projected_win_probability);
+          optimizerPoolSettingsElement.textContent = `${payload.pool_settings.pool_size} entries, ${payload.pool_settings.scoring_system}`;
+          optimizerCacheKeyElement.innerHTML = `<code>${payload.cache_key}</code>`;
+
+          optimizerRecommendedCard.innerHTML = "";
+          optimizerRecommendedCard.appendChild(
+            buildOptimizationCard({
+              title: "Recommended Bracket",
+              result: {
+                bracket: payload.recommended_bracket,
+                projected_win_probability: payload.projected_win_probability,
+                changed_pick_count: payload.changed_pick_count,
+                changed_picks: payload.changed_picks,
+                summary: payload.summary,
+              },
+              message: "Applied recommended optimized bracket.",
+            }),
+          );
+
+          optimizerAlternatives.innerHTML = "";
+          if (!payload.alternatives.length) {
+            optimizerAlternatives.innerHTML = (
+              '<article class="optimizer-card"><h3>Alternatives</h3><p class="muted" style="margin-bottom: 0;">No additional region-winner-diverse alternatives were found for the current locks.</p></article>'
+            );
+            return;
+          }
+          payload.alternatives.forEach((alternative) => {
+            optimizerAlternatives.appendChild(
+              buildOptimizationCard({
+                title: alternative.label,
+                result: alternative,
+                message: `Applied ${alternative.label.toLowerCase()}.`,
+              }),
+            );
+          });
         }
 
         function serializedBracket() {
@@ -1715,7 +1909,7 @@
           }
           lastCompletionResult = null;
           clearPickFourInputs();
-          resultsSection.hidden = true;
+          hideResultPanels();
           renderEditor();
         }
 
@@ -1737,7 +1931,7 @@
           }
           lastCompletionResult = null;
           clearPickFourInputs();
-          resultsSection.hidden = true;
+          hideResultPanels();
           renderEditor();
         }
 
@@ -1899,13 +2093,62 @@
             }
             applyBracket(responseBody.completed_bracket);
             lastCompletionResult = responseBody;
-            resultsSection.hidden = true;
+            hideResultPanels();
             renderEditor();
           } catch (error) {
             statusElement.textContent =
               error instanceof Error ? error.message : "Completion failed";
           } finally {
             isCompleting = false;
+            syncControls();
+          }
+        }
+
+        async function optimizeBracket() {
+          if (remainingPickCount() > 0) {
+            renderBracketStatus();
+            syncControls();
+            return;
+          }
+
+          const pickFour = pickFourPayload();
+          if (pickFour.error !== null) {
+            statusElement.textContent = pickFour.error;
+            return;
+          }
+
+          isOptimizing = true;
+          syncControls();
+          statusElement.textContent = "Searching for strong bracket alternatives...";
+          const payload = {
+            bracket: serializedBracket(),
+            pool_settings: {
+              pool_size: currentPoolSize(),
+              scoring_system: scoringInput.value,
+            },
+            completion_mode: currentAnalysisCompletionMode(),
+            pick_four: pickFour.payload,
+          };
+
+          try {
+            const response = await fetch("/api/bracket-lab/optimize", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const responseBody = await response.json();
+            if (!response.ok) {
+              throw new Error(responseBody.detail || "Optimization failed");
+            }
+            renderOptimizationResults(responseBody);
+            statusElement.textContent = "Optimization complete.";
+          } catch (error) {
+            statusElement.textContent =
+              error instanceof Error ? error.message : "Optimization failed";
+          } finally {
+            isOptimizing = false;
             syncControls();
           }
         }
@@ -1953,23 +2196,24 @@
 
         finishButton.addEventListener("click", finishBracket);
         analyzeButton.addEventListener("click", analyzeBracket);
+        optimizeButton.addEventListener("click", optimizeBracket);
         poolSizeInput.addEventListener("input", () => {
-          resultsSection.hidden = true;
+          hideResultPanels();
           syncControls();
         });
         scoringInput.addEventListener("change", () => {
-          resultsSection.hidden = true;
+          hideResultPanels();
           syncControls();
         });
         completionInput.addEventListener("change", () => {
           lastCompletionResult = null;
-          resultsSection.hidden = true;
+          hideResultPanels();
           renderBracketStatus();
         });
         pickFourInputs.forEach((input) => {
           input.addEventListener("change", () => {
             lastCompletionResult = null;
-            resultsSection.hidden = true;
+            hideResultPanels();
             renderBracketStatus();
           });
         });

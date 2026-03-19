@@ -25,7 +25,7 @@ def test_foundation_endpoint_exposes_analyzer_mvp_contracts() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["roadmap_phase"] == "phase_3_completion_tools"
+    assert payload["roadmap_phase"] == "phase_4_optimizer_mvp"
     assert [workflow["key"] for workflow in payload["workflows"]] == [
         "bracket_lab",
         "pool_tracker",
@@ -115,7 +115,7 @@ def test_bracket_lab_api_requires_configured_dataset() -> None:
     assert saved_brackets_response.json()["detail"] == "Bracket Lab is not configured"
 
 
-def test_bracket_lab_bootstrap_and_analyze_endpoints(
+def test_bracket_lab_bootstrap_analyze_and_optimize_endpoints(
     prepared_bracket_lab_dir: Path,
     synthetic_input_dir: Path,
 ) -> None:
@@ -149,6 +149,19 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
             "completion_mode": "manual",
         },
     )
+    optimize_response = client.post(
+        "/api/bracket-lab/optimize",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir),
+            },
+            "pool_settings": {
+                "pool_size": 18,
+                "scoring_system": "2-3-5-8-13-21",
+            },
+            "completion_mode": "manual",
+        },
+    )
 
     assert bootstrap_response.status_code == 200
     bootstrap = bootstrap_response.json()
@@ -171,6 +184,42 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     assert len(analysis["pick_diagnostics"]) == 63
     assert analysis["cache_key"].startswith("analysis-")
 
+    assert optimize_response.status_code == 200
+    optimization = optimize_response.json()
+    assert optimization["cache_key"].startswith("optimization-")
+    assert optimization["changed_pick_count"] == len(optimization["changed_picks"])
+    assert optimization["summary"]
+    assert len(optimization["alternatives"]) <= 3
+
+
+def test_optimize_endpoint_rejects_incomplete_brackets(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+) -> None:
+    client = TestClient(
+        create_app(
+            bracket_lab_input=prepared_bracket_lab_dir,
+            enable_scheduler=False,
+        )
+    )
+
+    response = client.post(
+        "/api/bracket-lab/optimize",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir)[:4],
+            },
+            "pool_settings": {
+                "pool_size": 18,
+                "scoring_system": "1-2-4-8-16-32",
+            },
+            "completion_mode": "manual",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Optimizer requires a complete bracket" in response.json()["detail"]
+
 
 def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(
     prepared_bracket_lab_dir: Path,
@@ -189,13 +238,16 @@ def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(
     assert 'id="bracket-lab-desktop"' in response.text
     assert 'id="bracket-mobile-tabs"' in response.text
     assert "Finish Picks" in response.text
+    assert "Optimize Bracket" in response.text
     assert "Pick Four" in response.text
     assert "63 picks remaining before analysis. Manual picks stay locked." in response.text
     assert 'id="analyze-bracket-button" type="button" disabled' in response.text
+    assert 'id="optimize-bracket-button" type="button" disabled' in response.text
     assert 'id="saved-bracket-select"' in response.text
     assert 'id="saved-bracket-name-input"' in response.text
     assert 'id="new-bracket-button"' in response.text
     assert 'id="load-bracket-button"' not in response.text
+    assert 'id="optimizer-results"' in response.text
 
 
 def test_saved_bracket_api_round_trip_persists_to_disk(

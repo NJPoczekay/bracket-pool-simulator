@@ -28,7 +28,7 @@ def build_product_foundation(
 
     return ProductFoundation(
         app_name="Bracket Pool Simulator",
-        roadmap_phase="phase_3_completion_tools",
+        roadmap_phase="phase_4_optimizer_mvp",
         workflows=_workflows(
             bracket_lab_enabled=bracket_lab_enabled,
             tracker_enabled=tracker_enabled,
@@ -115,7 +115,8 @@ def _workflows(
             label="Bracket Lab",
             timing="Pre-tournament",
             description=(
-                "Build, complete, and analyze brackets before lock with public-pick aware scoring."
+                "Build, complete, analyze, and optimize brackets before lock with "
+                "public-pick aware scoring."
             ),
             sequence=1,
             state=WorkflowState.LIVE if bracket_lab_enabled else WorkflowState.SETUP_REQUIRED,

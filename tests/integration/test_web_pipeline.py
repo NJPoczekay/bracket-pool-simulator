@@ -96,7 +96,7 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert "Top Champions" in dashboard_response.text
 
 
-def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
+def test_web_shell_renders_live_bracket_lab_editor_analysis_and_optimizer_api(
     prepared_bracket_lab_dir: Path,
     synthetic_input_dir: Path,
 ) -> None:
@@ -141,12 +141,26 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
                 "completion_mode": "manual",
             },
         )
+        optimize_response = client.post(
+            "/api/bracket-lab/optimize",
+            json={
+                "bracket": {
+                    "picks": _editable_bracket_payload(synthetic_input_dir),
+                },
+                "pool_settings": {
+                    "pool_size": 12,
+                    "scoring_system": "round+seed",
+                },
+                "completion_mode": "manual",
+            },
+        )
 
     assert dashboard_response.status_code == 200
-    assert "Completion + Analyzer" in dashboard_response.text
+    assert "Completion + Analyzer + Optimizer" in dashboard_response.text
     assert "Finish Picks" in dashboard_response.text
     assert "Pick Four" in dashboard_response.text
     assert "Analyze Bracket" in dashboard_response.text
+    assert "Optimize Bracket" in dashboard_response.text
     assert "Dataset hash" in dashboard_response.text
     assert 'id="bracket-lab-editor-layout"' in dashboard_response.text
     assert 'id="bracket-mobile-tabs"' in dashboard_response.text
@@ -167,6 +181,12 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
     assert payload["public_percentile"] is None
     assert payload["pool_settings"]["scoring_system"] == "round+seed"
     assert payload["pick_diagnostics"][0]["tags"] is not None
+
+    assert optimize_response.status_code == 200
+    optimizer_payload = optimize_response.json()
+    assert optimizer_payload["cache_key"].startswith("optimization-")
+    assert optimizer_payload["summary"]
+    assert len(optimizer_payload["alternatives"]) <= 3
 
 
 def _build_provider(

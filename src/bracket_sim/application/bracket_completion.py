@@ -11,6 +11,7 @@ from bracket_sim.domain.product_models import (
     CompleteBracketRequest,
     CompletionMode,
     EditableBracket,
+    PickFourSelection,
 )
 from bracket_sim.domain.scoring import validate_entries
 
@@ -150,6 +151,77 @@ def derive_region_champion_game_ids(graph: BracketGraph) -> dict[str, str]:
     return dict(sorted(region_champion_game_ids.items()))
 
 
+def derive_forced_winners_by_game_id(
+    *,
+    canonical_bracket: EditableBracket,
+    graph: BracketGraph,
+    region_champion_game_ids: dict[str, str],
+    pick_four: PickFourSelection | None = None,
+) -> dict[str, str]:
+    """Return all game winners forced by locked picks and Pick Four constraints."""
+
+    forced_winners_by_game_id: dict[str, str] = {}
+
+    def require_winner(*, game_id: str, winner_team_id: str, origin: str) -> None:
+        if winner_team_id not in graph.possible_teams_by_game_id[game_id]:
+            msg = f"{origin} winner {winner_team_id!r} is not possible in game {game_id}"
+            raise ValueError(msg)
+
+        existing = forced_winners_by_game_id.get(game_id)
+        if existing is not None and existing != winner_team_id:
+            msg = (
+                f"Conflicting forced winners for game {game_id}: "
+                f"{existing!r} vs {winner_team_id!r}"
+            )
+            raise ValueError(msg)
+
+        forced_winners_by_game_id[game_id] = winner_team_id
+
+        game = graph.games_by_id[game_id]
+        if game.round == 1:
+            return
+
+        left_child_id, right_child_id = graph.children_by_game_id[game_id]
+        left_contains_winner = winner_team_id in graph.possible_teams_by_game_id[left_child_id]
+        right_contains_winner = winner_team_id in graph.possible_teams_by_game_id[right_child_id]
+        if left_contains_winner == right_contains_winner:
+            msg = f"Could not route winner {winner_team_id!r} through game {game_id}"
+            raise RuntimeError(msg)
+
+        require_winner(
+            game_id=left_child_id if left_contains_winner else right_child_id,
+            winner_team_id=winner_team_id,
+            origin=origin,
+        )
+
+    for pick in canonical_bracket.picks:
+        if pick.locked and pick.winner_team_id is not None:
+            require_winner(
+                game_id=pick.game_id,
+                winner_team_id=pick.winner_team_id,
+                origin="Locked pick",
+            )
+
+    if pick_four is not None:
+        for region, seed in sorted(pick_four.regional_winner_seeds.items()):
+            champion_game_id = region_champion_game_ids.get(region)
+            if champion_game_id is None:
+                msg = f"Pick Four region {region!r} does not exist in the bracket"
+                raise ValueError(msg)
+            winner_team_id = _team_id_for_region_seed(
+                graph=graph,
+                region=region,
+                seed=seed,
+            )
+            require_winner(
+                game_id=champion_game_id,
+                winner_team_id=winner_team_id,
+                origin=f"Pick Four region {region}",
+            )
+
+    return forced_winners_by_game_id
+
+
 def complete_bracket(
     *,
     request: CompleteBracketRequest,
@@ -181,66 +253,14 @@ def complete_bracket(
         for pick in canonical.picks
         if pick.locked and pick.winner_team_id is not None
     }
+    forced_winners_by_game_id = derive_forced_winners_by_game_id(
+        canonical_bracket=canonical,
+        graph=graph,
+        region_champion_game_ids=region_champion_game_ids,
+        pick_four=request.pick_four,
+    )
     winners_by_game_id: dict[str, str | None] = dict.fromkeys(graph.games_by_id, None)
-    forced_winners_by_game_id: dict[str, str] = {}
-
-    def require_winner(*, game_id: str, winner_team_id: str, origin: str) -> None:
-        if winner_team_id not in graph.possible_teams_by_game_id[game_id]:
-            msg = f"{origin} winner {winner_team_id!r} is not possible in game {game_id}"
-            raise ValueError(msg)
-
-        existing = forced_winners_by_game_id.get(game_id)
-        if existing is not None and existing != winner_team_id:
-            msg = (
-                f"Conflicting forced winners for game {game_id}: "
-                f"{existing!r} vs {winner_team_id!r}"
-            )
-            raise ValueError(msg)
-
-        forced_winners_by_game_id[game_id] = winner_team_id
-        winners_by_game_id[game_id] = winner_team_id
-
-        game = graph.games_by_id[game_id]
-        if game.round == 1:
-            return
-
-        left_child_id, right_child_id = graph.children_by_game_id[game_id]
-        left_contains_winner = winner_team_id in graph.possible_teams_by_game_id[left_child_id]
-        right_contains_winner = winner_team_id in graph.possible_teams_by_game_id[right_child_id]
-        if left_contains_winner == right_contains_winner:
-            msg = f"Could not route winner {winner_team_id!r} through game {game_id}"
-            raise RuntimeError(msg)
-
-        require_winner(
-            game_id=left_child_id if left_contains_winner else right_child_id,
-            winner_team_id=winner_team_id,
-            origin=origin,
-        )
-
-    for pick in canonical.picks:
-        if pick.locked and pick.winner_team_id is not None:
-            require_winner(
-                game_id=pick.game_id,
-                winner_team_id=pick.winner_team_id,
-                origin="Locked pick",
-            )
-
-    if request.pick_four is not None:
-        for region, seed in sorted(request.pick_four.regional_winner_seeds.items()):
-            champion_game_id = region_champion_game_ids.get(region)
-            if champion_game_id is None:
-                msg = f"Pick Four region {region!r} does not exist in the bracket"
-                raise ValueError(msg)
-            winner_team_id = _team_id_for_region_seed(
-                graph=graph,
-                region=region,
-                seed=seed,
-            )
-            require_winner(
-                game_id=champion_game_id,
-                winner_team_id=winner_team_id,
-                origin=f"Pick Four region {region}",
-            )
+    winners_by_game_id.update(forced_winners_by_game_id)
 
     for game_id in graph.topological_game_ids:
         if winners_by_game_id[game_id] is not None:

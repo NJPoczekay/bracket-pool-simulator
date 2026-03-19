@@ -190,6 +190,19 @@ class BracketAnalysis(BaseModel):
     pick_diagnostics: list[PickDiagnostic]
 
 
+class BracketPickChange(BaseModel):
+    """One pick difference between the user's bracket and an optimizer result."""
+
+    model_config = ConfigDict(frozen=True)
+
+    game_id: str = Field(min_length=1)
+    round: int = Field(ge=1, le=6)
+    from_team_id: str = Field(min_length=1)
+    from_team_name: str = Field(min_length=1)
+    to_team_id: str = Field(min_length=1)
+    to_team_name: str = Field(min_length=1)
+
+
 class OptimizationAlternative(BaseModel):
     """One alternative bracket recommendation from the optimizer."""
 
@@ -199,6 +212,7 @@ class OptimizationAlternative(BaseModel):
     bracket: EditableBracket
     projected_win_probability: float = Field(ge=0.0, le=1.0)
     changed_pick_count: int = Field(ge=0)
+    changed_picks: list[BracketPickChange] = Field(default_factory=list)
     summary: str | None = None
 
 
@@ -214,6 +228,8 @@ class OptimizationResult(BaseModel):
     recommended_bracket: EditableBracket
     projected_win_probability: float = Field(ge=0.0, le=1.0)
     changed_pick_count: int = Field(ge=0)
+    changed_picks: list[BracketPickChange] = Field(default_factory=list)
+    summary: str | None = None
     alternatives: list[OptimizationAlternative]
 
 
@@ -326,6 +342,17 @@ class AnalyzeBracketRequest(BaseModel):
     bracket: EditableBracket
     pool_settings: PoolSettings
     completion_mode: CompletionMode = CompletionMode.MANUAL
+
+
+class OptimizeBracketRequest(BaseModel):
+    """Request payload for deterministic bracket optimization."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket: EditableBracket
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+    pick_four: PickFourSelection | None = None
 
 
 class CompleteBracketRequest(BaseModel):
