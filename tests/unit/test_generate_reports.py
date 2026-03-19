@@ -59,9 +59,9 @@ def test_generate_reports_writes_deterministic_bundle(
     assert len(sensitivity_rows) == len(champion_teams) * len(entry_rows)
 
     championship_total = sum(float(row["win_championship"]) for row in team_rows)
-    win_share_total = sum(float(row["win_share"]) for row in entry_rows)
+    win_percentage_total = sum(float(row["win_percentage"]) for row in entry_rows)
     assert math.isclose(championship_total, 1.0, rel_tol=1e-12, abs_tol=1e-12)
-    assert math.isclose(win_share_total, 1.0, rel_tol=1e-12, abs_tol=1e-12)
+    assert math.isclose(win_percentage_total, 100.0, rel_tol=1e-12, abs_tol=1e-12)
 
 
 def test_generate_reports_entry_summary_matches_simulation_results(
@@ -89,13 +89,13 @@ def test_generate_reports_entry_summary_matches_simulation_results(
 
     entry_rows = _read_csv_rows(output_dir / "entry_summary.csv")
     actual_by_entry = {
-        row["entry_id"]: (float(row["win_share"]), float(row["average_score"]))
+        row["entry_id"]: (float(row["win_percentage"]), float(row["average_score"]))
         for row in entry_rows
     }
 
     for entry in simulation_result.entry_results:
-        win_share, average_score = actual_by_entry[entry.entry_id]
-        assert win_share == entry.win_share
+        win_percentage, average_score = actual_by_entry[entry.entry_id]
+        assert win_percentage == entry.win_share * 100
         assert average_score == entry.average_score
 
     champion_rows = report_result.summary.top_champions

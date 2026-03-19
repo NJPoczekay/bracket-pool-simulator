@@ -32,7 +32,7 @@ def test_simulate_command_runs_with_table_output(synthetic_input_dir: Path) -> N
 
     assert result.exit_code == 0
     assert "Run ID:" in result.stdout
-    assert "Win Share" in result.stdout
+    assert "Win %" in result.stdout
     assert "Simulations: 100" in result.stdout
 
 

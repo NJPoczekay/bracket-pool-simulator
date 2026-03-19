@@ -156,7 +156,16 @@ def write_entry_summary_csv(path: Path, rows: list[EntryReportRow]) -> ReportArt
 
     return _write_csv_rows(
         path=path,
-        rows=[row.model_dump(mode="json") for row in rows],
+        rows=[
+            {
+                "rank": row.rank,
+                "entry_id": row.entry_id,
+                "entry_name": row.entry_name,
+                "win_percentage": row.win_share * 100,
+                "average_score": row.average_score,
+            }
+            for row in rows
+        ],
     )
 
 
@@ -168,7 +177,24 @@ def write_champion_sensitivity_csv(
 
     return _write_csv_rows(
         path=path,
-        rows=[row.model_dump(mode="json") for row in rows],
+        rows=[
+            {
+                "champion_team_id": row.champion_team_id,
+                "champion_team_name": row.champion_team_name,
+                "champion_probability": row.champion_probability,
+                "champion_simulations": row.champion_simulations,
+                "entry_rank": row.entry_rank,
+                "entry_id": row.entry_id,
+                "entry_name": row.entry_name,
+                "baseline_win_percentage": row.baseline_win_share * 100,
+                "conditional_win_percentage": row.conditional_win_share * 100,
+                "win_percentage_point_delta": row.win_share_delta * 100,
+                "baseline_average_score": row.baseline_average_score,
+                "conditional_average_score": row.conditional_average_score,
+                "average_score_delta": row.average_score_delta,
+            }
+            for row in rows
+        ],
     )
 
 

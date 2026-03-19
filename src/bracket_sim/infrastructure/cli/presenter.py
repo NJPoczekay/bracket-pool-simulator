@@ -36,14 +36,15 @@ def format_result_table(result: SimulationResult) -> str:
     lines.extend(
         [
             "",
-            f"{'Entry':<24} {'Win Share':>10} {'Avg Score':>10}",
+            f"{'Entry':<24} {'Win %':>10} {'Avg Score':>10}",
             f"{'-' * 24} {'-' * 10} {'-' * 10}",
         ]
     )
 
     for entry in result.entry_results:
         lines.append(
-            f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} {entry.average_score:>10.2f}"
+            f"{entry.entry_name[:24]:<24} {entry.win_share * 100:>10.2f} "
+            f"{entry.average_score:>10.2f}"
         )
 
     return "\n".join(lines)
@@ -83,13 +84,13 @@ def format_report_summary(result: ReportBundleResult) -> str:
         lines.extend(
             [
                 "",
-                f"{'Top Entries':<24} {'Win Share':>10} {'Avg Score':>10}",
+                f"{'Top Entries':<24} {'Win %':>10} {'Avg Score':>10}",
                 f"{'-' * 24} {'-' * 10} {'-' * 10}",
             ]
         )
         for entry in result.summary.top_entries:
             lines.append(
-                f"{entry.entry_name[:24]:<24} {entry.win_share:>10.4f} "
+                f"{entry.entry_name[:24]:<24} {entry.win_share * 100:>10.2f} "
                 f"{entry.average_score:>10.2f}"
             )
 
