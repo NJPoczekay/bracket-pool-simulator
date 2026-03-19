@@ -145,6 +145,44 @@ def test_optimize_bracket_improves_over_chalk_baseline(
     assert optimized.changed_pick_count > 0
 
 
+@pytest.mark.parametrize(
+    "scoring_system",
+    [
+        ScoringSystemKey.ROUND_OF_64_FLAT,
+        ScoringSystemKey.ROUND_OF_64_SEED,
+    ],
+)
+def test_optimize_bracket_supports_round_of_64_scoring_systems(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+    scoring_system: ScoringSystemKey,
+) -> None:
+    service = BracketLabService(prepared_bracket_lab_dir)
+    bracket = _editable_bracket_from_fixture(synthetic_input_dir, entry_index=0)
+    baseline = service.analyze_bracket(
+        AnalyzeBracketRequest(
+            bracket=bracket,
+            pool_settings=PoolSettings(pool_size=25, scoring_system=scoring_system),
+        )
+    )
+    optimized = service.optimize_bracket(
+        OptimizeBracketRequest(
+            bracket=bracket,
+            pool_settings=PoolSettings(pool_size=25, scoring_system=scoring_system),
+        )
+    )
+    optimized_analysis = service.analyze_bracket(
+        AnalyzeBracketRequest(
+            bracket=optimized.recommended_bracket,
+            pool_settings=PoolSettings(pool_size=25, scoring_system=scoring_system),
+        )
+    )
+
+    assert optimized.cache_key.startswith("optimization-")
+    assert optimized.changed_pick_count > 0
+    assert optimized_analysis.win_probability > baseline.win_probability
+
+
 def _editable_bracket_from_fixture(
     synthetic_input_dir: Path,
     *,

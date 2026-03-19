@@ -226,6 +226,41 @@ def test_web_bracket_lab_analysis_accepts_round_of_64_scoring_systems(
     assert payload["cache_key"].startswith("analysis-")
 
 
+@pytest.mark.parametrize(
+    "scoring_system",
+    ["round-of-64-flat", "round-of-64-seed"],
+)
+def test_web_bracket_lab_optimizer_accepts_round_of_64_scoring_systems(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+    scoring_system: str,
+) -> None:
+    app = create_app(
+        bracket_lab_input=prepared_bracket_lab_dir,
+        enable_scheduler=False,
+    )
+    with TestClient(app) as client:
+        optimize_response = client.post(
+            "/api/bracket-lab/optimize",
+            json={
+                "bracket": {
+                    "picks": _editable_bracket_payload(synthetic_input_dir),
+                },
+                "pool_settings": {
+                    "pool_size": 12,
+                    "scoring_system": scoring_system,
+                },
+                "completion_mode": "manual",
+            },
+        )
+
+    assert optimize_response.status_code == 200
+    payload = optimize_response.json()
+    assert payload["pool_settings"]["scoring_system"] == scoring_system
+    assert payload["cache_key"].startswith("optimization-")
+    assert payload["changed_pick_count"] == len(payload["changed_picks"])
+
+
 def _build_provider(
     *,
     challenge_payload: dict[str, Any],
