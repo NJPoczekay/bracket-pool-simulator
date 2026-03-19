@@ -14,6 +14,7 @@ from bracket_sim.domain.simulator import canonical_team_order
 
 _MAX_WINS = 6
 _DEFAULT_ROUND_VALUES = (1, 2, 4, 8, 16, 32)
+_NO_SEED_BONUS_ROUNDS = (False, False, False, False, False, False)
 
 
 def validate_entries(entries: list[PoolEntry], graph: BracketGraph) -> None:
@@ -89,9 +90,9 @@ def score_entries(
     *,
     round_values: Sequence[int] = _DEFAULT_ROUND_VALUES,
     team_seeds: npt.NDArray[np.int16] | None = None,
-    seed_bonus: bool = False,
+    seed_bonus_rounds: Sequence[bool] = _NO_SEED_BONUS_ROUNDS,
 ) -> npt.NDArray[np.int32]:
-    """Score each entry against each simulation using cumulative round values."""
+    """Score each entry against each simulation with round-aware seed bonuses."""
 
     if predicted_wins.ndim != 2 or actual_wins.ndim != 2:
         msg = "Predicted and actual wins must be 2D arrays"
@@ -104,14 +105,16 @@ def score_entries(
         raise ValueError(msg)
 
     cumulative_round_values = _build_cumulative_round_values(round_values)
+    cumulative_seed_bonus_counts = _build_cumulative_seed_bonus_counts(seed_bonus_rounds)
+    seed_bonus_enabled = bool(np.any(cumulative_seed_bonus_counts))
     correct_wins_lookup = np.minimum(
         np.arange(_MAX_WINS + 1)[:, None],
         np.arange(_MAX_WINS + 1)[None, :],
     )
     lookup = cumulative_round_values[correct_wins_lookup].astype(np.int32, copy=False)
-    if seed_bonus:
+    if seed_bonus_enabled:
         if team_seeds is None:
-            msg = "team_seeds are required when seed_bonus is enabled"
+            msg = "team_seeds are required when seed_bonus_rounds are enabled"
             raise ValueError(msg)
         if team_seeds.shape != (n_teams,):
             msg = "team_seeds must have one value per team"
@@ -123,9 +126,11 @@ def score_entries(
         actual_team = actual_wins[:, team_idx][None, :]
         correct_wins = np.minimum(predicted_team, actual_team).astype(np.int32, copy=False)
         scores += lookup[predicted_team, actual_team]
-        if seed_bonus:
+        if seed_bonus_enabled:
             assert team_seeds is not None
-            scores += correct_wins * int(team_seeds[team_idx])
+            scores += (
+                cumulative_seed_bonus_counts[correct_wins] * int(team_seeds[team_idx])
+            ).astype(np.int32, copy=False)
 
     return scores
 
@@ -134,14 +139,30 @@ def _build_cumulative_round_values(round_values: Sequence[int]) -> npt.NDArray[n
     if len(round_values) != _MAX_WINS:
         msg = f"round_values must contain {_MAX_WINS} entries"
         raise ValueError(msg)
-    if any(value <= 0 for value in round_values):
-        msg = "round_values must all be positive"
+    if any(value < 0 for value in round_values):
+        msg = "round_values must all be non-negative"
         raise ValueError(msg)
 
     cumulative = np.zeros(_MAX_WINS + 1, dtype=np.int32)
     running_total = 0
     for win_count, value in enumerate(round_values, start=1):
         running_total += int(value)
+        cumulative[win_count] = running_total
+    return cumulative
+
+
+def _build_cumulative_seed_bonus_counts(
+    seed_bonus_rounds: Sequence[bool],
+) -> npt.NDArray[np.int32]:
+    if len(seed_bonus_rounds) != _MAX_WINS:
+        msg = f"seed_bonus_rounds must contain {_MAX_WINS} entries"
+        raise ValueError(msg)
+
+    cumulative = np.zeros(_MAX_WINS + 1, dtype=np.int32)
+    running_total = 0
+    for win_count, enabled in enumerate(seed_bonus_rounds, start=1):
+        if enabled:
+            running_total += 1
         cumulative[win_count] = running_total
     return cumulative
 

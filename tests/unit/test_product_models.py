@@ -34,14 +34,27 @@ def test_pool_settings_requires_positive_pool_size() -> None:
         PoolSettings(pool_size=0)
 
 
-def test_scoring_system_requires_positive_round_values() -> None:
-    with pytest.raises(ValidationError, match="round_values must all be positive"):
+def test_scoring_system_requires_non_negative_round_values() -> None:
+    with pytest.raises(ValidationError, match="round_values must all be non-negative"):
         ScoringSystem(
             key=ScoringSystemKey.ESPN,
             label="Broken",
-            round_values=(1, 2, 4, 8, 0, 32),
+            round_values=(1, 2, 4, 8, -1, 32),
             description="invalid",
         )
+
+
+def test_scoring_system_backfills_round_aware_seed_bonus_metadata() -> None:
+    scoring_system = ScoringSystem(
+        key=ScoringSystemKey.ROUND_PLUS_SEED,
+        label="Round Plus Seed",
+        round_values=(1, 2, 3, 4, 5, 6),
+        seed_bonus=True,
+        description="valid",
+    )
+
+    assert scoring_system.seed_bonus is True
+    assert scoring_system.seed_bonus_rounds == (True, True, True, True, True, True)
 
 
 def test_bracket_analysis_allows_deferred_public_percentile() -> None:

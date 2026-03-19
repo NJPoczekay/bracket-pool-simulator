@@ -21,6 +21,8 @@ class ScoringSystemKey(StrEnum):
     LINEAR = "1-2-3-4-5-6"
     FIBONACCI = "2-3-5-8-13-21"
     ROUND_PLUS_SEED = "round+seed"
+    ROUND_OF_64_FLAT = "round-of-64-flat"
+    ROUND_OF_64_SEED = "round-of-64-seed"
 
 
 class CompletionMode(StrEnum):
@@ -81,6 +83,14 @@ class ScoringSystem(BaseModel):
     label: str = Field(min_length=1)
     round_values: tuple[int, int, int, int, int, int]
     seed_bonus: bool = False
+    seed_bonus_rounds: tuple[bool, bool, bool, bool, bool, bool] = (
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+    )
     implemented: bool = False
     description: str = Field(min_length=1)
 
@@ -90,12 +100,42 @@ class ScoringSystem(BaseModel):
         cls,
         values: tuple[int, int, int, int, int, int],
     ) -> tuple[int, int, int, int, int, int]:
-        """Reject non-positive round scoring values."""
+        """Reject negative round scoring values."""
 
-        if any(value <= 0 for value in values):
-            msg = "round_values must all be positive"
+        if any(value < 0 for value in values):
+            msg = "round_values must all be non-negative"
             raise ValueError(msg)
         return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_seed_bonus_fields(cls, data: object) -> object:
+        """Backfill round-aware seed-bonus metadata from the legacy boolean flag."""
+
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        raw_rounds = normalized.get("seed_bonus_rounds")
+        raw_seed_bonus = normalized.get("seed_bonus")
+        if raw_rounds is None:
+            normalized["seed_bonus_rounds"] = (
+                (True, True, True, True, True, True)
+                if raw_seed_bonus
+                else (False, False, False, False, False, False)
+            )
+        if raw_seed_bonus is None:
+            normalized["seed_bonus"] = any(normalized["seed_bonus_rounds"])
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_seed_bonus_fields(self) -> ScoringSystem:
+        """Keep the legacy seed-bonus flag aligned with the round-aware mask."""
+
+        if self.seed_bonus != any(self.seed_bonus_rounds):
+            msg = "seed_bonus must match whether any seed_bonus_rounds are enabled"
+            raise ValueError(msg)
+        return self
 
 
 class PoolSettings(BaseModel):

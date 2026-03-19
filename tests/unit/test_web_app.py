@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from bracket_sim.infrastructure.web.main import create_app
@@ -36,6 +37,19 @@ def test_foundation_endpoint_exposes_analyzer_mvp_contracts() -> None:
         system["implemented"] is True
         for system in payload["scoring_systems"]
     )
+    scoring_systems = {system["key"]: system for system in payload["scoring_systems"]}
+    assert "round-of-64-flat" in scoring_systems
+    assert "round-of-64-seed" in scoring_systems
+    assert scoring_systems["round-of-64-flat"]["round_values"] == [1, 0, 0, 0, 0, 0]
+    assert scoring_systems["round-of-64-seed"]["seed_bonus"] is True
+    assert scoring_systems["round-of-64-seed"]["seed_bonus_rounds"] == [
+        True,
+        False,
+        False,
+        False,
+        False,
+        False,
+    ]
     assert any(
         mode["mode"] == "manual" and mode["implemented"] is True
         for mode in payload["completion_modes"]
@@ -168,6 +182,43 @@ def test_bracket_lab_bootstrap_and_analyze_endpoints(
     analysis = analyze_response.json()
     assert analysis["public_percentile"] is None
     assert analysis["pool_settings"]["scoring_system"] == "2-3-5-8-13-21"
+    assert len(analysis["pick_diagnostics"]) == 63
+    assert analysis["cache_key"].startswith("analysis-")
+
+
+@pytest.mark.parametrize(
+    "scoring_system",
+    ["round-of-64-flat", "round-of-64-seed"],
+)
+def test_bracket_lab_analyze_endpoint_accepts_round_of_64_scoring_systems(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+    scoring_system: str,
+) -> None:
+    client = TestClient(
+        create_app(
+            bracket_lab_input=prepared_bracket_lab_dir,
+            enable_scheduler=False,
+        )
+    )
+
+    analyze_response = client.post(
+        "/api/bracket-lab/analyze",
+        json={
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir),
+            },
+            "pool_settings": {
+                "pool_size": 18,
+                "scoring_system": scoring_system,
+            },
+            "completion_mode": "manual",
+        },
+    )
+
+    assert analyze_response.status_code == 200
+    analysis = analyze_response.json()
+    assert analysis["pool_settings"]["scoring_system"] == scoring_system
     assert len(analysis["pick_diagnostics"]) == 63
     assert analysis["cache_key"].startswith("analysis-")
 

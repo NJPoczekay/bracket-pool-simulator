@@ -61,7 +61,14 @@ _DEFAULT_POOL_SETTINGS = PoolSettings(
 @dataclass(frozen=True)
 class _ScoringSpec:
     round_values: tuple[int, int, int, int, int, int]
-    seed_bonus: bool = False
+    seed_bonus_rounds: tuple[bool, bool, bool, bool, bool, bool] = (
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+    )
 
 
 @dataclass(frozen=True)
@@ -238,7 +245,7 @@ class BracketLabService:
                 actual_wins=simulation.team_wins,
                 round_values=scoring_spec.round_values,
                 team_seeds=self._runtime.team_seeds,
-                seed_bonus=scoring_spec.seed_bonus,
+                seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
             )
             diagnostics.accumulate_batch(team_wins=simulation.team_wins, scores=scores)
 
@@ -568,7 +575,21 @@ def _resolve_scoring_spec(scoring_system: ScoringSystemKey) -> _ScoringSpec:
         return _ScoringSpec(round_values=(1, 2, 3, 4, 5, 6))
     if scoring_system == ScoringSystemKey.FIBONACCI:
         return _ScoringSpec(round_values=(2, 3, 5, 8, 13, 21))
-    return _ScoringSpec(round_values=(1, 2, 3, 4, 5, 6), seed_bonus=True)
+    if scoring_system == ScoringSystemKey.ROUND_PLUS_SEED:
+        return _ScoringSpec(
+            round_values=(1, 2, 3, 4, 5, 6),
+            seed_bonus_rounds=(True, True, True, True, True, True),
+        )
+    if scoring_system == ScoringSystemKey.ROUND_OF_64_FLAT:
+        return _ScoringSpec(round_values=(1, 0, 0, 0, 0, 0))
+    if scoring_system == ScoringSystemKey.ROUND_OF_64_SEED:
+        return _ScoringSpec(
+            round_values=(0, 0, 0, 0, 0, 0),
+            seed_bonus_rounds=(True, False, False, False, False, False),
+        )
+
+    msg = f"Unsupported scoring system: {scoring_system}"
+    raise ValueError(msg)
 
 
 def _seed_from_cache_key(cache_key: str) -> int:

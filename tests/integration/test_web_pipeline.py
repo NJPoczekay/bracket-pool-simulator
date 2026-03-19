@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 from tests.helpers.mock_espn_payloads import build_mock_payloads
 
@@ -167,6 +168,42 @@ def test_web_shell_renders_live_bracket_lab_editor_and_analysis_api(
     assert payload["public_percentile"] is None
     assert payload["pool_settings"]["scoring_system"] == "round+seed"
     assert payload["pick_diagnostics"][0]["tags"] is not None
+
+
+@pytest.mark.parametrize(
+    "scoring_system",
+    ["round-of-64-flat", "round-of-64-seed"],
+)
+def test_web_bracket_lab_analysis_accepts_round_of_64_scoring_systems(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+    scoring_system: str,
+) -> None:
+    app = create_app(
+        bracket_lab_input=prepared_bracket_lab_dir,
+        enable_scheduler=False,
+    )
+    with TestClient(app) as client:
+        analyze_response = client.post(
+            "/api/bracket-lab/analyze",
+            json={
+                "bracket": {
+                    "picks": _editable_bracket_payload(synthetic_input_dir),
+                },
+                "pool_settings": {
+                    "pool_size": 12,
+                    "scoring_system": scoring_system,
+                },
+                "completion_mode": "manual",
+            },
+        )
+
+    assert analyze_response.status_code == 200
+    payload = analyze_response.json()
+    assert payload["pool_settings"]["scoring_system"] == scoring_system
+    assert payload["public_percentile"] is None
+    assert len(payload["pick_diagnostics"]) == 63
+    assert payload["cache_key"].startswith("analysis-")
 
 
 def _build_provider(

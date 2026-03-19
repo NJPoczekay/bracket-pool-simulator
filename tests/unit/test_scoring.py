@@ -72,10 +72,53 @@ def test_score_entries_supports_round_plus_seed_bonus() -> None:
         actual_wins=actual,
         round_values=(1, 2, 3, 4, 5, 6),
         team_seeds=team_seeds,
-        seed_bonus=True,
+        seed_bonus_rounds=(True, True, True, True, True, True),
     )
 
     assert np.array_equal(scores, np.array([[32]], dtype=np.int32))
+
+
+def test_score_entries_supports_round_of_64_flat_scoring() -> None:
+    predicted = np.array([[3], [0]], dtype=np.int16)
+    actual = np.array([[3], [1], [0]], dtype=np.int16)
+
+    scores = score_entries(
+        predicted_wins=predicted,
+        actual_wins=actual,
+        round_values=(1, 0, 0, 0, 0, 0),
+    )
+
+    expected = np.array(
+        [
+            [1, 1, 0],
+            [0, 0, 0],
+        ],
+        dtype=np.int32,
+    )
+    assert np.array_equal(scores, expected)
+
+
+def test_score_entries_supports_round_of_64_seed_scoring() -> None:
+    predicted = np.array([[3], [0]], dtype=np.int16)
+    actual = np.array([[3], [1], [0]], dtype=np.int16)
+    team_seeds = np.array([12], dtype=np.int16)
+
+    scores = score_entries(
+        predicted_wins=predicted,
+        actual_wins=actual,
+        round_values=(0, 0, 0, 0, 0, 0),
+        team_seeds=team_seeds,
+        seed_bonus_rounds=(True, False, False, False, False, False),
+    )
+
+    expected = np.array(
+        [
+            [12, 12, 0],
+            [0, 0, 0],
+        ],
+        dtype=np.int32,
+    )
+    assert np.array_equal(scores, expected)
 
 
 def test_tie_split_aggregation() -> None:

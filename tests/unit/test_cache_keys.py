@@ -72,3 +72,33 @@ def test_build_cache_key_is_stable_and_settings_sensitive() -> None:
     assert first == second
     assert changed != first
     assert first.startswith("analysis-")
+
+
+def test_build_cache_key_changes_for_round_of_64_scoring_systems() -> None:
+    dataset_hash = "a" * 64
+    round_of_64_flat = PoolSettings(
+        pool_size=25,
+        scoring_system=ScoringSystemKey.ROUND_OF_64_FLAT,
+    )
+    round_of_64_seed = round_of_64_flat.model_copy(
+        update={"scoring_system": ScoringSystemKey.ROUND_OF_64_SEED}
+    )
+
+    flat_key = build_cache_key(
+        artifact_kind="analysis",
+        dataset_hash=dataset_hash,
+        settings={
+            "pool_settings": round_of_64_flat,
+            "completion_mode": CompletionMode.MANUAL,
+        },
+    )
+    seed_key = build_cache_key(
+        artifact_kind="analysis",
+        dataset_hash=dataset_hash,
+        settings={
+            "pool_settings": round_of_64_seed,
+            "completion_mode": CompletionMode.MANUAL,
+        },
+    )
+
+    assert flat_key != seed_key

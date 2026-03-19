@@ -98,8 +98,28 @@ def _scoring_systems() -> list[ScoringSystem]:
             label="Round Plus Seed",
             round_values=(1, 2, 3, 4, 5, 6),
             seed_bonus=True,
+            seed_bonus_rounds=(True, True, True, True, True, True),
             implemented=True,
             description="Planned for Bracket Lab analysis with a seed bonus overlay.",
+        ),
+        ScoringSystem(
+            key=ScoringSystemKey.ROUND_OF_64_FLAT,
+            label="Round of 64 Flat",
+            round_values=(1, 0, 0, 0, 0, 0),
+            implemented=True,
+            description="Award 1 point for each correct Round of 64 pick and zero thereafter.",
+        ),
+        ScoringSystem(
+            key=ScoringSystemKey.ROUND_OF_64_SEED,
+            label="Round of 64 Seed",
+            round_values=(0, 0, 0, 0, 0, 0),
+            seed_bonus=True,
+            seed_bonus_rounds=(True, False, False, False, False, False),
+            implemented=True,
+            description=(
+                "Award the advancing team's seed for each correct Round of 64 pick and zero "
+                "thereafter."
+            ),
         ),
     ]
 
