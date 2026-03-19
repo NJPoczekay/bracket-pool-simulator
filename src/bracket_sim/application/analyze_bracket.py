@@ -103,6 +103,12 @@ class BracketLabService:
 
         return self._runtime.dataset_hash
 
+    @property
+    def input_dir(self) -> Path:
+        """Return the prepared input directory backing this service."""
+
+        return self._runtime.input_dir
+
     def build_bootstrap(self) -> BracketLabBootstrap:
         """Return the typed bootstrap payload for the browser editor."""
 

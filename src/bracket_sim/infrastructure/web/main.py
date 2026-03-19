@@ -26,6 +26,14 @@ from bracket_sim.domain.product_models import (
     CacheKeyPreview,
     CacheKeyPreviewRequest,
     ProductFoundation,
+    SaveBracketRequest,
+    SavedBracket,
+    SavedBracketList,
+)
+from bracket_sim.infrastructure.storage.saved_brackets import (
+    list_saved_brackets,
+    load_saved_bracket,
+    save_bracket,
 )
 from bracket_sim.infrastructure.web.app import PoolScheduler
 from bracket_sim.infrastructure.web.config import PoolProfile, load_pool_registry
@@ -47,6 +55,7 @@ def create_app(
     service: PoolService | None = None,
     bracket_lab_input: Path | None = None,
     bracket_lab_service: BracketLabService | None = None,
+    bracket_store_dir: Path | None = None,
     enable_scheduler: bool = True,
     scheduler_poll_seconds: float = 60.0,
 ) -> FastAPI:
@@ -59,6 +68,11 @@ def create_app(
     analyzer_service = bracket_lab_service
     if analyzer_service is None and bracket_lab_input is not None:
         analyzer_service = BracketLabService(bracket_lab_input)
+    saved_brackets_dir = _resolve_saved_brackets_dir(
+        bracket_lab_input=bracket_lab_input,
+        bracket_lab_service=analyzer_service,
+        bracket_store_dir=bracket_store_dir,
+    )
 
     foundation = build_product_foundation(
         bracket_lab_enabled=analyzer_service is not None,
@@ -75,6 +89,7 @@ def create_app(
         app.state.product_foundation = foundation
         app.state.pool_service = pool_service
         app.state.bracket_lab_service = analyzer_service
+        app.state.saved_brackets_dir = saved_brackets_dir
         app.state.pool_scheduler = scheduler
         if enable_scheduler and scheduler is not None:
             scheduler.start()
@@ -93,6 +108,7 @@ def create_app(
     app.state.product_foundation = foundation
     app.state.pool_service = pool_service
     app.state.bracket_lab_service = analyzer_service
+    app.state.saved_brackets_dir = saved_brackets_dir
     app.state.pool_scheduler = scheduler
 
     @app.get("/", response_class=HTMLResponse)
@@ -134,6 +150,51 @@ def create_app(
 
         try:
             return _bracket_lab_service_or_503(request).analyze_bracket(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/bracket-lab/saved-brackets", response_model=SavedBracketList)
+    def list_saved_brackets_api(request: Request) -> SavedBracketList:
+        """List saved bracket drafts for the active prepared Bracket Lab dataset."""
+
+        service = _bracket_lab_service_or_503(request)
+        storage_dir = _saved_brackets_dir_or_503(request)
+        return SavedBracketList(
+            brackets=list_saved_brackets(
+                storage_dir=storage_dir,
+                dataset_hash=service.dataset_hash,
+            )
+        )
+
+    @app.get("/api/bracket-lab/saved-brackets/{bracket_id}", response_model=SavedBracket)
+    def load_saved_bracket_api(bracket_id: str, request: Request) -> SavedBracket:
+        """Load one saved bracket draft by id."""
+
+        service = _bracket_lab_service_or_503(request)
+        storage_dir = _saved_brackets_dir_or_503(request)
+        try:
+            saved = load_saved_bracket(storage_dir=storage_dir, bracket_id=bracket_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if saved.dataset_hash != service.dataset_hash:
+            raise HTTPException(
+                status_code=409,
+                detail="Saved bracket belongs to a different Bracket Lab dataset",
+            )
+        return saved
+
+    @app.post("/api/bracket-lab/saved-brackets", response_model=SavedBracket)
+    def save_bracket_api(payload: SaveBracketRequest, request: Request) -> SavedBracket:
+        """Save one bracket draft to local disk and return the persisted record."""
+
+        service = _bracket_lab_service_or_503(request)
+        storage_dir = _saved_brackets_dir_or_503(request)
+        try:
+            return save_bracket(
+                storage_dir=storage_dir,
+                dataset_hash=service.dataset_hash,
+                request=payload,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -244,10 +305,6 @@ def create_app(
 
     return app
 
-
-app = create_app()
-
-
 def run_server(
     *,
     host: str = "127.0.0.1",
@@ -324,6 +381,10 @@ def _bracket_lab_service(request: Request) -> BracketLabService | None:
     return cast(BracketLabService | None, request.app.state.bracket_lab_service)
 
 
+def _saved_brackets_dir(request: Request) -> Path | None:
+    return cast(Path | None, request.app.state.saved_brackets_dir)
+
+
 def _pool_service_or_404(request: Request, pool_id: str) -> PoolService:
     service = _pool_service(request)
     if service is None:
@@ -336,6 +397,28 @@ def _bracket_lab_service_or_503(request: Request) -> BracketLabService:
     if service is None:
         raise HTTPException(status_code=503, detail="Bracket Lab is not configured")
     return service
+
+
+def _saved_brackets_dir_or_503(request: Request) -> Path:
+    storage_dir = _saved_brackets_dir(request)
+    if storage_dir is None:
+        raise HTTPException(status_code=503, detail="Bracket Lab is not configured")
+    return storage_dir
+
+
+def _resolve_saved_brackets_dir(
+    *,
+    bracket_lab_input: Path | None,
+    bracket_lab_service: BracketLabService | None,
+    bracket_store_dir: Path | None,
+) -> Path | None:
+    if bracket_store_dir is not None:
+        return bracket_store_dir
+    if bracket_lab_input is not None:
+        return bracket_lab_input / "saved-brackets"
+    if bracket_lab_service is not None:
+        return bracket_lab_service.input_dir / "saved-brackets"
+    return None
 
 
 def _render_home(
@@ -437,6 +520,9 @@ def _serialize_latest_report(
             for filename in latest_report.artifact_paths
         },
     }
+
+
+app = create_app()
 
 
 if __name__ == "__main__":

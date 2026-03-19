@@ -77,9 +77,10 @@ def test_root_serves_frontend_shell() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Build Brackets, then Track Pool Odds." in response.text
-    assert "Bracket Lab" in response.text
-    assert "Pool Tracker" in response.text
+    assert 'id="page-select"' in response.text
+    assert 'id="optimizer-page"' in response.text
+    assert 'id="pool-tracker-page"' in response.text
+    assert "Build Brackets, then Track Pool Odds." not in response.text
 
 
 def test_root_and_pools_api_show_tracker_setup_state_without_config() -> None:
@@ -100,9 +101,12 @@ def test_bracket_lab_api_requires_configured_dataset() -> None:
     client = TestClient(create_app())
 
     response = client.get("/api/bracket-lab/bootstrap")
+    saved_brackets_response = client.get("/api/bracket-lab/saved-brackets")
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Bracket Lab is not configured"
+    assert saved_brackets_response.status_code == 503
+    assert saved_brackets_response.json()["detail"] == "Bracket Lab is not configured"
 
 
 def test_bracket_lab_bootstrap_and_analyze_endpoints(
@@ -163,6 +167,58 @@ def test_root_renders_empty_start_bracket_editor_when_bracket_lab_is_configured(
     assert 'id="bracket-mobile-tabs"' in response.text
     assert "63 picks remaining before analysis." in response.text
     assert 'id="analyze-bracket-button" type="button" disabled' in response.text
+    assert 'id="saved-bracket-select"' in response.text
+    assert 'id="saved-bracket-name-input"' in response.text
+    assert 'id="new-bracket-button"' in response.text
+    assert 'id="load-bracket-button"' not in response.text
+
+
+def test_saved_bracket_api_round_trip_persists_to_disk(
+    prepared_bracket_lab_dir: Path,
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    store_dir = tmp_path / "saved-brackets"
+    client = TestClient(
+        create_app(
+            bracket_lab_input=prepared_bracket_lab_dir,
+            bracket_store_dir=store_dir,
+            enable_scheduler=False,
+        )
+    )
+
+    list_before = client.get("/api/bracket-lab/saved-brackets")
+    save_response = client.post(
+        "/api/bracket-lab/saved-brackets",
+        json={
+            "name": "My Test Bracket",
+            "bracket": {
+                "picks": _editable_bracket_payload(synthetic_input_dir),
+            },
+            "pool_settings": {
+                "pool_size": 42,
+                "scoring_system": "2-3-5-8-13-21",
+            },
+            "completion_mode": "manual",
+        },
+    )
+    saved_bracket = save_response.json()
+    list_after = client.get("/api/bracket-lab/saved-brackets")
+    load_response = client.get(f"/api/bracket-lab/saved-brackets/{saved_bracket['bracket_id']}")
+
+    assert list_before.status_code == 200
+    assert list_before.json() == {"brackets": []}
+    assert save_response.status_code == 200
+    assert saved_bracket["name"] == "My Test Bracket"
+    assert saved_bracket["pool_settings"]["pool_size"] == 42
+    assert saved_bracket["pool_settings"]["scoring_system"] == "2-3-5-8-13-21"
+    assert (store_dir / f"{saved_bracket['bracket_id']}.json").exists()
+    assert list_after.status_code == 200
+    assert len(list_after.json()["brackets"]) == 1
+    assert list_after.json()["brackets"][0]["name"] == "My Test Bracket"
+    assert list_after.json()["brackets"][0]["pool_settings"]["pool_size"] == 42
+    assert load_response.status_code == 200
+    assert load_response.json()["bracket"]["picks"][0]["game_id"]
 
 
 def _editable_bracket_payload(synthetic_input_dir: Path) -> list[dict[str, object]]:
