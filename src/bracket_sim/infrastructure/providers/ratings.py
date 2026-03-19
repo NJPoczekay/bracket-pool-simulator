@@ -516,16 +516,16 @@ def _build_alias_lookup(teams: list[RawTeamRow]) -> dict[str, str]:
     alias_lookup: dict[str, str] = {}
 
     for team in teams:
-        for alias in _alias_variants(team.team_id):
+        for alias in team_alias_variants(team.team_id):
             alias_lookup.setdefault(alias, team.team_id)
-        for alias in _alias_variants(team.name):
+        for alias in team_alias_variants(team.name):
             alias_lookup.setdefault(alias, team.team_id)
 
     return alias_lookup
 
 
 def _resolve_team_id(team_raw: str, alias_lookup: dict[str, str]) -> str | None:
-    variants = _alias_variants(team_raw)
+    variants = team_alias_variants(team_raw)
     matched_team_ids = {alias_lookup[variant] for variant in variants if variant in alias_lookup}
 
     if not matched_team_ids:
@@ -537,7 +537,7 @@ def _resolve_team_id(team_raw: str, alias_lookup: dict[str, str]) -> str | None:
     return next(iter(matched_team_ids))
 
 
-def _alias_variants(value: str) -> set[str]:
+def team_alias_variants(value: str) -> set[str]:
     base = _normalize_team_key(value)
     if base == "":
         return set()
