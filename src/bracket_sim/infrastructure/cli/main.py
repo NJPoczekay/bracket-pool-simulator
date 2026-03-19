@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from bracket_sim.application.benchmark_hotspots import benchmark_hotspots
+from bracket_sim.application.generate_matchup_tables import generate_matchup_tables
 from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.prepare_bracket_lab_data import prepare_bracket_lab_data
 from bracket_sim.application.prepare_data import prepare_data
@@ -23,6 +25,7 @@ from bracket_sim.domain.models import (
 )
 from bracket_sim.infrastructure.cli.presenter import (
     format_benchmark_report,
+    format_matchup_tables,
     format_prepare_bracket_lab_summary,
     format_prepare_summary,
     format_refresh_bracket_lab_summary,
@@ -273,6 +276,58 @@ def report_command(
         return
 
     typer.echo(format_report_summary(result))
+
+
+@app.command("matchup-table")
+def matchup_table_command(
+    input_dir: Annotated[
+        Path,
+        typer.Option(
+            "--input",
+            help="Directory containing prepared Bracket Lab inputs",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    round_number: Annotated[
+        int,
+        typer.Option(
+            "--round",
+            help="Round to report. Defaults to 1 for concrete opening-round matchups",
+            min=1,
+            max=6,
+        ),
+    ] = 1,
+    all_rounds: Annotated[
+        bool,
+        typer.Option(
+            "--all-rounds",
+            help="Include all rounds instead of filtering to --round",
+        ),
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit structured JSON instead of table output"),
+    ] = False,
+) -> None:
+    """Generate Bracket Lab matchup win-probability and value tables."""
+
+    try:
+        result = generate_matchup_tables(
+            input_dir=input_dir,
+            round_filter=None if all_rounds else round_number,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        typer.echo(json.dumps(result.to_payload(), indent=2))
+        return
+
+    typer.echo(format_matchup_tables(result))
 
 
 @app.command("prepare-data")

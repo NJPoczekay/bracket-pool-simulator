@@ -54,7 +54,7 @@ By default the server runs on [http://127.0.0.1:8000](http://127.0.0.1:8000) and
 
 ## Commands
 
-The CLI exposes nine commands:
+The CLI exposes ten commands:
 
 - `refresh-bracket-lab-data`: fetch Bracket Lab raw data from ESPN challenge APIs plus KenPom inputs
 - `prepare-bracket-lab-data`: normalize raw Bracket Lab files into prepared analysis/optimization inputs
@@ -63,6 +63,7 @@ The CLI exposes nine commands:
 - `simulate`: run deterministic pool simulations
 - `benchmark`: measure simulation and scoring performance against budgets
 - `report`: generate deterministic offline report bundles from normalized inputs
+- `matchup-table`: generate Bracket Lab matchup win-probability and value tables
 - `refresh-national-picks`: download ESPN national pick-count snapshots
 - `serve`: run the integrated local web/API surface, or pass `--config` to enable live pool tracking data
 
@@ -123,6 +124,28 @@ Expected prepared Bracket Lab contents:
 - `completion_inputs.json`
 - `play_in_slots.json` when unresolved First Four slots exist
 - `metadata.json`
+
+### Bracket Lab: Generate matchup tables
+
+`matchup-table` reads a prepared Bracket Lab dataset and prints:
+
+- a matchup win-probability table from the KenPom-style internal model
+- a value table sorted by `win_probability / public_pick_rate`
+
+By default it reports round 1, which matches the concrete opening-round pairings:
+
+```bash
+uv run bracket-sim matchup-table \
+  --input data/2026/bracket-lab/tournament-challenge-bracket-2026/prepared
+```
+
+To inspect every round instead of just round 1:
+
+```bash
+uv run bracket-sim matchup-table \
+  --input data/2026/bracket-lab/tournament-challenge-bracket-2026/prepared \
+  --all-rounds
+```
 
 ### 1. Refresh raw data (Pool Tracker)
 
