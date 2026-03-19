@@ -22,6 +22,7 @@ from bracket_sim.domain.models import (
     TeamAdvancementOddsRow,
 )
 from bracket_sim.domain.scoring import (
+    ESPN_ROUND_VALUES,
     aggregate_win_share_totals,
     build_predicted_wins_matrix,
     score_entries,
@@ -111,7 +112,11 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
             point_spread_std_dev=config.rating_scale,
             engine=config.engine,
         )
-        scores = score_entries(predicted_wins=predicted_wins, actual_wins=simulation.team_wins)
+        scores = score_entries(
+            predicted_wins=predicted_wins,
+            actual_wins=simulation.team_wins,
+            round_values=ESPN_ROUND_VALUES,
+        )
         _accumulate_batch(
             accumulator=accumulator,
             team_wins=simulation.team_wins,

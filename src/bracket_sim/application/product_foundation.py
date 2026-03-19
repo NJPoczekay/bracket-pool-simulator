@@ -16,6 +16,7 @@ from bracket_sim.domain.product_models import (
     WorkflowKey,
     WorkflowState,
 )
+from bracket_sim.domain.scoring import ESPN_ROUND_VALUES
 from bracket_sim.infrastructure.storage.cache_keys import build_cache_key
 
 
@@ -75,7 +76,7 @@ def _scoring_systems() -> list[ScoringSystem]:
         ScoringSystem(
             key=ScoringSystemKey.ESPN,
             label="ESPN",
-            round_values=(1, 2, 4, 8, 16, 32),
+            round_values=ESPN_ROUND_VALUES,
             implemented=True,
             description="Current simulator scoring and the baseline for both workflows.",
         ),

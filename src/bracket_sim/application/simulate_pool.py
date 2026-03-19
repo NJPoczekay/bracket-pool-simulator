@@ -23,6 +23,7 @@ from bracket_sim.domain.models import (
     SimulationRunMetadata,
 )
 from bracket_sim.domain.scoring import (
+    ESPN_ROUND_VALUES,
     aggregate_win_share_totals,
     build_predicted_wins_matrix,
     score_entries,
@@ -144,7 +145,11 @@ def simulate_pool(config: SimulationConfig) -> SimulationResult:
             engine=config.engine,
         )
 
-        scores = score_entries(predicted_wins=predicted_wins, actual_wins=simulation.team_wins)
+        scores = score_entries(
+            predicted_wins=predicted_wins,
+            actual_wins=simulation.team_wins,
+            round_values=ESPN_ROUND_VALUES,
+        )
         accumulator.win_share_totals += aggregate_win_share_totals(scores)
         accumulator.score_totals += np.sum(scores, axis=1, dtype=np.int64)
         accumulator.completed_sims += batch_n_sims
