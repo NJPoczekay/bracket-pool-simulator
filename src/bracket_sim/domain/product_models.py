@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -363,3 +364,83 @@ class BracketLabBootstrap(BaseModel):
     play_in_slots: list[PlayInSlot]
     teams: list[Team]
     games: list[Game]
+
+
+class SaveBracketRequest(BaseModel):
+    """Request payload for persisting one manual bracket draft to local disk."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket_id: str | None = Field(default=None, min_length=1)
+    name: str = Field(min_length=1, max_length=120)
+    bracket: EditableBracket
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+
+    @field_validator("bracket_id")
+    @classmethod
+    def normalize_bracket_id(cls, value: str | None) -> str | None:
+        """Normalize blank bracket ids to null."""
+
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        """Trim saved bracket names and reject blanks."""
+
+        normalized = value.strip()
+        if not normalized:
+            msg = "Saved bracket name is required"
+            raise ValueError(msg)
+        return normalized
+
+
+class SavedBracketSummary(BaseModel):
+    """One saved bracket row shown in dropdown selectors."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=120)
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+    dataset_hash: str = Field(min_length=64, max_length=64)
+    updated_at: datetime
+
+
+class SavedBracket(BaseModel):
+    """Full saved bracket record persisted to local disk."""
+
+    model_config = ConfigDict(frozen=True)
+
+    bracket_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=120)
+    bracket: EditableBracket
+    pool_settings: PoolSettings
+    completion_mode: CompletionMode = CompletionMode.MANUAL
+    dataset_hash: str = Field(min_length=64, max_length=64)
+    updated_at: datetime
+
+    def to_summary(self) -> SavedBracketSummary:
+        """Return dropdown-friendly metadata for this saved bracket."""
+
+        return SavedBracketSummary(
+            bracket_id=self.bracket_id,
+            name=self.name,
+            pool_settings=self.pool_settings,
+            completion_mode=self.completion_mode,
+            dataset_hash=self.dataset_hash,
+            updated_at=self.updated_at,
+        )
+
+
+class SavedBracketList(BaseModel):
+    """Response payload for listing saved local bracket drafts."""
+
+    model_config = ConfigDict(frozen=True)
+
+    brackets: list[SavedBracketSummary]

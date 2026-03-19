@@ -101,6 +101,44 @@
         line-height: 1.65;
       }
 
+      .hero-toolbar {
+        margin-top: 20px;
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .page-toolbar {
+        padding: 18px 22px;
+        border-radius: 24px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .page-menu {
+        width: min(360px, 100%);
+      }
+
+      .page-menu label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .page-menu select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: #fffdf8;
+        color: var(--ink);
+        font: inherit;
+      }
+
       .timeline {
         display: grid;
         gap: 16px;
@@ -168,6 +206,10 @@
 
       .section {
         margin-top: 26px;
+      }
+
+      .section.is-hidden {
+        display: none;
       }
 
       .section-header {
@@ -657,6 +699,10 @@
         min-height: 1.5em;
       }
 
+      .saved-bracket-status {
+        margin-top: 10px;
+      }
+
       @media (max-width: 1280px) {
         .bracket-desktop {
           grid-template-columns: minmax(0, 1fr);
@@ -739,34 +785,13 @@
   </head>
   <body>
     <main>
-      <section class="hero">
-        <div class="eyebrow">
-          <span>{{ foundation.app_name }}</span>
-          <span>v{{ version }}</span>
-        </div>
-        <h1>Build Brackets, then Track Pool Odds.</h1>
-        <p class="lede">
-          One local app, two adjacent workflows: Bracket Lab for pre-tournament planning and Pool
-          Tracker for live odds once real entries are locked. The planning and tracking states stay
-          separate on purpose, but they now live in the same product shell.
-        </p>
-
-        <div class="timeline">
-          {% for workflow in foundation.workflows %}
-          <article class="timeline-card">
-            <div class="timeline-step">Step {{ workflow.sequence }}</div>
-            <div class="panel-item">
-              <div>
-                <strong>{{ workflow.label }}</strong>
-                <div class="muted">{{ workflow.timing }}</div>
-              </div>
-              <span class="status-badge state-{{ workflow.state }}">
-                {{ workflow.state|replace("_", " ") }}
-              </span>
-            </div>
-            <p class="muted" style="margin-bottom: 0;">{{ workflow.description }}</p>
-          </article>
-          {% endfor %}
+      <section class="page-toolbar">
+        <div class="page-menu">
+          <label for="page-select">Page</label>
+          <select id="page-select">
+            <option value="optimizer" selected>Optimizer</option>
+            <option value="pool-tracker">Pool Tracker</option>
+          </select>
         </div>
       </section>
 
@@ -778,14 +803,14 @@
       <section class="banner error">{{ error }}</section>
       {% endif %}
 
-      <section class="section">
+      <section id="optimizer-page" class="section" data-page="optimizer">
         <div class="section-header">
           <div>
             <h2>Bracket Lab</h2>
             <p class="section-subtitle">
               Start from constraints or a partial draft, finish the open games with a completion
-              mode, then analyze the completed bracket against a sampled public field without
-              crossing into live Pool Tracker state.
+              mode, save local drafts, then analyze the completed bracket against a sampled public
+              field without crossing into live Pool Tracker state.
             </p>
           </div>
           <span class="status-badge state-{{ workflow_by_key['bracket_lab'].state }}">
@@ -799,7 +824,8 @@
               <div>
                 <h3 style="margin-bottom: 6px;">Completion + Analyzer</h3>
                 <p class="muted" style="margin-bottom: 0;">
-                  Lock in your manual picks, auto-fill the rest, and analyze the finished bracket.
+                  Lock in manual picks, auto-fill the rest, save drafts locally, and analyze the
+                  finished bracket.
                 </p>
               </div>
               <span class="mini-badge implemented-live">live</span>
@@ -838,6 +864,33 @@
                 </div>
               </div>
             </div>
+
+            <div class="control-grid">
+              <div class="control-group">
+                <label for="saved-bracket-select">Saved Bracket</label>
+                <select id="saved-bracket-select">
+                  <option value="">Select a saved bracket</option>
+                </select>
+              </div>
+              <div class="control-group">
+                <label for="saved-bracket-name-input">Bracket Name</label>
+                <input
+                  id="saved-bracket-name-input"
+                  type="text"
+                  maxlength="120"
+                  placeholder="My bracket"
+                />
+              </div>
+              <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="save-bracket-button" type="button">Save Bracket</button>
+              </div>
+              <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="new-bracket-button" type="button">New Bracket</button>
+              </div>
+            </div>
+            <p id="saved-bracket-status" class="muted inline-status saved-bracket-status"></p>
 
             <section class="summary-block pick-four-panel">
               <div class="panel-item">
@@ -933,63 +986,9 @@
             </p>
           </article>
         {% endif %}
-
-        <div class="section-grid">
-          <article class="panel">
-            <h3>Scoring Systems</h3>
-            <ul class="panel-list">
-              {% for system in foundation.scoring_systems %}
-              <li>
-                <div class="panel-item">
-                  <div>
-                    <strong>{{ system.label }}</strong>
-                    <div class="muted">{{ system.description }}</div>
-                    <div><code>{{ system.key }} -> {{ system.round_values|join(", ") }}</code></div>
-                  </div>
-                  <span class="mini-badge implemented-{{ 'live' if system.implemented else 'planned' }}">
-                    {{ 'live' if system.implemented else 'planned' }}
-                  </span>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
-          </article>
-
-          <article class="panel">
-            <h3>Completion Modes</h3>
-            <ul class="panel-list">
-              {% for mode in foundation.completion_modes %}
-              <li>
-                <div class="panel-item">
-                  <div>
-                    <strong>{{ mode.label }}</strong>
-                    <div class="muted">{{ mode.description }}</div>
-                    <div><code>{{ mode.mode }}</code></div>
-                  </div>
-                  <span class="mini-badge implemented-{{ 'live' if mode.implemented else 'planned' }}">
-                    {{ 'live' if mode.implemented else 'planned' }}
-                  </span>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
-          </article>
-
-          <article class="panel">
-            <h3>Cache Strategy</h3>
-            <p class="muted">{{ foundation.cache_policy.dataset_hash_rule }}</p>
-            <p class="muted">{{ foundation.cache_policy.cache_key_rule }}</p>
-            <p style="margin-bottom: 0;">
-              <code>
-                {{ foundation.cache_policy.artifact_kinds|join(", ") }} -> dataset hash + pool
-                settings + completion mode
-              </code>
-            </p>
-          </article>
-        </div>
       </section>
 
-      <section class="section">
+      <section id="pool-tracker-page" class="section" data-page="pool-tracker">
         <div class="section-header">
           <div>
             <h2>Pool Tracker</h2>
@@ -1082,6 +1081,35 @@
         {% endif %}
       </section>
     </main>
+    <script>
+      const pageSelect = document.getElementById("page-select");
+      const pageSections = [...document.querySelectorAll("[data-page]")];
+      if (pageSelect && pageSections.length) {
+        function normalizePage(value) {
+          return value === "pool-tracker" ? "pool-tracker" : "optimizer";
+        }
+
+        function renderPage(page) {
+          const targetPage = normalizePage(page);
+          pageSelect.value = targetPage;
+          pageSections.forEach((section) => {
+            section.classList.toggle("is-hidden", section.dataset.page !== targetPage);
+          });
+          const hash = `#${targetPage}`;
+          if (window.location.hash !== hash) {
+            window.history.replaceState(null, "", hash);
+          }
+        }
+
+        pageSelect.addEventListener("change", () => {
+          renderPage(pageSelect.value);
+        });
+        window.addEventListener("hashchange", () => {
+          renderPage(window.location.hash.slice(1));
+        });
+        renderPage(window.location.hash.slice(1) || pageSelect.value);
+      }
+    </script>
     {% if bracket_lab_bootstrap %}
     <script id="bracket-lab-bootstrap" type="application/json">{{ bracket_lab_bootstrap | tojson }}</script>
     <script id="bracket-lab-editor-layout" type="application/json">{{ bracket_lab_editor_layout | tojson }}</script>
@@ -1132,10 +1160,17 @@
         const winProbabilityElement = document.getElementById("analysis-win-probability");
         const poolSettingsElement = document.getElementById("analysis-pool-settings");
         const cacheKeyElement = document.getElementById("analysis-cache-key");
+        const savedBracketSelect = document.getElementById("saved-bracket-select");
+        const savedBracketNameInput = document.getElementById("saved-bracket-name-input");
+        const saveBracketButton = document.getElementById("save-bracket-button");
+        const newBracketButton = document.getElementById("new-bracket-button");
+        const savedBracketStatus = document.getElementById("saved-bracket-status");
         let activeMobileTab = editorLayout.regions[0].region;
         let isAnalyzing = false;
         let isCompleting = false;
         let lastCompletionResult = null;
+        let isSavingBracket = false;
+        let savedBracketSummaries = [];
 
         function roundLabel(roundNumber) {
           const labels = {
@@ -1209,9 +1244,33 @@
           return autoFilledPickCount() > 0 ? completionInput.value : "manual";
         }
 
-        function syncActionAvailability() {
-          finishButton.disabled = isAnalyzing || isCompleting;
-          analyzeButton.disabled = isAnalyzing || isCompleting || remainingPickCount() > 0;
+        function currentPoolSize() {
+          const parsed = Number.parseInt(poolSizeInput.value, 10);
+          if (Number.isNaN(parsed) || parsed < 1) {
+            return 1;
+          }
+          return parsed;
+        }
+
+        function syncControls() {
+          finishButton.disabled = isAnalyzing || isCompleting || isSavingBracket;
+          analyzeButton.disabled = (
+            isAnalyzing
+            || isCompleting
+            || isSavingBracket
+            || remainingPickCount() > 0
+          );
+          if (
+            savedBracketNameInput === null
+            || saveBracketButton === null
+            || newBracketButton === null
+            || savedBracketSelect === null
+          ) {
+            return;
+          }
+          const hasName = savedBracketNameInput.value.trim().length > 0;
+          saveBracketButton.disabled = isAnalyzing || isCompleting || isSavingBracket || !hasName;
+          newBracketButton.disabled = isAnalyzing || isCompleting || isSavingBracket || !hasName;
         }
 
         function renderBracketStatus() {
@@ -1291,7 +1350,7 @@
             return button;
           }
           button.addEventListener("click", () => {
-            if (isAnalyzing || isCompleting) {
+            if (isAnalyzing || isCompleting || isSavingBracket) {
               return;
             }
             const latestPick = pickState(game.game_id);
@@ -1514,7 +1573,7 @@
           renderMobileTabs();
           renderMobilePanel();
           renderBracketStatus();
-          syncActionAvailability();
+          syncControls();
         }
 
         function percentage(value) {
@@ -1561,13 +1620,125 @@
         }
 
         function applyBracket(bracket) {
-          for (const pick of bracket.picks) {
-            pickStateByGameId[pick.game_id] = {
-              game_id: pick.game_id,
-              winner_team_id: pick.winner_team_id,
-              locked: pick.locked,
+          const picksByGameId = Object.fromEntries(
+            bracket.picks.map((pick) => [pick.game_id, pick]),
+          );
+          for (const game of games) {
+            const pick = picksByGameId[game.game_id];
+            pickStateByGameId[game.game_id] = {
+              game_id: game.game_id,
+              winner_team_id: pick ? pick.winner_team_id : null,
+              locked: pick ? pick.locked : false,
             };
           }
+        }
+
+        function clearPickFourInputs() {
+          pickFourInputs.forEach((input) => {
+            input.value = "";
+          });
+        }
+
+        function setSavedBracketStatus(message, isError = false) {
+          if (savedBracketStatus === null) {
+            return;
+          }
+          savedBracketStatus.textContent = message;
+          savedBracketStatus.style.color = isError ? "var(--error)" : "";
+        }
+
+        function renderSavedBracketOptions(preferredBracketId = null) {
+          if (savedBracketSelect === null) {
+            return;
+          }
+          const selectedBracketId = (
+            preferredBracketId === null
+              ? savedBracketSelect.value
+              : preferredBracketId
+          );
+          savedBracketSelect.innerHTML = "";
+          const placeholderOption = document.createElement("option");
+          placeholderOption.value = "";
+          placeholderOption.textContent = "Select a saved bracket";
+          savedBracketSelect.appendChild(placeholderOption);
+          savedBracketSummaries.forEach((savedBracket) => {
+            const option = document.createElement("option");
+            option.value = savedBracket.bracket_id;
+            option.textContent = (
+              `${savedBracket.name} `
+              + `(${savedBracket.pool_settings.pool_size} in pool)`
+            );
+            savedBracketSelect.appendChild(option);
+          });
+          if (selectedBracketId !== "") {
+            const exists = savedBracketSummaries.some(
+              (savedBracket) => savedBracket.bracket_id === selectedBracketId,
+            );
+            savedBracketSelect.value = exists ? selectedBracketId : "";
+          }
+        }
+
+        async function refreshSavedBrackets(preferredBracketId = null) {
+          if (savedBracketSelect === null) {
+            return;
+          }
+          const response = await fetch("/api/bracket-lab/saved-brackets");
+          const responseBody = await response.json();
+          if (!response.ok) {
+            throw new Error(responseBody.detail || "Unable to list saved brackets");
+          }
+          savedBracketSummaries = responseBody.brackets || [];
+          renderSavedBracketOptions(preferredBracketId);
+          if (savedBracketSummaries.length === 0) {
+            setSavedBracketStatus("No saved brackets yet.");
+          }
+          syncControls();
+        }
+
+        function applyLoadedBracket(savedBracket) {
+          applyBracket(savedBracket.bracket);
+          poolSizeInput.value = String(savedBracket.pool_settings.pool_size);
+          if (
+            [...scoringInput.options].some(
+              (option) => option.value === savedBracket.pool_settings.scoring_system,
+            )
+          ) {
+            scoringInput.value = savedBracket.pool_settings.scoring_system;
+          }
+          if (
+            savedBracket.completion_mode !== "manual"
+            && [...completionInput.options].some(
+              (option) => option.value === savedBracket.completion_mode,
+            )
+          ) {
+            completionInput.value = savedBracket.completion_mode;
+          }
+          lastCompletionResult = null;
+          clearPickFourInputs();
+          resultsSection.hidden = true;
+          renderEditor();
+        }
+
+        function clearCurrentBracket() {
+          applyBracket(bootstrap.initial_bracket);
+          poolSizeInput.value = String(bootstrap.default_pool_settings.pool_size);
+          if (
+            [...scoringInput.options].some(
+              (option) => option.value === bootstrap.default_pool_settings.scoring_system,
+            )
+          ) {
+            scoringInput.value = bootstrap.default_pool_settings.scoring_system;
+          }
+          if (savedBracketSelect !== null) {
+            savedBracketSelect.value = "";
+          }
+          if (savedBracketNameInput !== null) {
+            savedBracketNameInput.value = "";
+          }
+          lastCompletionResult = null;
+          clearPickFourInputs();
+          resultsSection.hidden = true;
+          renderEditor();
         }
 
         function pickFourPayload() {
@@ -1597,6 +1768,109 @@
           };
         }
 
+        async function saveCurrentBracket({clearAfterSave = false} = {}) {
+          if (
+            savedBracketNameInput === null
+            || savedBracketSelect === null
+          ) {
+            return;
+          }
+
+          const bracketName = savedBracketNameInput.value.trim();
+          if (!bracketName) {
+            setSavedBracketStatus("Enter a bracket name before saving.", true);
+            syncControls();
+            return;
+          }
+
+          isSavingBracket = true;
+          syncControls();
+          setSavedBracketStatus("Saving bracket...");
+          try {
+            const payload = {
+              bracket_id: savedBracketSelect.value || null,
+              name: bracketName,
+              bracket: serializedBracket(),
+              pool_settings: {
+                pool_size: currentPoolSize(),
+                scoring_system: scoringInput.value,
+              },
+              completion_mode: currentAnalysisCompletionMode(),
+            };
+            const response = await fetch("/api/bracket-lab/saved-brackets", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const responseBody = await response.json();
+            if (!response.ok) {
+              throw new Error(responseBody.detail || "Unable to save bracket");
+            }
+            if (clearAfterSave) {
+              await refreshSavedBrackets();
+              clearCurrentBracket();
+              setSavedBracketStatus(
+                `Saved "${responseBody.name}" (${responseBody.pool_settings.pool_size} in pool). Starting a new bracket.`,
+              );
+            } else {
+              await refreshSavedBrackets(responseBody.bracket_id);
+              savedBracketNameInput.value = responseBody.name;
+              setSavedBracketStatus(
+                `Saved "${responseBody.name}" (${responseBody.pool_settings.pool_size} in pool).`,
+              );
+            }
+          } catch (error) {
+            setSavedBracketStatus(
+              error instanceof Error ? error.message : "Unable to save bracket",
+              true,
+            );
+          } finally {
+            isSavingBracket = false;
+            syncControls();
+          }
+        }
+
+        async function loadSelectedBracket() {
+          if (savedBracketSelect === null || savedBracketNameInput === null) {
+            return;
+          }
+
+          if (savedBracketSelect.value === "") {
+            setSavedBracketStatus("Choose a saved bracket to load.", true);
+            syncControls();
+            return;
+          }
+
+          isSavingBracket = true;
+          syncControls();
+          setSavedBracketStatus("Loading bracket...");
+          try {
+            const response = await fetch(
+              `/api/bracket-lab/saved-brackets/${encodeURIComponent(savedBracketSelect.value)}`,
+            );
+            const responseBody = await response.json();
+            if (!response.ok) {
+              throw new Error(responseBody.detail || "Unable to load bracket");
+            }
+            applyLoadedBracket(responseBody);
+            savedBracketNameInput.value = responseBody.name;
+            savedBracketSelect.value = responseBody.bracket_id;
+            setSavedBracketStatus(
+              `Loaded "${responseBody.name}" (${responseBody.pool_settings.pool_size} in pool).`,
+            );
+          } catch (error) {
+            setSavedBracketStatus(
+              error instanceof Error ? error.message : "Unable to load bracket",
+              true,
+            );
+          } finally {
+            isSavingBracket = false;
+            syncControls();
+          }
+        }
+
         async function finishBracket() {
           const pickFour = pickFourPayload();
           if (pickFour.error !== null) {
@@ -1605,7 +1879,7 @@
           }
 
           isCompleting = true;
-          syncActionAvailability();
+          syncControls();
           statusElement.textContent = "Finishing bracket with deterministic auto-fill...";
           try {
             const response = await fetch("/api/bracket-lab/complete", {
@@ -1632,24 +1906,24 @@
               error instanceof Error ? error.message : "Completion failed";
           } finally {
             isCompleting = false;
-            syncActionAvailability();
+            syncControls();
           }
         }
 
         async function analyzeBracket() {
           if (remainingPickCount() > 0) {
             renderBracketStatus();
-            syncActionAvailability();
+            syncControls();
             return;
           }
 
           isAnalyzing = true;
-          syncActionAvailability();
+          syncControls();
           statusElement.textContent = "Running deterministic analysis...";
           const payload = {
             bracket: serializedBracket(),
             pool_settings: {
-              pool_size: Number.parseInt(poolSizeInput.value, 10),
+              pool_size: currentPoolSize(),
               scoring_system: scoringInput.value,
             },
             completion_mode: currentAnalysisCompletionMode(),
@@ -1673,7 +1947,7 @@
             statusElement.textContent = error instanceof Error ? error.message : "Analysis failed";
           } finally {
             isAnalyzing = false;
-            syncActionAvailability();
+            syncControls();
           }
         }
 
@@ -1681,11 +1955,11 @@
         analyzeButton.addEventListener("click", analyzeBracket);
         poolSizeInput.addEventListener("input", () => {
           resultsSection.hidden = true;
-          syncActionAvailability();
+          syncControls();
         });
         scoringInput.addEventListener("change", () => {
           resultsSection.hidden = true;
-          syncActionAvailability();
+          syncControls();
         });
         completionInput.addEventListener("change", () => {
           lastCompletionResult = null;
@@ -1698,6 +1972,36 @@
             resultsSection.hidden = true;
             renderBracketStatus();
           });
+        });
+        if (savedBracketNameInput !== null) {
+          savedBracketNameInput.addEventListener("input", () => {
+            syncControls();
+          });
+        }
+        if (savedBracketSelect !== null && savedBracketNameInput !== null) {
+          savedBracketSelect.addEventListener("change", () => {
+            if (savedBracketSelect.value === "") {
+              syncControls();
+              return;
+            }
+            void loadSelectedBracket();
+          });
+        }
+        if (saveBracketButton !== null) {
+          saveBracketButton.addEventListener("click", () => {
+            void saveCurrentBracket();
+          });
+        }
+        if (newBracketButton !== null) {
+          newBracketButton.addEventListener("click", () => {
+            void saveCurrentBracket({clearAfterSave: true});
+          });
+        }
+        void refreshSavedBrackets().catch((error) => {
+          setSavedBracketStatus(
+            error instanceof Error ? error.message : "Unable to list saved brackets",
+            true,
+          );
         });
         renderEditor();
       }
