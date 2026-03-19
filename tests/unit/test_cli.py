@@ -13,6 +13,7 @@ from bracket_sim.application.refresh_bracket_lab_data import RefreshBracketLabDa
 from bracket_sim.application.refresh_data import RefreshDataSummary
 from bracket_sim.application.refresh_national_picks import RefreshNationalPicksSummary
 from bracket_sim.infrastructure.cli.main import app
+from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
 
 
 def test_simulate_command_runs_with_table_output(synthetic_input_dir: Path) -> None:
@@ -717,3 +718,115 @@ def test_serve_command_invokes_web_server(
         config_path=config_path,
         bracket_lab_input=bracket_lab_input,
     )
+
+
+def test_refresh_pools_command_runs_all_configured_pools(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    config_path = tmp_path / "pools.toml"
+    config_path.write_text("pools = []\n", encoding="utf-8")
+    registry = PoolRegistry(
+        pools=[
+            PoolProfile(
+                id="alpha",
+                name="Alpha Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=alpha",
+                raw_dir=tmp_path / "raw-alpha",
+                prepared_dir=tmp_path / "prepared-alpha",
+                reports_root=tmp_path / "reports-alpha",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+            PoolProfile(
+                id="beta",
+                name="Beta Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=beta",
+                raw_dir=tmp_path / "raw-beta",
+                prepared_dir=tmp_path / "prepared-beta",
+                reports_root=tmp_path / "reports-beta",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+        ]
+    )
+    fake_loader = Mock(return_value=registry)
+    fake_runner = Mock(
+        side_effect=[
+            Mock(report_dir=tmp_path / "reports-alpha" / "20260319-120000"),
+            Mock(report_dir=tmp_path / "reports-beta" / "20260319-120100"),
+        ]
+    )
+    monkeypatch.setattr(cli_main, "load_pool_registry", fake_loader)
+    monkeypatch.setattr(cli_main, "run_pool_pipeline", fake_runner)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-pools", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    fake_loader.assert_called_once_with(config_path)
+    assert fake_runner.call_count == 2
+    assert fake_runner.call_args_list[0].args[0].id == "alpha"
+    assert fake_runner.call_args_list[1].args[0].id == "beta"
+    assert "Running Alpha Pool (alpha)..." in result.stdout
+    assert "Completed alpha:" in result.stdout
+    assert "Completed beta:" in result.stdout
+
+
+def test_refresh_pools_command_reports_failures_and_exits_non_zero(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    config_path = tmp_path / "pools.toml"
+    config_path.write_text("pools = []\n", encoding="utf-8")
+    registry = PoolRegistry(
+        pools=[
+            PoolProfile(
+                id="alpha",
+                name="Alpha Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=alpha",
+                raw_dir=tmp_path / "raw-alpha",
+                prepared_dir=tmp_path / "prepared-alpha",
+                reports_root=tmp_path / "reports-alpha",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+            PoolProfile(
+                id="beta",
+                name="Beta Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=beta",
+                raw_dir=tmp_path / "raw-beta",
+                prepared_dir=tmp_path / "prepared-beta",
+                reports_root=tmp_path / "reports-beta",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+        ]
+    )
+    monkeypatch.setattr(cli_main, "load_pool_registry", Mock(return_value=registry))
+    fake_runner = Mock(
+        side_effect=[
+            ValueError("refresh failed"),
+            Mock(report_dir=tmp_path / "reports-beta" / "20260319-120100"),
+        ]
+    )
+    monkeypatch.setattr(cli_main, "run_pool_pipeline", fake_runner)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-pools", "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert fake_runner.call_count == 2
+    assert "Running Alpha Pool (alpha)..." in result.stdout
+    assert "Running Beta Pool (beta)..." in result.stdout
+    assert "Completed beta:" in result.stdout
+    assert "Failed alpha: refresh failed" in result.stderr
+    assert "Completed with failures: 1 pool(s) failed" in result.stderr

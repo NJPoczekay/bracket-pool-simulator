@@ -54,7 +54,7 @@ By default the server runs on [http://127.0.0.1:8000](http://127.0.0.1:8000) and
 
 ## Commands
 
-The CLI exposes ten commands:
+The CLI exposes eleven commands:
 
 - `refresh-bracket-lab-data`: fetch Bracket Lab raw data from ESPN challenge APIs plus KenPom inputs
 - `prepare-bracket-lab-data`: normalize raw Bracket Lab files into prepared analysis/optimization inputs
@@ -65,6 +65,7 @@ The CLI exposes ten commands:
 - `report`: generate deterministic offline report bundles from normalized inputs
 - `matchup-table`: generate Bracket Lab matchup win-probability and value tables
 - `refresh-national-picks`: download ESPN national pick-count snapshots
+- `refresh-pools`: run refresh -> prepare -> report for every pool in a tracker config file
 - `serve`: run the integrated local web/API surface, or pass `--config` to enable live pool tracking data
 
 ## Typical Workflow
@@ -355,6 +356,12 @@ uv run bracket-sim serve --host 127.0.0.1 --port 8000 --reload
 Without `--config`, the app still renders both sections, but `Pool Tracker` stays in a setup state and `/api/pools` returns an empty list.
 
 Pass `--config` to enable live pool tracking data. This mode runs the existing `refresh-data -> prepare-data -> report` pipeline synchronously for each configured pool and keeps report bundles separated by pool.
+
+You can also run that full tracker pipeline from the CLI without starting the web server:
+
+```bash
+uv run bracket-sim refresh-pools --config config/pools.toml
+```
 
 Start from the example config:
 

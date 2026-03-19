@@ -16,7 +16,7 @@ from bracket_sim.application.prepare_data import prepare_data
 from bracket_sim.application.refresh_bracket_lab_data import refresh_bracket_lab_data
 from bracket_sim.application.refresh_data import refresh_data
 from bracket_sim.application.refresh_national_picks import refresh_national_picks
-from bracket_sim.application.run_pool_pipeline import create_report_output_dir
+from bracket_sim.application.run_pool_pipeline import create_report_output_dir, run_pool_pipeline
 from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.models import (
     BenchmarkConfig,
@@ -51,6 +51,7 @@ from bracket_sim.infrastructure.storage.path_defaults import (
     tracker_context_from_group,
 )
 from bracket_sim.infrastructure.storage.report_bundle import publish_latest_report
+from bracket_sim.infrastructure.web.config import load_pool_registry
 from bracket_sim.infrastructure.web.main import run_server
 
 app = typer.Typer(no_args_is_help=True, help="Bracket pool simulator CLI")
@@ -678,6 +679,48 @@ def serve_command(
     except ValueError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+
+
+@app.command("refresh-pools")
+def refresh_pools_command(
+    config_path: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            help="Pool config TOML to run all configured tracker pools",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+) -> None:
+    """Run refresh -> prepare -> report for every pool in one config file."""
+
+    try:
+        registry = load_pool_registry(config_path)
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    failures: list[tuple[str, str]] = []
+    for pool in registry.pools:
+        typer.echo(f"Running {pool.name} ({pool.id})...")
+        try:
+            result = run_pool_pipeline(pool)
+        except ValueError as exc:
+            failures.append((pool.id, str(exc)))
+            typer.echo(f"Failed {pool.id}: {exc}", err=True)
+            continue
+
+        typer.echo(f"Completed {pool.id}: {result.report_dir}")
+
+    if failures:
+        typer.echo(
+            f"Completed with failures: {len(failures)} pool(s) failed",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
 
 def main() -> None:
