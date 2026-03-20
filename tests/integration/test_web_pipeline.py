@@ -96,11 +96,16 @@ def test_web_run_endpoint_executes_full_pipeline_with_fixture_backed_data(
     assert (report_dir / "entry_summary.csv").exists()
     assert (report_dir / "game_outcome_sensitivity.csv").exists()
     assert (report_dir / "pivotal_games.csv").exists()
+    assert any(
+        artifact["name"].endswith("_win_percentage_history.png")
+        for artifact in manifest_payload["artifacts"]
+    )
     assert (tmp_path / "reports" / "latest" / "summary.json").exists()
     assert "Bracket Lab" in dashboard_response.text
     assert "Pool Tracker" in dashboard_response.text
     assert "Top Entries" in dashboard_response.text
     assert "Top Champions" in dashboard_response.text
+    assert "Win Percentage History" in dashboard_response.text
 
 
 def test_web_shell_renders_live_bracket_lab_editor_analysis_and_optimizer_api(

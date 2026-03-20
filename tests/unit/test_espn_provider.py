@@ -115,6 +115,11 @@ def test_fetch_results_extracts_constraints_by_correct_outcomes(
     assert len(results.constraints) == expected_constraints
     assert len(results.games) == 63
     assert len(results.teams) == 64
+    assert results.teams[0].abbrev is not None
+    assert results.games[0].display_order is not None
+    assert results.games[0].scheduled_at_utc is not None
+    if expected_constraints > 0:
+        assert any(game.completed_at_utc is not None for game in results.games)
 
 
 def test_fetch_national_picks_extracts_all_round_rows(synthetic_input_dir: Path) -> None:
@@ -140,6 +145,29 @@ def test_fetch_national_picks_extracts_all_round_rows(synthetic_input_dir: Path)
     championship_rows = [row for row in national_picks.rows if row.round == 6]
     assert len(championship_rows) == 64
     assert sum(row.pick_count for row in championship_rows) == 1_000
+
+
+def test_fetch_results_extracts_primary_logo_url_when_available(synthetic_input_dir: Path) -> None:
+    challenge_payload, group_payload, _ = build_mock_payloads(
+        fixture_dir=synthetic_input_dir,
+        completed_game_ids=set(),
+    )
+    assert isinstance(challenge_payload["propositions"], list)
+    first_outcome = challenge_payload["propositions"][0]["possibleOutcomes"][0]
+    assert isinstance(first_outcome, dict)
+    assert isinstance(first_outcome["mappings"], list)
+    first_outcome["mappings"].append(
+        {"type": "IMAGE_PRIMARY", "value": "https://cdn.example.test/team.png"}
+    )
+
+    provider = _build_provider(
+        challenge_payload=challenge_payload,
+        group_payloads=[group_payload],
+    )
+
+    results = provider.fetch_results()
+
+    assert any(team.logo_url == "https://cdn.example.test/team.png" for team in results.teams)
 
 
 def test_fetch_challenge_snapshot_parses_results_and_public_picks_from_one_payload(

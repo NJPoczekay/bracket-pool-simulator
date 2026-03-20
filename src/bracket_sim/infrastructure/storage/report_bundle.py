@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,11 +44,20 @@ class ReportArtifactPaths:
     champion_sensitivity_path: Path
     game_outcome_sensitivity_path: Path
     pivotal_games_path: Path
+    history_plot_path: Path
 
 
-def build_report_artifact_paths(output_dir: Path) -> ReportArtifactPaths:
+def slugify_report_name(name: str) -> str:
+    """Return a filesystem-friendly slug derived from one report display name."""
+
+    slug = re.sub(r"[^a-z0-9]+", "-", name.strip().casefold()).strip("-")
+    return slug or "pool"
+
+
+def build_report_artifact_paths(output_dir: Path, *, report_name: str) -> ReportArtifactPaths:
     """Return the standard artifact paths for one report bundle."""
 
+    pool_slug = slugify_report_name(report_name)
     return ReportArtifactPaths(
         output_dir=output_dir,
         manifest_path=output_dir / "manifest.json",
@@ -57,6 +67,7 @@ def build_report_artifact_paths(output_dir: Path) -> ReportArtifactPaths:
         champion_sensitivity_path=output_dir / "champion_sensitivity.csv",
         game_outcome_sensitivity_path=output_dir / "game_outcome_sensitivity.csv",
         pivotal_games_path=output_dir / "pivotal_games.csv",
+        history_plot_path=output_dir / f"{pool_slug}_win_percentage_history.png",
     )
 
 
@@ -69,19 +80,7 @@ def ensure_report_output_dir(output_dir: Path) -> None:
 def ensure_fresh_report_output_dir(paths: ReportArtifactPaths) -> None:
     """Reject report bundles that would overwrite canonical artifacts."""
 
-    existing = [
-        path
-        for path in (
-            paths.manifest_path,
-            paths.summary_path,
-            paths.team_advancement_path,
-            paths.entry_summary_path,
-            paths.champion_sensitivity_path,
-            paths.game_outcome_sensitivity_path,
-            paths.pivotal_games_path,
-        )
-        if path.exists()
-    ]
+    existing = list(paths.output_dir.iterdir()) if paths.output_dir.exists() else []
     if existing:
         msg = (
             "Report output directory already contains artifacts; choose a new --out directory: "
@@ -277,6 +276,21 @@ def write_report_manifest(path: Path, manifest: ReportBundleManifest) -> None:
     write_json_atomic(path=path, payload=manifest.model_dump(mode="json"))
 
 
+def write_binary_artifact(path: Path, *, payload: bytes, kind: str) -> ReportArtifact:
+    """Persist one binary report artifact and return manifest metadata."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staging_path = path.parent / f".{path.name}.tmp-{uuid4().hex}"
+    staging_path.write_bytes(payload)
+    staging_path.replace(path)
+    return ReportArtifact(
+        name=path.name,
+        path=path,
+        kind=kind,
+        sha256=_sha256_path(path),
+    )
+
+
 def publish_latest_report(*, archive_dir: Path, latest_dir: Path) -> None:
     """Refresh a materialized latest-report directory from one archive bundle."""
 
@@ -287,8 +301,9 @@ def publish_latest_report(*, archive_dir: Path, latest_dir: Path) -> None:
 
     try:
         staging_dir.mkdir(parents=True, exist_ok=False)
-        for source_path in _canonical_report_paths(archive_dir):
-            shutil.copy2(source_path, staging_dir / source_path.name)
+        for source_path in sorted(archive_dir.iterdir(), key=lambda path: path.name):
+            if source_path.is_file():
+                shutil.copy2(source_path, staging_dir / source_path.name)
 
         if latest_dir.exists():
             shutil.rmtree(latest_dir)
@@ -325,7 +340,14 @@ def _sha256_path(path: Path) -> str:
 
 
 def _canonical_report_paths(output_dir: Path) -> tuple[Path, ...]:
-    paths = build_report_artifact_paths(output_dir)
+    manifest_path = output_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = ReportBundleManifest.model_validate_json(
+            manifest_path.read_text(encoding="utf-8")
+        )
+        return (manifest_path, *(artifact.path for artifact in manifest.artifacts))
+
+    paths = build_report_artifact_paths(output_dir, report_name="pool")
     return (
         paths.manifest_path,
         paths.summary_path,
@@ -334,4 +356,5 @@ def _canonical_report_paths(output_dir: Path) -> tuple[Path, ...]:
         paths.champion_sensitivity_path,
         paths.game_outcome_sensitivity_path,
         paths.pivotal_games_path,
+        paths.history_plot_path,
     )

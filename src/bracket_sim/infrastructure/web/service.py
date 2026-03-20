@@ -13,10 +13,10 @@ from bracket_sim.application.run_pool_pipeline import (
     PoolPipelineResult,
     run_pool_pipeline,
 )
-from bracket_sim.domain.models import ReportSummary
+from bracket_sim.domain.models import ReportBundleManifest, ReportSummary
 from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
 
-REPORT_ARTIFACT_FILENAMES = (
+_LEGACY_REPORT_ARTIFACT_FILENAMES = (
     "summary.json",
     "manifest.json",
     "entry_summary.csv",
@@ -55,16 +55,36 @@ class LatestReport:
     report_dir: Path
     report_timestamp: datetime
     summary: ReportSummary
+    manifest: ReportBundleManifest | None = None
 
     @property
     def artifact_paths(self) -> dict[str, Path]:
         """Return available canonical artifact paths inside the report directory."""
 
+        if self.manifest is not None:
+            return {
+                artifact.name: artifact.path
+                for artifact in self.manifest.artifacts
+                if artifact.path.exists()
+            } | {
+                "summary.json": self.report_dir / "summary.json",
+                "manifest.json": self.report_dir / "manifest.json",
+            }
+
         return {
             filename: self.report_dir / filename
-            for filename in REPORT_ARTIFACT_FILENAMES
+            for filename in _LEGACY_REPORT_ARTIFACT_FILENAMES
             if (self.report_dir / filename).exists()
         }
+
+    @property
+    def history_plot_path(self) -> Path | None:
+        """Return the win-percentage history plot artifact if present."""
+
+        for name, path in self.artifact_paths.items():
+            if name.endswith("_win_percentage_history.png"):
+                return path
+        return None
 
 
 class PoolService:
@@ -167,6 +187,16 @@ def find_latest_report(pool: PoolProfile) -> LatestReport | None:
             summary = ReportSummary.model_validate_json(summary_path.read_text(encoding="utf-8"))
         except ValueError:
             continue
+        manifest_path = child / "manifest.json"
+        if manifest_path.exists():
+            try:
+                manifest = ReportBundleManifest.model_validate_json(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+            except ValueError:
+                manifest = None
+        else:
+            manifest = None
 
         candidates.append(
             (
@@ -177,6 +207,7 @@ def find_latest_report(pool: PoolProfile) -> LatestReport | None:
                     report_dir=child,
                     report_timestamp=report_timestamp,
                     summary=summary,
+                    manifest=manifest,
                 ),
             )
         )

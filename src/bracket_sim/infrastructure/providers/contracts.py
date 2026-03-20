@@ -14,6 +14,8 @@ class RawTeamRow:
     name: str
     seed: int
     region: str
+    abbrev: str | None = None
+    logo_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,9 @@ class RawGameRow:
     right_team_id: str | None
     left_game_id: str | None
     right_game_id: str | None
+    display_order: int | None = None
+    scheduled_at_utc: str | None = None
+    completed_at_utc: str | None = None
 
 
 @dataclass(frozen=True)

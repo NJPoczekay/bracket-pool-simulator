@@ -3,13 +3,26 @@ from __future__ import annotations
 import csv
 import json
 import math
+import shutil
 from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
+import numpy.typing as npt
+import pytest
+
+from bracket_sim.application import report_history
 from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.simulate_pool import simulate_pool
-from bracket_sim.domain.models import ReportConfig, SimulationConfig
-from bracket_sim.domain.scoring_systems import ScoringSystemKey
+from bracket_sim.domain.bracket_graph import BracketGraph
+from bracket_sim.domain.models import (
+    CompletedGameConstraint,
+    PoolEntry,
+    RatingRecord,
+    ReportConfig,
+    SimulationConfig,
+)
+from bracket_sim.domain.scoring_systems import ScoringSpec, ScoringSystemKey
 
 
 def test_generate_reports_writes_deterministic_bundle(
@@ -34,6 +47,7 @@ def test_generate_reports_writes_deterministic_bundle(
     sensitivity_path = output_dir / "champion_sensitivity.csv"
     game_outcome_path = output_dir / "game_outcome_sensitivity.csv"
     pivotal_games_path = output_dir / "pivotal_games.csv"
+    history_plot_path = output_dir / "pool_win_percentage_history.png"
 
     assert manifest_path.exists()
     assert summary_path.exists()
@@ -42,6 +56,7 @@ def test_generate_reports_writes_deterministic_bundle(
     assert sensitivity_path.exists()
     assert game_outcome_path.exists()
     assert pivotal_games_path.exists()
+    assert history_plot_path.exists()
 
     manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary_payload = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -54,7 +69,7 @@ def test_generate_reports_writes_deterministic_bundle(
     assert manifest_payload["report_id"] == result.summary.report_id
     assert manifest_payload["batch_size"] == 40
     assert len(manifest_payload["dataset_hash"]) == 64
-    assert len(manifest_payload["artifacts"]) == 6
+    assert len(manifest_payload["artifacts"]) == 7
     assert summary_payload["report_id"] == result.summary.report_id
     assert summary_payload["n_sims"] == 120
     assert len(team_rows) == 64
@@ -139,6 +154,94 @@ def test_generate_reports_game_outcome_sensitivity_is_probabilistically_consiste
             rel_tol=1e-12,
             abs_tol=1e-12,
         )
+
+
+def test_generate_reports_reuses_history_cache_for_prior_completed_prefixes(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_input_dir = tmp_path / "prepared_first"
+    second_input_dir = tmp_path / "prepared_second"
+    shutil.copytree(synthetic_input_dir, first_input_dir)
+    shutil.copytree(synthetic_input_dir, second_input_dir)
+
+    all_constraints = json.loads(
+        (synthetic_input_dir / "constraints.json").read_text(encoding="utf-8")
+    )
+    (first_input_dir / "constraints.json").write_text(
+        json.dumps(all_constraints[:2], indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (second_input_dir / "constraints.json").write_text(
+        json.dumps(all_constraints[:3], indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    history_cache_dir = tmp_path / "history_cache"
+    calls = {"count": 0}
+    original = report_history._simulate_entry_win_shares_for_prefix
+
+    def counting_wrapper(
+        *,
+        entries: list[PoolEntry],
+        prefix_constraints: list[CompletedGameConstraint],
+        predicted_wins: npt.NDArray[np.int16],
+        team_seeds: npt.NDArray[np.int16],
+        team_ids: list[str],
+        rating_records_by_team_id: dict[str, RatingRecord],
+        graph: BracketGraph,
+        config: ReportConfig,
+        scoring_spec: ScoringSpec,
+    ) -> dict[str, float]:
+        calls["count"] += 1
+        return original(
+            entries=entries,
+            prefix_constraints=prefix_constraints,
+            predicted_wins=predicted_wins,
+            team_seeds=team_seeds,
+            team_ids=team_ids,
+            rating_records_by_team_id=rating_records_by_team_id,
+            graph=graph,
+            config=config,
+            scoring_spec=scoring_spec,
+        )
+
+    monkeypatch.setattr(
+        report_history,
+        "_simulate_entry_win_shares_for_prefix",
+        counting_wrapper,
+    )
+
+    generate_reports(
+        ReportConfig(
+            input_dir=first_input_dir,
+            output_dir=tmp_path / "report_first",
+            n_sims=120,
+            seed=13,
+            batch_size=40,
+            report_name="Alpha Pool",
+            history_cache_dir=history_cache_dir,
+        )
+    )
+    first_calls = calls["count"]
+
+    calls["count"] = 0
+    generate_reports(
+        ReportConfig(
+            input_dir=second_input_dir,
+            output_dir=tmp_path / "report_second",
+            n_sims=120,
+            seed=13,
+            batch_size=40,
+            report_name="Alpha Pool",
+            history_cache_dir=history_cache_dir,
+        )
+    )
+
+    assert first_calls == 1
+    assert calls["count"] == 0
+    assert (history_cache_dir / "alpha-pool_win_percentage_history_cache.json").exists()
 
 
 def test_generate_reports_entry_summary_matches_simulation_results(

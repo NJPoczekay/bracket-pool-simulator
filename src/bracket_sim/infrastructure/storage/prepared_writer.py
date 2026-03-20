@@ -52,8 +52,8 @@ def write_prepared_dataset(
 
 
 def _write_normalized_json_csv(*, staging_dir: Path, dataset: PreparedDataset) -> None:
-    teams_payload = [team.model_dump() for team in dataset.teams]
-    games_payload = [game.model_dump() for game in dataset.games]
+    teams_payload = [team.model_dump(mode="json") for team in dataset.teams]
+    games_payload = [game.model_dump(mode="json") for game in dataset.games]
     entries_payload = []
     for entry in dataset.entries:
         sorted_picks = sorted(entry.picks, key=lambda pick: pick.game_id)
@@ -64,7 +64,7 @@ def _write_normalized_json_csv(*, staging_dir: Path, dataset: PreparedDataset) -
                 "picks": {pick.game_id: pick.winner_team_id for pick in sorted_picks},
             }
         )
-    constraints_payload = [constraint.model_dump() for constraint in dataset.constraints]
+    constraints_payload = [constraint.model_dump(mode="json") for constraint in dataset.constraints]
 
     _write_json(path=staging_dir / "teams.json", payload=teams_payload)
     _write_json(path=staging_dir / "games.json", payload=games_payload)

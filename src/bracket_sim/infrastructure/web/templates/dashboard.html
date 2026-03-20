@@ -346,6 +346,22 @@
         margin-bottom: 0;
       }
 
+      .history-plot-preview {
+        overflow-x: auto;
+        padding: 10px;
+        border: 1px solid rgba(34, 43, 69, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.88);
+      }
+
+      .history-plot-preview img {
+        display: block;
+        width: 100%;
+        min-width: 720px;
+        height: auto;
+        border-radius: 10px;
+      }
+
       .bracket-lab-panel {
         padding: 22px;
         margin-bottom: 16px;
@@ -1122,6 +1138,18 @@
                   </ul>
                 </section>
               </div>
+
+              {% if pool.latest_report.history_plot %}
+              <section class="summary-block" style="margin-top: 16px;">
+                <h3>Win Percentage History</h3>
+                <div class="history-plot-preview">
+                  <img
+                    src="{{ pool.latest_report.history_plot.url }}"
+                    alt="{{ pool.latest_report.history_plot.name }}"
+                  >
+                </div>
+              </section>
+              {% endif %}
 
               <section class="summary-block" style="margin-top: 16px;">
                 <h3>Artifacts</h3>

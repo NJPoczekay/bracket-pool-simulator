@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from itertools import combinations
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -57,6 +58,8 @@ class _ParsedOutcome:
     team_name: str
     seed: int
     region: str
+    abbrev: str | None
+    logo_url: str | None
     matchup_position: int
     display_order: int
 
@@ -70,6 +73,8 @@ class _ParsedProposition:
     round_one_ordered_team_ids: list[str]
     correct_outcome_ids: list[str]
     status: str
+    scheduled_at_utc: str | None
+    completed_at_utc: str | None
 
 
 @dataclass(frozen=True)
@@ -534,6 +539,12 @@ def _parse_national_picks_payload(
                 round_one_ordered_team_ids=round_one_ordered_team_ids,
                 correct_outcome_ids=[],
                 status=_clean_text(proposition_payload.get("status")) or "UNKNOWN",
+                scheduled_at_utc=_optional_datetime_utc_string(
+                    proposition_payload.get("date")
+                ),
+                completed_at_utc=_optional_datetime_utc_string(
+                    proposition_payload.get("completeDate")
+                ),
             )
         )
 
@@ -700,6 +711,9 @@ def _build_games_from_propositions(propositions: list[_ParsedProposition]) -> li
             right_team_id=right_team_id,
             left_game_id=None,
             right_game_id=None,
+            display_order=proposition.display_order,
+            scheduled_at_utc=proposition.scheduled_at_utc,
+            completed_at_utc=proposition.completed_at_utc,
         )
 
     for round_number in range(2, 7):
@@ -719,6 +733,9 @@ def _build_games_from_propositions(propositions: list[_ParsedProposition]) -> li
                 right_team_id=None,
                 left_game_id=left_child.proposition_id,
                 right_game_id=right_child.proposition_id,
+                display_order=proposition.display_order,
+                scheduled_at_utc=proposition.scheduled_at_utc,
+                completed_at_utc=proposition.completed_at_utc,
             )
 
     parent_count_by_game_id: Counter[str] = Counter()
@@ -857,16 +874,44 @@ def _parse_proposition(
             name=parsed_outcome.team_name,
             seed=parsed_outcome.seed,
             region=parsed_outcome.region,
+            abbrev=parsed_outcome.abbrev,
+            logo_url=parsed_outcome.logo_url,
         )
 
         if existing_team is None:
             teams_by_id[parsed_outcome.team_id] = candidate_team
-        elif existing_team != candidate_team:
-            msg = (
-                f"Team {parsed_outcome.team_id} has inconsistent metadata across propositions: "
-                f"{existing_team} vs {candidate_team}"
+        else:
+            merged_team = RawTeamRow(
+                team_id=existing_team.team_id,
+                name=existing_team.name,
+                seed=existing_team.seed,
+                region=existing_team.region,
+                abbrev=existing_team.abbrev or candidate_team.abbrev,
+                logo_url=existing_team.logo_url or candidate_team.logo_url,
             )
-            raise ValueError(msg)
+            if (
+                existing_team.team_id != candidate_team.team_id
+                or existing_team.name != candidate_team.name
+                or existing_team.seed != candidate_team.seed
+                or existing_team.region != candidate_team.region
+                or (
+                    existing_team.abbrev is not None
+                    and candidate_team.abbrev is not None
+                    and existing_team.abbrev != candidate_team.abbrev
+                )
+                or (
+                    existing_team.logo_url is not None
+                    and candidate_team.logo_url is not None
+                    and existing_team.logo_url != candidate_team.logo_url
+                )
+            ):
+                msg = (
+                    f"Team {parsed_outcome.team_id} has inconsistent metadata across "
+                    f"propositions: {existing_team} vs {candidate_team}"
+                )
+                raise ValueError(msg)
+
+            teams_by_id[parsed_outcome.team_id] = merged_team
 
         outcome_team_id_by_outcome_id[parsed_outcome.outcome_id] = parsed_outcome.team_id
 
@@ -909,6 +954,8 @@ def _parse_proposition(
         round_one_ordered_team_ids=round_one_ordered_team_ids,
         correct_outcome_ids=correct_outcome_ids,
         status=status,
+        scheduled_at_utc=_optional_datetime_utc_string(proposition_payload.get("date")),
+        completed_at_utc=_optional_datetime_utc_string(proposition_payload.get("completeDate")),
     )
 
 
@@ -957,6 +1004,8 @@ def _parse_outcome(*, proposition_id: str, outcome_payload: dict[str, Any]) -> _
         outcome_id=outcome_id,
         outcome_payload=outcome_payload,
     )
+    abbrev = _clean_text(outcome_payload.get("abbrev")) or None
+    logo_url = _clean_text(_mapping_by_type(outcome_payload).get("IMAGE_PRIMARY")) or None
 
     matchup_position = _optional_int(outcome_payload.get("matchupPosition"))
     if matchup_position is None:
@@ -972,6 +1021,8 @@ def _parse_outcome(*, proposition_id: str, outcome_payload: dict[str, Any]) -> _
         team_name=team_name,
         seed=seed,
         region=region,
+        abbrev=abbrev,
+        logo_url=logo_url,
         matchup_position=matchup_position,
         display_order=display_order,
     )
@@ -1326,6 +1377,14 @@ def _optional_int(value: object) -> int | None:
         return int(text)
     except ValueError:
         return None
+
+
+def _optional_datetime_utc_string(value: object) -> str | None:
+    millis = _optional_int(value)
+    if millis is None:
+        return None
+
+    return datetime.fromtimestamp(millis / 1000, tz=UTC).isoformat().replace("+00:00", "Z")
 
 
 def _clean_text(value: object) -> str:

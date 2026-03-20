@@ -43,7 +43,6 @@ from bracket_sim.infrastructure.web.app import PoolScheduler
 from bracket_sim.infrastructure.web.config import PoolProfile, load_pool_registry
 from bracket_sim.infrastructure.web.layout import build_bracket_lab_editor_layout
 from bracket_sim.infrastructure.web.service import (
-    REPORT_ARTIFACT_FILENAMES,
     LatestReport,
     PoolRunBusyError,
     PoolService,
@@ -307,9 +306,6 @@ def create_app(
     ) -> FileResponse:
         """Download one artifact from the newest report bundle for a configured pool."""
 
-        if artifact_name not in REPORT_ARTIFACT_FILENAMES:
-            raise HTTPException(status_code=404, detail=f"Unknown artifact {artifact_name!r}")
-
         service = _pool_service_or_404(request, pool_id)
         try:
             service.get_pool(pool_id)
@@ -535,6 +531,20 @@ def _serialize_latest_report(
     return {
         "report_dir": str(latest_report.report_dir),
         "summary": latest_report.summary.model_dump(mode="json"),
+        "history_plot": (
+            {
+                "name": latest_report.history_plot_path.name,
+                "url": str(
+                    request.url_for(
+                        "download_latest_artifact",
+                        pool_id=latest_report.pool_id,
+                        artifact_name=latest_report.history_plot_path.name,
+                    )
+                ),
+            }
+            if latest_report.history_plot_path is not None
+            else None
+        ),
         "artifacts": {
             filename: {
                 "name": filename,

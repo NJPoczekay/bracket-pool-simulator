@@ -296,6 +296,13 @@ def report_command(
             ),
         ),
     ] = ScoringSystemKey.ESPN,
+    pool_name: Annotated[
+        str | None,
+        typer.Option(
+            "--pool-name",
+            help="Optional display name used for report artifact naming",
+        ),
+    ] = None,
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit bundle summary JSON instead of text output"),
@@ -317,7 +324,11 @@ def report_command(
                 started_at=default_report_timestamp(),
             )
             latest_dir = targets.latest_dir
+            history_cache_dir = targets.reports_root / ".history-cache"
+        else:
+            history_cache_dir = resolved_out_dir.parent / ".history-cache"
 
+        resolved_pool_name = _resolve_pool_name(input_dir=input_dir, pool_name=pool_name)
         config = ReportConfig(
             input_dir=input_dir,
             output_dir=resolved_out_dir,
@@ -326,6 +337,8 @@ def report_command(
             batch_size=batch_size,
             engine=engine,
             scoring_system=scoring_system,
+            report_name=resolved_pool_name,
+            history_cache_dir=history_cache_dir,
         )
         result = generate_reports(config)
         if publish_latest and latest_dir is not None:

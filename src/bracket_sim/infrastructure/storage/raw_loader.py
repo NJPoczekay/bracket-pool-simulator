@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -93,8 +94,11 @@ def load_raw_input(raw_dir: Path) -> RawInput:
 
 def _load_teams_csv(path: Path) -> list[Team]:
     rows, fieldnames = load_required_csv_rows(path, missing_prefix="Required raw file is missing")
-    expected = {"team_id", "name", "seed", "region"}
-    _validate_columns(path=path, expected_columns=expected, fieldnames=fieldnames)
+    expected_variants = (
+        {"team_id", "name", "seed", "region"},
+        {"team_id", "name", "seed", "region", "abbrev", "logo_url"},
+    )
+    _validate_column_variants(path=path, expected_variants=expected_variants, fieldnames=fieldnames)
 
     teams: list[Team] = []
     for row in rows:
@@ -104,6 +108,8 @@ def _load_teams_csv(path: Path) -> list[Team]:
                 name=_require_non_empty(row, "name", path),
                 seed=int(_require_non_empty(row, "seed", path)),
                 region=_require_non_empty(row, "region", path),
+                abbrev=_optional_text(row.get("abbrev")),
+                logo_url=_optional_text(row.get("logo_url")),
             )
         )
 
@@ -124,7 +130,11 @@ def _load_games_csv(path: Path) -> list[Game]:
         "left_game_id",
         "right_game_id",
     }
-    _validate_columns(path=path, expected_columns=expected, fieldnames=fieldnames)
+    expected_variants = (
+        expected,
+        expected | {"display_order", "scheduled_at_utc", "completed_at_utc"},
+    )
+    _validate_column_variants(path=path, expected_variants=expected_variants, fieldnames=fieldnames)
 
     games: list[Game] = []
     for row in rows:
@@ -136,6 +146,9 @@ def _load_games_csv(path: Path) -> list[Game]:
                 right_team_id=_optional_text(row.get("right_team_id")),
                 left_game_id=_optional_text(row.get("left_game_id")),
                 right_game_id=_optional_text(row.get("right_game_id")),
+                display_order=_optional_int(row.get("display_order")),
+                scheduled_at_utc=_optional_datetime(row.get("scheduled_at_utc")),
+                completed_at_utc=_optional_datetime(row.get("completed_at_utc")),
             )
         )
 
@@ -261,6 +274,21 @@ def _validate_columns(path: Path, expected_columns: set[str], fieldnames: list[s
         raise ValueError(msg)
 
 
+def _validate_column_variants(
+    *,
+    path: Path,
+    expected_variants: tuple[set[str], ...],
+    fieldnames: list[str],
+) -> None:
+    observed = set(fieldnames)
+    if any(observed == expected for expected in expected_variants):
+        return
+
+    descriptions = " or ".join(str(sorted(expected)) for expected in expected_variants)
+    msg = f"{path.name} must have columns {descriptions}, got {fieldnames}"
+    raise ValueError(msg)
+
+
 def _require_non_empty(row: Mapping[str, object], key: str, path: Path) -> str:
     value = _sanitize_text(row.get(key))
     if not value:
@@ -274,6 +302,23 @@ def _optional_text(value: object) -> str | None:
     if sanitized == "":
         return None
     return sanitized
+
+
+def _optional_int(value: object) -> int | None:
+    text = _sanitize_text(value)
+    if text == "":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _optional_datetime(value: object) -> datetime | None:
+    text = _sanitize_text(value)
+    if text == "":
+        return None
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
 def _sanitize_text(value: object) -> str:
