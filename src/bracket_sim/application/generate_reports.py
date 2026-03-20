@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from bracket_sim.application.report_history import build_win_percentage_history_plot
 from bracket_sim.domain.bracket_graph import build_bracket_graph
 from bracket_sim.domain.constraints import validate_constraints
 from bracket_sim.domain.models import (
@@ -37,6 +38,7 @@ from bracket_sim.infrastructure.storage.report_bundle import (
     ensure_fresh_report_output_dir,
     ensure_report_output_dir,
     generate_report_id,
+    write_binary_artifact,
     write_champion_sensitivity_csv,
     write_entry_summary_csv,
     write_report_manifest,
@@ -88,7 +90,10 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         msg = f"Missing rating for team id(s): {missing_team_ids[:5]}"
         raise ValueError(msg)
 
-    artifact_paths = build_report_artifact_paths(config.output_dir)
+    artifact_paths = build_report_artifact_paths(
+        config.output_dir,
+        report_name=config.report_name,
+    )
     ensure_report_output_dir(config.output_dir)
     ensure_fresh_report_output_dir(artifact_paths)
     report_id = generate_report_id(config=config)
@@ -175,6 +180,20 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         top_champions=champion_odds_rows[:_TOP_CHAMPION_LIMIT],
     )
 
+    history_plot_bytes = build_win_percentage_history_plot(
+        teams=normalized.teams,
+        games=normalized.games,
+        entries=normalized.entries,
+        constraints=normalized.constraints,
+        predicted_wins=predicted_wins,
+        team_seeds=team_seeds,
+        team_ids=team_ids,
+        rating_records_by_team_id=rating_records_by_team_id,
+        graph=graph,
+        config=config,
+        entry_rows=entry_summary_rows,
+    )
+
     artifacts = [
         write_report_summary(artifact_paths.summary_path, summary),
         write_team_advancement_csv(artifact_paths.team_advancement_path, team_advancement_rows),
@@ -182,6 +201,11 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         write_champion_sensitivity_csv(
             artifact_paths.champion_sensitivity_path,
             champion_sensitivity_rows,
+        ),
+        write_binary_artifact(
+            artifact_paths.history_plot_path,
+            payload=history_plot_bytes,
+            kind="image",
         ),
     ]
     manifest = build_report_manifest(

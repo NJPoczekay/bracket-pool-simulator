@@ -78,9 +78,18 @@ def _write_dataset(*, staging_dir: Path, dataset: RefreshedRawDataset) -> None:
 def _write_teams_csv(path: Path, rows: list[RawTeamRow]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["team_id", "name", "seed", "region"])
+        writer.writerow(["team_id", "name", "seed", "region", "abbrev", "logo_url"])
         for row in sorted(rows, key=lambda item: item.team_id):
-            writer.writerow([row.team_id, row.name, row.seed, row.region])
+            writer.writerow(
+                [
+                    row.team_id,
+                    row.name,
+                    row.seed,
+                    row.region,
+                    row.abbrev or "",
+                    row.logo_url or "",
+                ]
+            )
 
 
 def _write_games_csv(path: Path, rows: list[RawGameRow]) -> None:
@@ -94,6 +103,9 @@ def _write_games_csv(path: Path, rows: list[RawGameRow]) -> None:
                 "right_team_id",
                 "left_game_id",
                 "right_game_id",
+                "display_order",
+                "scheduled_at_utc",
+                "completed_at_utc",
             ]
         )
         for row in sorted(rows, key=lambda item: (item.round, item.game_id)):
@@ -105,6 +117,9 @@ def _write_games_csv(path: Path, rows: list[RawGameRow]) -> None:
                     row.right_team_id or "",
                     row.left_game_id or "",
                     row.right_game_id or "",
+                    row.display_order or "",
+                    row.scheduled_at_utc or "",
+                    row.completed_at_utc or "",
                 ]
             )
 

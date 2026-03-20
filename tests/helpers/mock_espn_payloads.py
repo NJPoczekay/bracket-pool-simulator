@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 
 _NATIONAL_PICK_TOTAL = 1_000
+_BASE_GAME_DATE_MS = 1773900000000
+_GAME_DURATION_MS = 2 * 60 * 60 * 1000
 
 
 def build_mock_payloads(
@@ -78,6 +80,7 @@ def build_mock_payloads(
                 possible_outcomes.append(
                     {
                         "id": outcome_id,
+                        "abbrev": _team_abbrev(team),
                         "name": team["name"],
                         "displayOrder": matchup_position,
                         "matchupPosition": matchup_position,
@@ -102,12 +105,16 @@ def build_mock_payloads(
             if game_id in completed_game_ids:
                 winner_team_id = winner_by_game[game_id]
                 correct_outcomes = [outcome_id_by_game_team[(game_id, winner_team_id)]]
+            game_date = _BASE_GAME_DATE_MS + ((round_number * 100) + display_order) * 60_000
+            complete_date = game_date + _GAME_DURATION_MS if correct_outcomes else None
 
             propositions.append(
                 {
                     "id": game_id,
                     "scoringPeriodId": round_number,
                     "displayOrder": display_order,
+                    "date": game_date,
+                    "completeDate": complete_date,
                     "status": "COMPLETE" if len(correct_outcomes) == 1 else "OPEN",
                     "possibleOutcomes": possible_outcomes,
                     "correctOutcomes": correct_outcomes,
@@ -185,3 +192,13 @@ def _build_choice_counts(
         team_id: floor_counts[idx]
         for idx, team_id in enumerate(possible_team_ids)
     }
+
+
+def _team_abbrev(team: dict[str, Any]) -> str:
+    name = str(team["name"])
+    tokens = [token for token in name.replace("-", " ").split() if token and token[0].isalnum()]
+    if not tokens:
+        return "TEAM"
+    if len(tokens) == 1:
+        return tokens[0][:4].upper()
+    return "".join(token[0] for token in tokens[:4]).upper()

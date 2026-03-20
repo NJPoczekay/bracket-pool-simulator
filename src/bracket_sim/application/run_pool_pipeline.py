@@ -138,6 +138,8 @@ def run_pool_pipeline(
             batch_size=config.batch_size,
             engine=config.engine,
             scoring_system=config.scoring_system,
+            report_name=config.name,
+            history_cache_dir=config.reports_root / ".history-cache",
         )
     )
     publish_latest_report(

@@ -6,7 +6,7 @@ import html
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 from pydantic import TypeAdapter
 
@@ -28,6 +28,20 @@ class BracketLabRawInput:
     kenpom_rows: list[RawRatingRow]
     aliases: list[RawAlias]
     metadata: dict[str, Any]
+
+
+class _ParsedPublicPickRow(TypedDict):
+    game_id: str
+    round: int
+    display_order: int
+    outcome_id: str
+    team_id: str
+    team_name: str
+    seed: int
+    region: str
+    matchup_position: int
+    pick_count: int
+    pick_percentage: float
 
 
 def load_bracket_lab_raw_input(raw_dir: Path) -> BracketLabRawInput:
@@ -137,7 +151,7 @@ def _load_public_picks_csv(path: Path) -> list[PublicPickRecord]:
         msg = f"{path.name} must have columns {sorted(expected)}, got {fieldnames}"
         raise ValueError(msg)
 
-    parsed_rows = [
+    parsed_rows: list[_ParsedPublicPickRow] = [
         {
             "game_id": _require_text(row, "game_id", path),
             "round": int(_require_text(row, "round", path)),
@@ -173,12 +187,12 @@ def _load_public_picks_csv(path: Path) -> list[PublicPickRecord]:
     return payload
 
 
-def _normalize_public_pick_display_orders(rows: list[dict[str, Any]]) -> dict[str, int]:
+def _normalize_public_pick_display_orders(rows: list[_ParsedPublicPickRow]) -> dict[str, int]:
     games: dict[str, tuple[int, int]] = {}
     for row in rows:
-        game_id = str(row["game_id"])
-        round_number = int(row["round"])
-        display_order = int(row["display_order"])
+        game_id = row["game_id"]
+        round_number = row["round"]
+        display_order = row["display_order"]
 
         existing = games.get(game_id)
         if existing is None:

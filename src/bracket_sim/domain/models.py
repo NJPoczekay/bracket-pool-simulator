@@ -22,6 +22,8 @@ class Team(BaseModel):
     name: str = Field(min_length=1)
     seed: int = Field(ge=1, le=16)
     region: str = Field(min_length=1)
+    abbrev: str | None = None
+    logo_url: str | None = None
 
 
 class Game(BaseModel):
@@ -35,6 +37,9 @@ class Game(BaseModel):
     right_team_id: str | None = None
     left_game_id: str | None = None
     right_game_id: str | None = None
+    display_order: int | None = Field(default=None, ge=0)
+    scheduled_at_utc: datetime | None = None
+    completed_at_utc: datetime | None = None
 
     @model_validator(mode="after")
     def validate_sources(self) -> Game:
@@ -199,6 +204,8 @@ class ReportConfig(BaseModel):
     batch_size: int | None = Field(default=None, gt=0)
     engine: str = Field(default="numpy")
     scoring_system: ScoringSystemKey = Field(default=ScoringSystemKey.ESPN)
+    report_name: str = Field(default="Pool", min_length=1)
+    history_cache_dir: Path | None = None
 
     @field_validator("engine")
     @classmethod
