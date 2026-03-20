@@ -170,6 +170,7 @@ Phase 7 covers the `Pool Tracker` half of that integrated app. It should not abs
 - Add report generation module and templates.
 - Define report schemas and output artifact layout.
 - Add CLI/report command for deterministic report generation.
+- Revisit sensitivity semantics for sparse scoring formats so we can distinguish directly scoring pivotal games from broader conditional-equity swings when needed.
 
 ### Exit Criteria
 - Non-CLI-consumable report artifacts are viable without manual analysis.

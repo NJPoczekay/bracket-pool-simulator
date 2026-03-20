@@ -102,6 +102,10 @@ def generate_reports(config: ReportConfig) -> ReportBundleResult:
         graph=graph,
         teams=normalized.teams,
         team_index=team_index,
+        included_rounds=_included_sensitivity_rounds(
+            round_values=scoring_spec.round_values,
+            seed_bonus_rounds=scoring_spec.seed_bonus_rounds,
+        ),
     )
 
     rating_records_by_team_id = {
@@ -303,7 +307,9 @@ def _accumulate_batch(
         winners = game_winners[game_index]
         for winner_idx in np.unique(winners):
             winner_index = int(winner_idx)
-            outcome_index = outcome_index_by_key[(game_index, winner_index)]
+            outcome_index = outcome_index_by_key.get((game_index, winner_index))
+            if outcome_index is None:
+                continue
             outcome_mask = winners == winner_index
             outcome_count = int(np.sum(outcome_mask))
             accumulator.game_outcome_sim_counts[outcome_index] += outcome_count
@@ -487,6 +493,7 @@ def _build_game_outcome_metadata(
     graph: BracketGraph,
     teams: list[Team],
     team_index: dict[str, int],
+    included_rounds: set[int],
 ) -> tuple[list[_GameOutcomeMetadata], dict[tuple[int, int], int]]:
     team_metadata = {team.team_id: team for team in teams}
     round_game_numbers: dict[str, int] = {}
@@ -502,6 +509,8 @@ def _build_game_outcome_metadata(
     outcome_index_by_key: dict[tuple[int, int], int] = {}
     for game_index, game_id in enumerate(graph.topological_game_ids):
         game = graph.games_by_id[game_id]
+        if game.round not in included_rounds:
+            continue
         round_game_number = round_game_numbers[game_id]
         game_label = f"Round {game.round} Game {round_game_number}"
         for outcome_team_id in sorted(graph.possible_teams_by_game_id[game_id]):
@@ -666,6 +675,21 @@ def _build_pivotal_game_rows(
         row.model_copy(update={"rank": rank})
         for rank, row in enumerate(sorted_rows, start=1)
     ]
+
+
+def _included_sensitivity_rounds(
+    *,
+    round_values: tuple[int, int, int, int, int, int],
+    seed_bonus_rounds: tuple[bool, bool, bool, bool, bool, bool],
+) -> set[int]:
+    return {
+        round_number
+        for round_number, (round_value, seed_bonus_enabled) in enumerate(
+            zip(round_values, seed_bonus_rounds, strict=True),
+            start=1,
+        )
+        if round_value > 0 or seed_bonus_enabled
+    }
 
 
 def _derive_batch_seed(*, seed: int, batch_index: int, total_batches: int) -> int:

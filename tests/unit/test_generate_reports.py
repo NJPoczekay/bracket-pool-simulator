@@ -220,6 +220,15 @@ def test_generate_reports_supports_round_of_64_seed_scoring(
 
     assert report_result.summary.n_sims == 180
 
+    game_outcome_rows = _read_csv_rows(output_dir / "game_outcome_sensitivity.csv")
+    pivotal_rows = _read_csv_rows(output_dir / "pivotal_games.csv")
+
+    assert game_outcome_rows
+    assert pivotal_rows
+    assert {int(row["round"]) for row in game_outcome_rows} == {1}
+    assert {int(row["round"]) for row in pivotal_rows} == {1}
+    assert len({row["game_id"] for row in pivotal_rows}) == 32
+
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:

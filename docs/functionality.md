@@ -89,6 +89,9 @@ The app now presents two adjacent workflows in one local web shell:
 - Team-level diagnostic reporting
   - A separate simulation report can show team outcome distributions (for example, odds of at least N wins).
   - This is useful for validating the tournament model independently of pool scoring.
+  - Pool Tracker report bundles also include outcome-sensitivity artifacts such as champion sensitivity and pivotal-game analysis.
+  - For sparse scoring systems like `round-of-64-flat` and `round-of-64-seed`, pivotal-game outputs are currently limited to directly scoring round-1 games.
+  - Follow-up to revisit later: decide whether pivotal analysis should always be limited to directly scoring games, or whether some views should also expose broader conditional-equity swings from downstream outcomes.
 
 - Integrated web surface
   - The FastAPI app always renders both `Bracket Lab` and `Pool Tracker`.
