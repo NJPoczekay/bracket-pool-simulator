@@ -43,6 +43,7 @@ _HISTORY_CACHE_SCHEMA_VERSION = 1
 _STATIC_HISTORY_INPUTS = frozenset({"teams.json", "games.json", "entries.json", "ratings.csv"})
 _LOGO_TIMEOUT_SECONDS = 3.0
 _LogoImage = npt.NDArray[np.float32] | npt.NDArray[np.float64]
+_SERIES_ALPHA_CYCLE = (0.95, 0.72)
 
 
 @dataclass(frozen=True)
@@ -51,8 +52,8 @@ class HistoryPoint:
 
     game_id: str
     label: str
-    left_logo_url: str | None
-    right_logo_url: str | None
+    top_logo_url: str | None
+    bottom_logo_url: str | None
     entry_win_shares: dict[str, float]
 
 
@@ -162,6 +163,11 @@ def _build_history_points(
         )
         left_team = teams_by_id.get(left_team_id) if left_team_id is not None else None
         right_team = teams_by_id.get(right_team_id) if right_team_id is not None else None
+        top_logo_url, bottom_logo_url = _winner_first_logo_url(
+            winner_team_id=completed_constraint.winner_team_id,
+            left_team=left_team,
+            right_team=right_team,
+        )
         history_points.append(
             HistoryPoint(
                 game_id=completed_constraint.game_id,
@@ -170,8 +176,8 @@ def _build_history_points(
                     left_team=left_team,
                     right_team=right_team,
                 ),
-                left_logo_url=left_team.logo_url if left_team is not None else None,
-                right_logo_url=right_team.logo_url if right_team is not None else None,
+                top_logo_url=top_logo_url,
+                bottom_logo_url=bottom_logo_url,
                 entry_win_shares=entry_win_shares,
             )
         )
@@ -378,6 +384,21 @@ def _matchup_label(*, game_id: str, left_team: Team | None, right_team: Team | N
     return f"{left_team.abbrev or left_team.name} vs {right_team.abbrev or right_team.name}"
 
 
+def _winner_first_logo_url(
+    *,
+    winner_team_id: str,
+    left_team: Team | None,
+    right_team: Team | None,
+) -> tuple[str | None, str | None]:
+    if left_team is None or right_team is None:
+        return (None, None)
+    if winner_team_id == left_team.team_id:
+        return (left_team.logo_url, right_team.logo_url)
+    if winner_team_id == right_team.team_id:
+        return (right_team.logo_url, left_team.logo_url)
+    return (left_team.logo_url, right_team.logo_url)
+
+
 def _render_history_plot(
     *,
     history_points: list[HistoryPoint],
@@ -388,11 +409,15 @@ def _render_history_plot(
     figure_width = max(12.0, min(28.0, 4.0 + (point_count * 0.55)))
     figure, axis = plt.subplots(figsize=(figure_width, 8.0))
     figure.patch.set_facecolor("white")
-    axis.set_facecolor("#fbfbfd")
-    axis.grid(True, axis="y", color="#d9dde7", linewidth=0.8, alpha=0.8)
-    axis.set_ylim(0, 100)
+    axis.set_facecolor("white")
+    axis.grid(True, axis="y", color="#d7dbe2", linewidth=0.8, alpha=0.9)
+    axis.grid(True, axis="x", color="#e4e8ef", linewidth=0.8, alpha=0.85)
+    axis.spines["top"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    axis.spines["left"].set_color("#8d96a6")
+    axis.spines["bottom"].set_color("#8d96a6")
+    axis.tick_params(axis="y", colors="#3f4652")
     axis.set_ylabel("Win Percentage")
-    axis.set_xlabel("Games")
     axis.set_title(f"{report_name} Win Percentage by Completed Game")
 
     if not history_points:
@@ -411,49 +436,191 @@ def _render_history_plot(
         return _save_figure_bytes(figure)
 
     x_positions = np.arange(len(history_points), dtype=np.float64)
-    for entry_row in entry_rows:
+    series_values: list[list[float]] = []
+    series_styles = _build_series_styles(len(entry_rows))
+    line_labels: list[tuple[float, str, tuple[float, float, float, float], float]] = []
+    for index, entry_row in enumerate(entry_rows):
         series = [
             history_point.entry_win_shares.get(entry_row.entry_id, 0.0) * 100
             for history_point in history_points
         ]
+        series_values.append(series)
+        latest_win_percentage = series[-1] if series else 0.0
+        style = series_styles[index]
         axis.plot(
             x_positions,
             series,
-            marker="o",
-            linewidth=2.0,
-            markersize=4.0,
-            label=entry_row.entry_name,
+            linewidth=2.2,
+            color=style["color"],
+            alpha=style["alpha"],
+        )
+        line_labels.append(
+            (
+                series[-1] if series else 0.0,
+                f"{entry_row.entry_name} {latest_win_percentage:.2f}%",
+                style["color"],
+                float(style["alpha"]),
+            )
         )
 
+    y_min, y_max = _history_y_limits(series_values)
+    axis.set_ylim(y_min, y_max)
     axis.set_xticks(x_positions)
-    axis.set_xticklabels(
-        [history_point.label for history_point in history_points],
-        rotation=58,
-        ha="right",
-        fontsize=9,
-    )
+    axis.set_xticklabels([])
     axis.set_xlim(-0.5, len(history_points) - 0.5)
-    axis.legend(
-        loc="upper left",
-        bbox_to_anchor=(1.01, 1.0),
-        frameon=False,
-        fontsize=9,
-        title="Entries",
-        title_fontsize=10,
+    axis.tick_params(axis="x", length=0)
+    _add_end_labels(
+        axis=axis,
+        x_position=x_positions[-1] if len(x_positions) > 0 else 0.0,
+        labels=line_labels,
+        y_min=y_min,
+        y_max=y_max,
     )
 
     any_logos = False
     for x_position, history_point in zip(x_positions, history_points, strict=True):
-        left_logo = _load_logo_image(history_point.left_logo_url)
-        right_logo = _load_logo_image(history_point.right_logo_url)
-        if left_logo is None or right_logo is None:
+        top_logo = _load_logo_image(history_point.top_logo_url)
+        bottom_logo = _load_logo_image(history_point.bottom_logo_url)
+        if top_logo is None or bottom_logo is None:
             continue
         any_logos = True
-        _add_logo(axis=axis, x_position=x_position, image=left_logo, x_offset=-12)
-        _add_logo(axis=axis, x_position=x_position, image=right_logo, x_offset=12)
+        _add_logo(axis=axis, x_position=x_position, image=top_logo, y_offset=-14)
+        _add_matchup_separator(axis=axis, x_position=x_position)
+        _add_logo(axis=axis, x_position=x_position, image=bottom_logo, y_offset=-54)
 
-    figure.subplots_adjust(bottom=0.34 if any_logos else 0.28, right=0.8)
+    figure.subplots_adjust(bottom=0.3 if any_logos else 0.18, right=0.76)
     return _save_figure_bytes(figure)
+
+
+def _build_series_styles(
+    series_count: int,
+) -> list[dict[str, float | tuple[float, float, float, float]]]:
+    if series_count <= 0:
+        return []
+
+    cmap = plt.get_cmap("tab20c")
+    color_order = _tab20c_color_order(cmap.N)
+    styles: list[dict[str, float | tuple[float, float, float, float]]] = []
+    for index in range(series_count):
+        styles.append(
+            {
+                "color": cmap(color_order[index % len(color_order)]),
+                "alpha": _SERIES_ALPHA_CYCLE[
+                    (index // len(color_order)) % len(_SERIES_ALPHA_CYCLE)
+                ],
+            }
+        )
+    return styles
+
+
+def _tab20c_color_order(color_count: int) -> list[int]:
+    if color_count <= 0:
+        return []
+
+    order: list[int] = []
+    for start in range(4):
+        for index in range(start, color_count, 4):
+            order.append(index)
+    return order
+
+
+def _add_end_labels(
+    *,
+    axis: Axes,
+    x_position: float,
+    labels: list[tuple[float, str, tuple[float, float, float, float], float]],
+    y_min: float,
+    y_max: float,
+) -> None:
+    if not labels:
+        return
+
+    label_count = len(labels)
+    span = max(y_max - y_min, 1.0)
+    sorted_labels = sorted(labels, key=lambda row: row[0])
+    base_gap = min(max(span * 0.028, 0.55), 0.95)
+    packing_gap = max(span / max(label_count + 5, 6), 0.35)
+    minimum_gap = min(base_gap, packing_gap)
+    adjusted_y_positions: list[float] = []
+
+    for original_y, _, _, _ in sorted_labels:
+        if not adjusted_y_positions:
+            adjusted_y_positions.append(max(y_min, min(y_max, original_y)))
+            continue
+        adjusted_y_positions.append(max(original_y, adjusted_y_positions[-1] + minimum_gap))
+
+    overflow = adjusted_y_positions[-1] - y_max
+    if overflow > 0:
+        adjusted_y_positions = [value - overflow for value in adjusted_y_positions]
+
+    if adjusted_y_positions[0] < y_min:
+        underflow = y_min - adjusted_y_positions[0]
+        adjusted_y_positions = [value + underflow for value in adjusted_y_positions]
+
+    original_center = sum(label[0] for label in sorted_labels) / label_count
+    adjusted_center = sum(adjusted_y_positions) / label_count
+    recenter_shift = original_center - adjusted_center
+    max_up_shift = y_max - adjusted_y_positions[-1]
+    max_down_shift = y_min - adjusted_y_positions[0]
+    recenter_shift = min(max(recenter_shift, max_down_shift), max_up_shift)
+    if abs(recenter_shift) > 1e-9:
+        adjusted_y_positions = [value + recenter_shift for value in adjusted_y_positions]
+
+    for adjusted_y, (original_y, label, color, alpha) in zip(
+        adjusted_y_positions,
+        sorted_labels,
+        strict=True,
+    ):
+        if abs(adjusted_y - original_y) > 0.15:
+            axis.plot(
+                [x_position, x_position + 0.18],
+                [original_y, adjusted_y],
+                color=color,
+                alpha=max(alpha * 0.75, 0.45),
+                linewidth=1.0,
+                solid_capstyle="round",
+                clip_on=False,
+            )
+        axis.text(
+            x_position + 0.22,
+            adjusted_y,
+            label,
+            color=color,
+            alpha=alpha,
+            fontsize=9,
+            va="center",
+            ha="left",
+            clip_on=False,
+        )
+
+
+def _history_y_limits(series_values: list[list[float]]) -> tuple[float, float]:
+    if not series_values:
+        return (0.0, 100.0)
+
+    flattened = [value for series in series_values for value in series]
+    if not flattened:
+        return (0.0, 100.0)
+
+    observed_min = min(flattened)
+    observed_max = max(flattened)
+    observed_span = observed_max - observed_min
+    target_span = max(observed_span + 6.0, 12.0)
+    midpoint = (observed_min + observed_max) / 2.0
+    lower = max(0.0, midpoint - (target_span / 2.0))
+    upper = min(100.0, midpoint + (target_span / 2.0))
+
+    if upper - lower < 12.0:
+        shortfall = 12.0 - (upper - lower)
+        lower = max(0.0, lower - (shortfall / 2.0))
+        upper = min(100.0, upper + (shortfall / 2.0))
+
+    if lower <= 0.0:
+        upper = min(100.0, max(upper, 12.0))
+    if upper >= 100.0:
+        lower = max(0.0, min(lower, 88.0))
+
+    return (lower, upper)
 
 
 def _add_logo(
@@ -461,17 +628,33 @@ def _add_logo(
     axis: Axes,
     x_position: float,
     image: _LogoImage,
-    x_offset: int,
+    y_offset: int,
 ) -> None:
     annotation = AnnotationBbox(
-        OffsetImage(image, zoom=0.12),
+        OffsetImage(image, zoom=0.055),
         (x_position, 0.0),
         xycoords=("data", "axes fraction"),
-        xybox=(x_offset, -44),
+        xybox=(0, y_offset),
         boxcoords="offset points",
         frameon=False,
     )
     axis.add_artist(annotation)
+
+
+def _add_matchup_separator(*, axis: Axes, x_position: float) -> None:
+    axis.annotate(
+        "o.",
+        (x_position, 0.0),
+        xycoords=("data", "axes fraction"),
+        xytext=(0, -34),
+        textcoords="offset points",
+        ha="center",
+        va="center",
+        fontsize=9,
+        fontweight="semibold",
+        color="#4e596a",
+        annotation_clip=False,
+    )
 
 
 def _load_logo_image(logo_url: str | None) -> _LogoImage | None:
