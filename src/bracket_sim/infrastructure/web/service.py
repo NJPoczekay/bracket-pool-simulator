@@ -22,6 +22,8 @@ REPORT_ARTIFACT_FILENAMES = (
     "entry_summary.csv",
     "team_advancement_odds.csv",
     "champion_sensitivity.csv",
+    "game_outcome_sensitivity.csv",
+    "pivotal_games.csv",
 )
 
 

@@ -44,6 +44,7 @@ def test_simulation_is_deterministic_for_same_seed(
 
     assert np.array_equal(first.team_wins, second.team_wins)
     assert np.array_equal(first.champions, second.champions)
+    assert np.array_equal(first.game_winners, second.game_winners)
 
 
 def test_simulation_changes_for_different_seed(
@@ -90,6 +91,7 @@ def test_simulation_invariants(
 
     assert simulation.team_wins.shape == (200, 64)
     assert simulation.champions.shape == (200,)
+    assert simulation.game_winners.shape == (63, 200)
     assert np.all(simulation.team_wins >= 0)
     assert np.all(simulation.team_wins <= 6)
     assert np.all(np.sum(simulation.team_wins, axis=1) == 63)
@@ -105,3 +107,4 @@ def test_simulation_invariants(
     champion_mask = np.zeros_like(simulation.team_wins, dtype=bool)
     champion_mask[sim_indices, champion_indices] = True
     assert np.all(simulation.team_wins[~champion_mask] <= 5)
+    assert np.array_equal(simulation.game_winners[-1], simulation.champions)

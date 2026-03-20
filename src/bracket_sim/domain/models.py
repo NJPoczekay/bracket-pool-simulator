@@ -393,6 +393,54 @@ class ChampionSensitivityRow(BaseModel):
     average_score_delta: float
 
 
+class GameOutcomeSensitivityRow(BaseModel):
+    """Entry performance conditioned on one game outcome."""
+
+    model_config = ConfigDict(frozen=True)
+
+    game_id: str = Field(min_length=1)
+    round: int = Field(ge=1, le=6)
+    round_game_number: int = Field(ge=1)
+    game_label: str = Field(min_length=1)
+    outcome_team_id: str = Field(min_length=1)
+    outcome_team_name: str = Field(min_length=1)
+    outcome_probability: float = Field(ge=0.0, le=1.0)
+    outcome_simulations: int = Field(ge=1)
+    entry_rank: int = Field(ge=1)
+    entry_id: str = Field(min_length=1)
+    entry_name: str = Field(min_length=1)
+    baseline_win_share: float = Field(ge=0.0, le=1.0)
+    conditional_win_share: float = Field(ge=0.0, le=1.0)
+    win_share_delta: float
+    baseline_average_score: float
+    conditional_average_score: float
+    average_score_delta: float
+    outcome_total_swing: float = Field(ge=0.0)
+
+
+class PivotalGameRow(BaseModel):
+    """Highest-swing outcome summary for one game."""
+
+    model_config = ConfigDict(frozen=True)
+
+    rank: int = Field(ge=1)
+    game_id: str = Field(min_length=1)
+    round: int = Field(ge=1, le=6)
+    round_game_number: int = Field(ge=1)
+    game_label: str = Field(min_length=1)
+    pivotal_outcome_team_id: str = Field(min_length=1)
+    pivotal_outcome_team_name: str = Field(min_length=1)
+    pivotal_outcome_probability: float = Field(ge=0.0, le=1.0)
+    pivotal_outcome_simulations: int = Field(ge=1)
+    pivotal_outcome_total_swing: float = Field(ge=0.0)
+    top_gainer_entry_id: str = Field(min_length=1)
+    top_gainer_entry_name: str = Field(min_length=1)
+    top_gainer_win_share_delta: float
+    top_loser_entry_id: str = Field(min_length=1)
+    top_loser_entry_name: str = Field(min_length=1)
+    top_loser_win_share_delta: float
+
+
 class ReportSummary(BaseModel):
     """Compact JSON summary for a generated report bundle."""
 

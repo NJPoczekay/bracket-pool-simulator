@@ -282,6 +282,8 @@ def test_report_command_writes_bundle_and_emits_json(
     assert (out_dir / "team_advancement_odds.csv").exists()
     assert (out_dir / "entry_summary.csv").exists()
     assert (out_dir / "champion_sensitivity.csv").exists()
+    assert (out_dir / "game_outcome_sensitivity.csv").exists()
+    assert (out_dir / "pivotal_games.csv").exists()
 
 
 def test_report_command_accepts_round_of_64_scoring_system(

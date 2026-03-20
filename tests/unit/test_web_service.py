@@ -238,3 +238,11 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
         "champion_team_id,entry_id\nteam-1,entry-1\n",
         encoding="utf-8",
     )
+    (report_dir / "game_outcome_sensitivity.csv").write_text(
+        "game_id,outcome_team_id,entry_id\ng001,team-1,entry-1\n",
+        encoding="utf-8",
+    )
+    (report_dir / "pivotal_games.csv").write_text(
+        "game_id,pivotal_outcome_team_id\ng001,team-1\n",
+        encoding="utf-8",
+    )

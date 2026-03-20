@@ -14,6 +14,8 @@ from bracket_sim import __version__
 from bracket_sim.domain.models import (
     ChampionSensitivityRow,
     EntryReportRow,
+    GameOutcomeSensitivityRow,
+    PivotalGameRow,
     ReportArtifact,
     ReportBundleManifest,
     ReportConfig,
@@ -39,6 +41,8 @@ class ReportArtifactPaths:
     team_advancement_path: Path
     entry_summary_path: Path
     champion_sensitivity_path: Path
+    game_outcome_sensitivity_path: Path
+    pivotal_games_path: Path
 
 
 def build_report_artifact_paths(output_dir: Path) -> ReportArtifactPaths:
@@ -51,6 +55,8 @@ def build_report_artifact_paths(output_dir: Path) -> ReportArtifactPaths:
         team_advancement_path=output_dir / "team_advancement_odds.csv",
         entry_summary_path=output_dir / "entry_summary.csv",
         champion_sensitivity_path=output_dir / "champion_sensitivity.csv",
+        game_outcome_sensitivity_path=output_dir / "game_outcome_sensitivity.csv",
+        pivotal_games_path=output_dir / "pivotal_games.csv",
     )
 
 
@@ -71,6 +77,8 @@ def ensure_fresh_report_output_dir(paths: ReportArtifactPaths) -> None:
             paths.team_advancement_path,
             paths.entry_summary_path,
             paths.champion_sensitivity_path,
+            paths.game_outcome_sensitivity_path,
+            paths.pivotal_games_path,
         )
         if path.exists()
     ]
@@ -200,6 +208,69 @@ def write_champion_sensitivity_csv(
     )
 
 
+def write_game_outcome_sensitivity_csv(
+    path: Path,
+    rows: list[GameOutcomeSensitivityRow],
+) -> ReportArtifact:
+    """Persist game-outcome sensitivity metrics as CSV."""
+
+    return _write_csv_rows(
+        path=path,
+        rows=[
+            {
+                "game_id": row.game_id,
+                "round": row.round,
+                "round_game_number": row.round_game_number,
+                "game_label": row.game_label,
+                "outcome_team_id": row.outcome_team_id,
+                "outcome_team_name": row.outcome_team_name,
+                "outcome_probability": row.outcome_probability,
+                "outcome_simulations": row.outcome_simulations,
+                "entry_rank": row.entry_rank,
+                "entry_id": row.entry_id,
+                "entry_name": row.entry_name,
+                "baseline_win_percentage": row.baseline_win_share * 100,
+                "conditional_win_percentage": row.conditional_win_share * 100,
+                "win_percentage_point_delta": row.win_share_delta * 100,
+                "baseline_average_score": row.baseline_average_score,
+                "conditional_average_score": row.conditional_average_score,
+                "average_score_delta": row.average_score_delta,
+                "outcome_total_win_percentage_point_swing": row.outcome_total_swing * 100,
+            }
+            for row in rows
+        ],
+    )
+
+
+def write_pivotal_games_csv(path: Path, rows: list[PivotalGameRow]) -> ReportArtifact:
+    """Persist ranked pivotal-game summary metrics as CSV."""
+
+    return _write_csv_rows(
+        path=path,
+        rows=[
+            {
+                "rank": row.rank,
+                "game_id": row.game_id,
+                "round": row.round,
+                "round_game_number": row.round_game_number,
+                "game_label": row.game_label,
+                "pivotal_outcome_team_id": row.pivotal_outcome_team_id,
+                "pivotal_outcome_team_name": row.pivotal_outcome_team_name,
+                "pivotal_outcome_probability": row.pivotal_outcome_probability,
+                "pivotal_outcome_simulations": row.pivotal_outcome_simulations,
+                "pivotal_win_percentage_point_swing": row.pivotal_outcome_total_swing * 100,
+                "top_gainer_entry_id": row.top_gainer_entry_id,
+                "top_gainer_entry_name": row.top_gainer_entry_name,
+                "top_gainer_win_percentage_point_delta": row.top_gainer_win_share_delta * 100,
+                "top_loser_entry_id": row.top_loser_entry_id,
+                "top_loser_entry_name": row.top_loser_entry_name,
+                "top_loser_win_percentage_point_delta": row.top_loser_win_share_delta * 100,
+            }
+            for row in rows
+        ],
+    )
+
+
 def write_report_manifest(path: Path, manifest: ReportBundleManifest) -> None:
     """Persist the report manifest atomically."""
 
@@ -261,4 +332,6 @@ def _canonical_report_paths(output_dir: Path) -> tuple[Path, ...]:
         paths.team_advancement_path,
         paths.entry_summary_path,
         paths.champion_sensitivity_path,
+        paths.game_outcome_sensitivity_path,
+        paths.pivotal_games_path,
     )

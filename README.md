@@ -327,6 +327,8 @@ Output includes:
 - `team_advancement_odds.csv`
 - `entry_summary.csv`
 - `champion_sensitivity.csv`
+- `game_outcome_sensitivity.csv`
+- `pivotal_games.csv`
 
 ### 6. Refresh national pick counts
 

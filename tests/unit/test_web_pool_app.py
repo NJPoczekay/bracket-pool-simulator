@@ -52,6 +52,8 @@ def test_run_pool_api_executes_runner_and_returns_latest_report(tmp_path: Path) 
     assert latest_response.status_code == 200
     assert run_response.json()["pool"]["latest_report"]["summary"]["report_id"] == "latest-report"
     assert latest_response.json()["latest_report"]["summary"]["report_id"] == "latest-report"
+    assert "game_outcome_sensitivity.csv" in latest_response.json()["latest_report"]["artifacts"]
+    assert "pivotal_games.csv" in latest_response.json()["latest_report"]["artifacts"]
 
 
 def test_run_pool_api_rejects_busy_and_unknown_pool(tmp_path: Path) -> None:
@@ -128,10 +130,10 @@ def test_download_latest_artifact_returns_file_contents(tmp_path: Path) -> None:
         enable_scheduler=False,
     )
     with TestClient(app) as client:
-        response = client.get("/pools/alpha/artifacts/summary.json")
+        response = client.get("/pools/alpha/artifacts/pivotal_games.csv")
 
     assert response.status_code == 200
-    assert "alpha-report" in response.text
+    assert "pivotal_outcome_team_id" in response.text
 
 
 def _build_registry(tmp_path: Path) -> PoolRegistry:
@@ -221,5 +223,13 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
     )
     (report_dir / "champion_sensitivity.csv").write_text(
         "champion_team_id,entry_id\nteam-1,entry-1\n",
+        encoding="utf-8",
+    )
+    (report_dir / "game_outcome_sensitivity.csv").write_text(
+        "game_id,outcome_team_id,entry_id\ng001,team-1,entry-1\n",
+        encoding="utf-8",
+    )
+    (report_dir / "pivotal_games.csv").write_text(
+        "game_id,pivotal_outcome_team_id\ng001,team-1\n",
         encoding="utf-8",
     )

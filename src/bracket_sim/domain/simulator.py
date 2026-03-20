@@ -25,6 +25,7 @@ class TournamentSimulation:
     team_ids: list[str]
     team_wins: npt.NDArray[np.int16]
     champions: npt.NDArray[np.int16]
+    game_winners: npt.NDArray[np.int16]
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def simulate_tournament(
     )
 
     if engine == "numpy":
-        team_wins, champions = _simulate_tournament_numpy(
+        team_wins, champions, game_winners = _simulate_tournament_numpy(
             compiled=compiled,
             ratings=ratings,
             tempos=tempos,
@@ -84,7 +85,7 @@ def simulate_tournament(
             point_spread_std_dev=point_spread_std_dev,
         )
     elif engine == "numba":
-        team_wins, champions = _simulate_tournament_numba(
+        team_wins, champions, game_winners = _simulate_tournament_numba(
             compiled=compiled,
             ratings=ratings,
             tempos=tempos,
@@ -96,7 +97,12 @@ def simulate_tournament(
         msg = f"Unsupported simulation engine: {engine}"
         raise ValueError(msg)
 
-    return TournamentSimulation(team_ids=team_ids, team_wins=team_wins, champions=champions)
+    return TournamentSimulation(
+        team_ids=team_ids,
+        team_wins=team_wins,
+        champions=champions,
+        game_winners=game_winners,
+    )
 
 
 def compile_tournament_arrays(
@@ -148,7 +154,7 @@ def _simulate_tournament_numpy(
     n_sims: int,
     seed: int,
     point_spread_std_dev: float,
-) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
+) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16], npt.NDArray[np.int16]]:
     rng = np.random.default_rng(seed)
 
     team_wins = np.zeros((n_sims, len(ratings)), dtype=np.int16)
@@ -184,7 +190,7 @@ def _simulate_tournament_numpy(
         team_wins[simulation_index, winners] += 1
 
     champions = winners_by_game[compiled.championship_game_index].copy()
-    return team_wins, champions
+    return team_wins, champions, winners_by_game.copy()
 
 
 def _simulate_tournament_numba(
@@ -195,13 +201,13 @@ def _simulate_tournament_numba(
     n_sims: int,
     seed: int,
     point_spread_std_dev: float,
-) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
+) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16], npt.NDArray[np.int16]]:
     if njit is None:
         msg = "Numba engine requested but numba is not installed"
         raise ValueError(msg)
 
     return cast(
-        tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]],
+        tuple[npt.NDArray[np.int16], npt.NDArray[np.int16], npt.NDArray[np.int16]],
         _simulate_tournament_numba_core(
             ratings,
             tempos,
@@ -231,7 +237,7 @@ if njit is not None:
         n_sims: int,
         seed: int,
         point_spread_std_dev: float,
-    ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
+    ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16], npt.NDArray[np.int16]]:
         np.random.seed(seed)
         team_wins = np.zeros((n_sims, len(ratings)), dtype=np.int16)
         winners_by_game = np.zeros((len(left_refs), n_sims), dtype=np.int16)
@@ -271,7 +277,7 @@ if njit is not None:
                 team_wins[sim_idx, winner_idx] += 1
 
         champions = winners_by_game[championship_game_index].copy()
-        return team_wins, champions
+        return team_wins, champions, winners_by_game.copy()
 
 else:
 
@@ -286,5 +292,5 @@ else:
         n_sims: int,
         seed: int,
         point_spread_std_dev: float,
-    ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16]]:
+    ) -> tuple[npt.NDArray[np.int16], npt.NDArray[np.int16], npt.NDArray[np.int16]]:
         raise AssertionError("numba core should not be called when numba is unavailable")
