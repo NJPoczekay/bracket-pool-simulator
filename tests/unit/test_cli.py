@@ -32,9 +32,37 @@ def test_simulate_command_runs_with_table_output(synthetic_input_dir: Path) -> N
     )
 
     assert result.exit_code == 0
-    assert "Run ID:" in result.stdout
+    assert "Run ID:" not in result.stdout
     assert "Win %" in result.stdout
-    assert "Simulations: 100" in result.stdout
+    assert "Simulations: 100" not in result.stdout
+    assert "Seed: 7" not in result.stdout
+    assert "Pool: synthetic_64" in result.stdout
+
+
+def test_simulate_command_shows_run_metadata_in_verbose_mode(
+    synthetic_input_dir: Path,
+) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "simulate",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "100",
+            "--seed",
+            "7",
+            "--verbose",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Run ID:" in result.stdout
+    assert "Engine: numpy" in result.stdout
+    assert "Batch Size:" in result.stdout
+    assert "Batches:" in result.stdout
+    assert "Simulations: 100  Seed: 7" in result.stdout
 
 
 def test_simulate_command_json_output_is_stable(synthetic_input_dir: Path) -> None:
@@ -89,6 +117,69 @@ def test_simulate_command_accepts_round_of_64_scoring_system(
     payload = json.loads(result.stdout)
     assert payload["n_sims"] == 100
     assert len(payload["entry_results"]) == 8
+
+
+def test_simulate_command_accepts_pool_name_display_override(
+    synthetic_input_dir: Path,
+) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "simulate",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "80",
+            "--seed",
+            "9",
+            "--pool-name",
+            "Office Pool",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Pool: Office Pool" in result.stdout
+
+
+def test_simulate_command_uses_pool_name_from_tracker_toml(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "pools.toml").write_text(
+        (
+            "[[pools]]\n"
+            'id = "main"\n'
+            'name = "Main Pool Name"\n'
+            'group_url = "https://fantasy.espn.com/games/tournament-challenge-bracket-2026/group?id=main"\n'
+            f'prepared_dir = "{synthetic_input_dir.resolve().as_posix()}"\n'
+            "n_sims = 1000\n"
+            "seed = 11\n"
+            'engine = "numpy"\n'
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "simulate",
+            "--input",
+            str(synthetic_input_dir),
+            "--n-sims",
+            "80",
+            "--seed",
+            "9",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Pool: Main Pool Name" in result.stdout
 
 
 def test_simulate_command_supports_run_artifact_flags(
@@ -772,9 +863,7 @@ def test_refresh_pools_command_runs_all_configured_pools(
     assert fake_runner.call_count == 2
     assert fake_runner.call_args_list[0].args[0].id == "alpha"
     assert fake_runner.call_args_list[1].args[0].id == "beta"
-    assert "Running Alpha Pool (alpha)..." in result.stdout
-    assert "Completed alpha:" in result.stdout
-    assert "Completed beta:" in result.stdout
+    assert result.stdout == ""
 
 
 def test_refresh_pools_command_reports_failures_and_exits_non_zero(
@@ -825,8 +914,121 @@ def test_refresh_pools_command_reports_failures_and_exits_non_zero(
 
     assert result.exit_code == 1
     assert fake_runner.call_count == 2
-    assert "Running Alpha Pool (alpha)..." in result.stdout
-    assert "Running Beta Pool (beta)..." in result.stdout
-    assert "Completed beta:" in result.stdout
+    assert result.stdout == ""
     assert "Failed alpha: refresh failed" in result.stderr
     assert "Completed with failures: 1 pool(s) failed" in result.stderr
+
+
+def test_refresh_pools_command_simulate_option_runs_end_to_end_simulation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    config_path = tmp_path / "pools.toml"
+    config_path.write_text("pools = []\n", encoding="utf-8")
+    registry = PoolRegistry(
+        pools=[
+            PoolProfile(
+                id="alpha",
+                name="Alpha Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=alpha",
+                raw_dir=tmp_path / "raw-alpha",
+                prepared_dir=tmp_path / "prepared-alpha",
+                reports_root=tmp_path / "reports-alpha",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+            PoolProfile(
+                id="beta",
+                name="Beta Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=beta",
+                raw_dir=tmp_path / "raw-beta",
+                prepared_dir=tmp_path / "prepared-beta",
+                reports_root=tmp_path / "reports-beta",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            ),
+        ]
+    )
+    monkeypatch.setattr(cli_main, "load_pool_registry", Mock(return_value=registry))
+    fake_refresh = Mock(
+        side_effect=[
+            Mock(output_dir=tmp_path / "raw-alpha"),
+            Mock(output_dir=tmp_path / "raw-beta"),
+        ]
+    )
+    fake_prepare = Mock(
+        side_effect=[
+            Mock(output_dir=tmp_path / "prepared-alpha"),
+            Mock(output_dir=tmp_path / "prepared-beta"),
+        ]
+    )
+    fake_simulate = Mock(
+        side_effect=[
+            Mock(entry_results=[]),
+            Mock(entry_results=[]),
+        ]
+    )
+    fake_table = Mock(return_value="<table>")
+    monkeypatch.setattr(cli_main, "refresh_data", fake_refresh)
+    monkeypatch.setattr(cli_main, "prepare_data", fake_prepare)
+    monkeypatch.setattr(cli_main, "simulate_pool", fake_simulate)
+    monkeypatch.setattr(cli_main, "format_result_table", fake_table)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["refresh-pools", "--config", str(config_path), "--simulate"],
+    )
+
+    assert result.exit_code == 0
+    assert fake_refresh.call_count == 2
+    assert fake_prepare.call_count == 2
+    assert fake_simulate.call_count == 2
+    assert fake_table.call_count == 2
+    assert result.stdout.count("<table>") == 2
+
+
+def test_refresh_pools_command_suppresses_noisy_internal_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import bracket_sim.infrastructure.cli.main as cli_main
+
+    config_path = tmp_path / "pools.toml"
+    config_path.write_text("pools = []\n", encoding="utf-8")
+    registry = PoolRegistry(
+        pools=[
+            PoolProfile(
+                id="alpha",
+                name="Alpha Pool",
+                group_url="https://fantasy.espn.com/games/mock/group?id=alpha",
+                raw_dir=tmp_path / "raw-alpha",
+                prepared_dir=tmp_path / "prepared-alpha",
+                reports_root=tmp_path / "reports-alpha",
+                n_sims=100,
+                seed=7,
+                engine="numpy",
+            )
+        ]
+    )
+    monkeypatch.setattr(cli_main, "load_pool_registry", Mock(return_value=registry))
+
+    def noisy_runner(pool: PoolProfile) -> Mock:
+        import sys
+
+        print("normalizing...", flush=True)
+        print("normalizing...", file=sys.stderr, flush=True)
+        return Mock(report_dir=tmp_path / "reports-alpha" / "20260319-120000")
+
+    monkeypatch.setattr(cli_main, "run_pool_pipeline", noisy_runner)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["refresh-pools", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "normalizing..." not in result.stdout
+    assert "normalizing..." not in result.stderr

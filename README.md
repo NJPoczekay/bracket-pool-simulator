@@ -65,7 +65,7 @@ The CLI exposes eleven commands:
 - `report`: generate deterministic offline report bundles from normalized inputs
 - `matchup-table`: generate Bracket Lab matchup win-probability and value tables
 - `refresh-national-picks`: download ESPN national pick-count snapshots
-- `refresh-pools`: run refresh -> prepare -> report for every pool in a tracker config file
+- `refresh-pools`: run refresh -> prepare -> report for every pool, or `--simulate` for refresh -> prepare -> simulate
 - `serve`: run the integrated local web/API surface, or pass `--config` to enable live pool tracking data
 
 ## Typical Workflow
@@ -243,10 +243,15 @@ Useful options:
 
 - `--engine`: `numpy` or `numba`
 - `--scoring-system`: pick scoring model (`1-2-4-8-16-32`, `round-of-64-flat`, `round-of-64-seed`, etc.)
+- `--pool-name`: override the displayed pool label above the results table
+- `--verbose`: include run metadata (Run ID / engine / batch details) above the table
 - `--batch-size`: split large runs into checkpointed batches
 - `--run-dir`: write resumable artifacts
 - `--resume`: continue a prior run from `--run-dir`
 - `--log-level`: `debug`, `info`, `warning`, or `error`
+
+When `--pool-name` is omitted, `simulate` first tries to match `--input` to a pool's `prepared_dir`
+in `config/pools.toml` and uses that pool's `name` field.
 
 When `--run-dir` is provided, the simulator writes:
 
@@ -361,6 +366,12 @@ You can also run that full tracker pipeline from the CLI without starting the we
 
 ```bash
 uv run bracket-sim refresh-pools --config config/pools.toml
+```
+
+Or run full end-to-end simulations for every configured pool:
+
+```bash
+uv run bracket-sim refresh-pools --config config/pools.toml --simulate
 ```
 
 Start from the example config:

@@ -16,27 +16,41 @@ from bracket_sim.domain.models import (
 )
 
 
-def format_result_table(result: SimulationResult) -> str:
+def format_result_table(
+    result: SimulationResult,
+    *,
+    pool_name: str | None = None,
+    verbose: bool = False,
+) -> str:
     """Render compact human-readable simulation output."""
 
-    lines = [
-        (
-            "Run ID: "
-            f"{result.run_metadata.run_id}  Engine: {result.run_metadata.engine}  "
-            f"Batch Size: {result.run_metadata.batch_size}  "
-            f"Batches: {result.run_metadata.batches_completed}"
-        ),
-        f"Simulations: {result.n_sims}  Seed: {result.seed}",
-    ]
+    lines: list[str] = []
+
+    if verbose:
+        lines.extend(
+            [
+                (
+                    "Run ID: "
+                    f"{result.run_metadata.run_id}  Engine: {result.run_metadata.engine}  "
+                    f"Batch Size: {result.run_metadata.batch_size}  "
+                    f"Batches: {result.run_metadata.batches_completed}"
+                ),
+                f"Simulations: {result.n_sims}  Seed: {result.seed}",
+            ]
+        )
 
     if result.run_metadata.resumed_from_checkpoint:
         lines.append("Resumed: yes")
     if result.run_metadata.run_dir is not None:
         lines.append(f"Artifacts: {result.run_metadata.run_dir}")
+    if pool_name:
+        lines.append(f"Pool: {pool_name}")
+
+    if lines:
+        lines.append("")
 
     lines.extend(
         [
-            "",
             f"{'Entry':<24} {'Win %':>10} {'Avg Score':>10}",
             f"{'-' * 24} {'-' * 10} {'-' * 10}",
         ]

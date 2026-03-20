@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
@@ -22,6 +25,7 @@ from bracket_sim.domain.models import (
     BenchmarkConfig,
     ReportConfig,
     SimulationConfig,
+    SimulationResult,
 )
 from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.cli.presenter import (
@@ -46,17 +50,20 @@ from bracket_sim.infrastructure.storage.path_defaults import (
     build_tracker_paths,
     default_report_timestamp,
     derive_prepared_out_dir,
+    infer_storage_context_from_path,
+    load_storage_context,
     national_picks_context_from_challenge,
     report_publish_targets_for_input,
     tracker_context_from_group,
 )
 from bracket_sim.infrastructure.storage.report_bundle import publish_latest_report
-from bracket_sim.infrastructure.web.config import load_pool_registry
+from bracket_sim.infrastructure.web.config import PoolProfile, load_pool_registry
 from bracket_sim.infrastructure.web.main import run_server
 
 app = typer.Typer(no_args_is_help=True, help="Bracket pool simulator CLI")
 
 _DEFAULT_BASE_DIR = Path(".")
+_DEFAULT_POOL_CONFIG_PATH = Path("config/pools.toml")
 
 
 @app.callback()
@@ -109,6 +116,13 @@ def simulate_command(
         str,
         typer.Option("--log-level", help="Structured log verbosity: debug, info, warning, error"),
     ] = "warning",
+    pool_name: Annotated[
+        str | None,
+        typer.Option(
+            "--pool-name",
+            help="Optional display name printed above the simulation result table",
+        ),
+    ] = None,
     scoring_system: Annotated[
         ScoringSystemKey,
         typer.Option(
@@ -122,6 +136,13 @@ def simulate_command(
     as_json: Annotated[
         bool,
         typer.Option("--json", help="Emit structured JSON instead of table output"),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            help="Include run metadata details above the simulation table",
+        ),
     ] = False,
 ) -> None:
     """Run deterministic pool simulation from normalized local inputs."""
@@ -147,7 +168,14 @@ def simulate_command(
         typer.echo(result.model_dump_json(indent=2))
         return
 
-    typer.echo(format_result_table(result))
+    resolved_pool_name = _resolve_pool_name(input_dir=input_dir, pool_name=pool_name)
+    typer.echo(
+        format_result_table(
+            result,
+            pool_name=resolved_pool_name,
+            verbose=verbose,
+        )
+    )
 
 
 @app.command("benchmark")
@@ -694,8 +722,25 @@ def refresh_pools_command(
             readable=True,
         ),
     ],
+    simulate: Annotated[
+        bool,
+        typer.Option(
+            "--simulate",
+            help=(
+                "Run refresh -> prepare -> simulate for each pool instead of "
+                "refresh -> prepare -> report"
+            ),
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            help="When --simulate is set, include run metadata above each simulation table",
+        ),
+    ] = False,
 ) -> None:
-    """Run refresh -> prepare -> report for every pool in one config file."""
+    """Run end-to-end tracker pipelines for every pool in one config file."""
 
     try:
         registry = load_pool_registry(config_path)
@@ -704,16 +749,29 @@ def refresh_pools_command(
         raise typer.Exit(code=1) from exc
 
     failures: list[tuple[str, str]] = []
-    for pool in registry.pools:
-        typer.echo(f"Running {pool.name} ({pool.id})...")
+    for index, pool in enumerate(registry.pools):
         try:
-            result = run_pool_pipeline(pool)
+            if simulate:
+                simulation_result = _run_quietly(
+                    lambda pool=pool: _refresh_prepare_and_simulate_pool(pool)
+                )
+            else:
+                _run_quietly(lambda pool=pool: run_pool_pipeline(pool))
         except ValueError as exc:
             failures.append((pool.id, str(exc)))
             typer.echo(f"Failed {pool.id}: {exc}", err=True)
             continue
 
-        typer.echo(f"Completed {pool.id}: {result.report_dir}")
+        if simulate:
+            typer.echo(
+                format_result_table(
+                    simulation_result,
+                    pool_name=pool.name,
+                    verbose=verbose,
+                )
+            )
+            if index < len(registry.pools) - 1:
+                typer.echo("")
 
     if failures:
         typer.echo(
@@ -727,6 +785,68 @@ def main() -> None:
     """Console script entrypoint."""
 
     app()
+
+
+def _resolve_pool_name(*, input_dir: Path, pool_name: str | None) -> str:
+    if pool_name is not None and pool_name.strip() != "":
+        return pool_name.strip()
+
+    config_name = _pool_name_from_tracker_config(input_dir=input_dir)
+    if config_name is not None:
+        return config_name
+
+    storage_context = load_storage_context(input_dir) or infer_storage_context_from_path(input_dir)
+    if storage_context is not None:
+        return storage_context.dataset_slug
+
+    if input_dir.name in {"prepared", "raw"}:
+        return input_dir.parent.name
+    return input_dir.name
+
+
+def _pool_name_from_tracker_config(*, input_dir: Path) -> str | None:
+    config_path = _DEFAULT_POOL_CONFIG_PATH
+    if not config_path.exists():
+        return None
+
+    try:
+        registry = load_pool_registry(config_path)
+    except ValueError:
+        return None
+
+    resolved_input = input_dir.resolve()
+    for pool in registry.pools:
+        if pool.prepared_dir.resolve() == resolved_input:
+            return pool.name
+    return None
+
+
+def _refresh_prepare_and_simulate_pool(pool: PoolProfile) -> SimulationResult:
+    refresh_data(
+        group_url=pool.group_url,
+        raw_dir=pool.raw_dir,
+        ratings_file=pool.ratings_file,
+        use_kenpom=pool.use_kenpom,
+        min_usable_entries=pool.min_usable_entries,
+    )
+    prepare_summary = prepare_data(raw_dir=pool.raw_dir, out_dir=pool.prepared_dir)
+    return simulate_pool(
+        SimulationConfig(
+            input_dir=prepare_summary.output_dir,
+            n_sims=pool.n_sims,
+            seed=pool.seed,
+            batch_size=pool.batch_size,
+            engine=pool.engine,
+            scoring_system=pool.scoring_system,
+        )
+    )
+
+
+def _run_quietly[T](task: Callable[[], T]) -> T:
+    """Suppress stdout/stderr noise from provider/library internals."""
+
+    with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+        return task()
 
 
 if __name__ == "__main__":
