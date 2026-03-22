@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -20,6 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+from matplotlib.transforms import blended_transform_factory
 
 from bracket_sim.domain.bracket_graph import BracketGraph
 from bracket_sim.domain.constraints import validate_constraints
@@ -51,10 +53,20 @@ class HistoryPoint:
     """One historical plot point after a completed game."""
 
     game_id: str
+    round: int
     label: str
     top_logo_url: str | None
     bottom_logo_url: str | None
     entry_win_shares: dict[str, float]
+
+
+@dataclass(frozen=True)
+class RoundCompletionMarker:
+    """Vertical annotation for the last completed game in a finished round."""
+
+    x_position: float
+    round: int
+    label: str
 
 
 def build_win_percentage_history_plot(
@@ -86,10 +98,15 @@ def build_win_percentage_history_plot(
         config=config,
         entry_rows=entry_rows,
     )
+    round_completion_markers = _build_round_completion_markers(
+        history_points=history_points,
+        games=games,
+    )
     return _render_history_plot(
         history_points=history_points,
         entry_rows=entry_rows,
         report_name=config.report_name,
+        round_completion_markers=round_completion_markers,
     )
 
 
@@ -171,6 +188,7 @@ def _build_history_points(
         history_points.append(
             HistoryPoint(
                 game_id=completed_constraint.game_id,
+                round=games_by_id[completed_constraint.game_id].round,
                 label=_matchup_label(
                     game_id=completed_constraint.game_id,
                     left_team=left_team,
@@ -188,6 +206,48 @@ def _build_history_points(
             _write_history_cache(path=cache_path, base_key=base_key, points=cached_points)
 
     return history_points
+
+
+def _build_round_completion_markers(
+    *,
+    history_points: list[HistoryPoint],
+    games: list[Game],
+) -> list[RoundCompletionMarker]:
+    if not history_points:
+        return []
+
+    total_games_by_round = Counter(game.round for game in games)
+    completed_games_by_round: defaultdict[int, int] = defaultdict(int)
+    markers: list[RoundCompletionMarker] = []
+
+    for index, history_point in enumerate(history_points):
+        completed_games_by_round[history_point.round] += 1
+        if (
+            completed_games_by_round[history_point.round]
+            != total_games_by_round[history_point.round]
+        ):
+            continue
+        markers.append(
+            RoundCompletionMarker(
+                x_position=float(index),
+                round=history_point.round,
+                label=_history_round_label(history_point.round),
+            )
+        )
+
+    return markers
+
+
+def _history_round_label(round_number: int) -> str:
+    labels = {
+        1: "Round of 64",
+        2: "Round of 32",
+        3: "Sweet 16",
+        4: "Elite 8",
+        5: "Final Four",
+        6: "Championship",
+    }
+    return labels.get(round_number, f"Round {round_number}")
 
 
 def _ordered_completed_constraints(
@@ -404,6 +464,7 @@ def _render_history_plot(
     history_points: list[HistoryPoint],
     entry_rows: list[EntryReportRow],
     report_name: str,
+    round_completion_markers: list[RoundCompletionMarker],
 ) -> bytes:
     point_count = max(len(history_points), 1)
     figure_width = max(12.0, min(28.0, 4.0 + (point_count * 0.55)))
@@ -469,6 +530,10 @@ def _render_history_plot(
     axis.set_xticklabels([])
     axis.set_xlim(-0.5, len(history_points) - 0.5)
     axis.tick_params(axis="x", length=0)
+    _add_round_completion_markers(
+        axis=axis,
+        round_completion_markers=round_completion_markers,
+    )
     _add_end_labels(
         axis=axis,
         x_position=x_positions[-1] if len(x_positions) > 0 else 0.0,
@@ -490,6 +555,44 @@ def _render_history_plot(
 
     figure.subplots_adjust(bottom=0.3 if any_logos else 0.18, right=0.76)
     return _save_figure_bytes(figure)
+
+
+def _add_round_completion_markers(
+    *,
+    axis: Axes,
+    round_completion_markers: list[RoundCompletionMarker],
+) -> None:
+    if not round_completion_markers:
+        return
+
+    text_transform = blended_transform_factory(axis.transData, axis.transAxes)
+    for marker in round_completion_markers:
+        axis.axvline(
+            marker.x_position,
+            color="#7b8798",
+            linewidth=1.0,
+            linestyle=(0, (4, 4)),
+            alpha=0.85,
+            zorder=0.5,
+        )
+        axis.text(
+            marker.x_position,
+            0.985,
+            marker.label,
+            transform=text_transform,
+            rotation=90,
+            ha="center",
+            va="top",
+            fontsize=8.5,
+            color="#4e596a",
+            clip_on=False,
+            bbox={
+                "boxstyle": "round,pad=0.18",
+                "facecolor": "white",
+                "edgecolor": "none",
+                "alpha": 0.92,
+            },
+        )
 
 
 def _build_series_styles(

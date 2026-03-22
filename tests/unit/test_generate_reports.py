@@ -17,6 +17,7 @@ from bracket_sim.application.simulate_pool import simulate_pool
 from bracket_sim.domain.bracket_graph import BracketGraph
 from bracket_sim.domain.models import (
     CompletedGameConstraint,
+    Game,
     PoolEntry,
     RatingRecord,
     ReportConfig,
@@ -331,6 +332,50 @@ def test_generate_reports_supports_round_of_64_seed_scoring(
     assert {int(row["round"]) for row in game_outcome_rows} == {1}
     assert {int(row["round"]) for row in pivotal_rows} == {1}
     assert len({row["game_id"] for row in pivotal_rows}) == 32
+
+
+def test_build_round_completion_markers_marks_only_finished_rounds() -> None:
+    games = [
+        Game(game_id="g1", round=1, left_team_id="t1", right_team_id="t2"),
+        Game(game_id="g2", round=1, left_team_id="t3", right_team_id="t4"),
+        Game(game_id="g3", round=2, left_game_id="g1", right_game_id="g2"),
+        Game(game_id="g4", round=2, left_game_id="g5", right_game_id="g6"),
+    ]
+    history_points = [
+        report_history.HistoryPoint(
+            game_id="g1",
+            round=1,
+            label="A vs B",
+            top_logo_url=None,
+            bottom_logo_url=None,
+            entry_win_shares={},
+        ),
+        report_history.HistoryPoint(
+            game_id="g2",
+            round=1,
+            label="C vs D",
+            top_logo_url=None,
+            bottom_logo_url=None,
+            entry_win_shares={},
+        ),
+        report_history.HistoryPoint(
+            game_id="g3",
+            round=2,
+            label="Winner vs Winner",
+            top_logo_url=None,
+            bottom_logo_url=None,
+            entry_win_shares={},
+        ),
+    ]
+
+    markers = report_history._build_round_completion_markers(
+        history_points=history_points,
+        games=games,
+    )
+
+    assert [(marker.round, marker.x_position, marker.label) for marker in markers] == [
+        (1, 1.0, "Round of 64"),
+    ]
 
 
 def _read_csv_rows(path: Path) -> list[dict[str, str]]:
