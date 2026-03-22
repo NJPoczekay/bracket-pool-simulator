@@ -45,6 +45,7 @@ def test_find_latest_report_uses_newest_timestamped_directory(tmp_path: Path) ->
     assert latest is not None
     assert latest.report_dir == newer_dir
     assert latest.summary.report_id == "new-report"
+    assert [entry.entry_name for entry in latest.entries] == ["Entry One", "Entry Two"]
 
 
 def test_find_latest_report_ignores_materialized_latest_directory(tmp_path: Path) -> None:
@@ -201,7 +202,7 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
         seed=7,
         engine="numpy",
         batch_size=50,
-        entry_count=1,
+        entry_count=2,
         team_count=1,
         top_entries=[
             EntryReportRow(
@@ -227,7 +228,11 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
     )
     (report_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
     (report_dir / "entry_summary.csv").write_text(
-        "entry_id,win_percentage\nentry-1,55.0\n",
+        (
+            "rank,entry_id,entry_name,win_percentage,average_score\n"
+            "1,entry-1,Entry One,55.0,71.2\n"
+            "2,entry-2,Entry Two,45.0,68.4\n"
+        ),
         encoding="utf-8",
     )
     (report_dir / "team_advancement_odds.csv").write_text(

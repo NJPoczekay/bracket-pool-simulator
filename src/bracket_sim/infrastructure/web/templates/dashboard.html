@@ -300,6 +300,14 @@
         margin-bottom: 0;
       }
 
+      .pool-run-status {
+        margin: 12px 0 0;
+      }
+
+      .pool-run-status.is-error {
+        color: var(--error);
+      }
+
       form {
         margin: 0;
       }
@@ -330,6 +338,14 @@
         border-radius: 16px;
         background: var(--paper-strong);
         border: 1px solid var(--line);
+      }
+
+      .section-heading-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
       }
 
       .summary-block ul {
@@ -743,6 +759,11 @@
         color: var(--muted);
       }
 
+      .numeric-cell {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
       .tag-list {
         display: flex;
         flex-wrap: wrap;
@@ -1108,36 +1129,59 @@
                     <a href="{{ pool.group_url }}" target="_blank" rel="noreferrer">{{ pool.group_url }}</a>
                   </p>
                 </div>
-                <form method="post" action="/pools/{{ pool.id }}/run">
+                <form
+                  method="post"
+                  action="/pools/{{ pool.id }}/run"
+                  data-pool-run-form
+                  data-pool-id="{{ pool.id }}"
+                >
                   <button type="submit">Run</button>
                 </form>
               </div>
+              <p
+                class="muted pool-run-status"
+                data-pool-run-status="{{ pool.id }}"
+                aria-live="polite"
+                hidden
+              ></p>
 
               {% if pool.latest_report %}
-              <div class="summary-blocks">
-                <section class="summary-block">
-                  <h3>Top Entries</h3>
-                  <ul>
-                    {% for entry in pool.latest_report.summary.top_entries %}
-                    <li>
-                      {{ entry.entry_name }}:
-                      {{ "%.2f"|format(entry.win_share * 100) }}% win percentage,
-                      {{ "%.2f"|format(entry.average_score) }}
-                      avg score
-                    </li>
-                    {% endfor %}
-                  </ul>
-                </section>
-
-                <section class="summary-block">
-                  <h3>Top Champions</h3>
-                  <ul>
-                    {% for champion in pool.latest_report.summary.top_champions %}
-                    <li>{{ champion.team_name }}: {{ "%.4f"|format(champion.probability) }}</li>
-                    {% endfor %}
-                  </ul>
-                </section>
-              </div>
+              <section class="summary-block" style="margin-top: 16px;">
+                <div class="section-heading-row">
+                  <h3>Entry Odds</h3>
+                  <p class="muted" style="margin: 0;">
+                    {{ pool.latest_report.entries | length }} tracked entries
+                  </p>
+                </div>
+                <div class="analysis-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="numeric-cell">Rank</th>
+                        <th>Entry</th>
+                        <th class="numeric-cell">Win Percentage</th>
+                        <th class="numeric-cell">Avg Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for entry in pool.latest_report.entries %}
+                      <tr>
+                        <td class="numeric-cell">{{ entry.rank }}</td>
+                        <td>{{ entry.entry_name }}</td>
+                        <td class="numeric-cell">{{ "%.2f"|format(entry.win_percentage) }}%</td>
+                        <td class="numeric-cell">
+                          {% if entry.average_score is not none %}
+                          {{ "%.2f"|format(entry.average_score) }}
+                          {% else %}
+                          -
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
 
               {% if pool.latest_report.history_plot %}
               <section class="summary-block" style="margin-top: 16px;">
@@ -1210,6 +1254,59 @@
         });
         renderPage(window.location.hash.slice(1) || pageSelect.value);
       }
+    </script>
+    <script>
+      const poolRunForms = [...document.querySelectorAll("[data-pool-run-form]")];
+      poolRunForms.forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const poolId = form.dataset.poolId;
+          if (!poolId) {
+            form.submit();
+            return;
+          }
+
+          const button = form.querySelector('button[type="submit"]');
+          const statusElement = document.querySelector(`[data-pool-run-status="${poolId}"]`);
+          const originalLabel = button ? button.textContent : "Run";
+          if (button) {
+            button.disabled = true;
+            button.textContent = "Running...";
+          }
+          if (statusElement) {
+            statusElement.hidden = false;
+            statusElement.classList.remove("is-error");
+            statusElement.textContent = "Refreshing pool data and rebuilding reports...";
+          }
+
+          try {
+            const response = await fetch(`/api/pools/${encodeURIComponent(poolId)}/run`, {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+              },
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload.detail || "Pool refresh failed");
+            }
+
+            window.location.hash = "#pool-tracker";
+            window.location.reload();
+          } catch (error) {
+            if (statusElement) {
+              statusElement.hidden = false;
+              statusElement.classList.add("is-error");
+              statusElement.textContent =
+                error instanceof Error ? error.message : "Pool refresh failed";
+            }
+            if (button) {
+              button.disabled = false;
+              button.textContent = originalLabel;
+            }
+          }
+        });
+      });
     </script>
     {% if bracket_lab_bootstrap %}
     <script id="bracket-lab-bootstrap" type="application/json">{{ bracket_lab_bootstrap | tojson }}</script>

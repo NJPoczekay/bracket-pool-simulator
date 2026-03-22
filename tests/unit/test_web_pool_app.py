@@ -34,6 +34,7 @@ def test_pools_api_lists_multiple_pools_and_latest_reports(tmp_path: Path) -> No
     assert len(payload["pools"]) == 2
     assert payload["pools"][0]["latest_report"] is None
     assert payload["pools"][1]["latest_report"]["summary"]["report_id"] == "beta-report"
+    assert payload["pools"][1]["latest_report"]["entries"][1]["entry_name"] == "Entry Two"
 
 
 def test_run_pool_api_executes_runner_and_returns_latest_report(tmp_path: Path) -> None:
@@ -50,10 +51,34 @@ def test_run_pool_api_executes_runner_and_returns_latest_report(tmp_path: Path) 
 
     assert run_response.status_code == 200
     assert latest_response.status_code == 200
-    assert run_response.json()["pool"]["latest_report"]["summary"]["report_id"] == "latest-report"
-    assert latest_response.json()["latest_report"]["summary"]["report_id"] == "latest-report"
-    assert "game_outcome_sensitivity.csv" in latest_response.json()["latest_report"]["artifacts"]
-    assert "pivotal_games.csv" in latest_response.json()["latest_report"]["artifacts"]
+    run_payload = run_response.json()["pool"]["latest_report"]
+    latest_payload = latest_response.json()["latest_report"]
+    assert run_payload["summary"]["report_id"] == "latest-report"
+    assert latest_payload["summary"]["report_id"] == "latest-report"
+    assert latest_payload["entries"][0]["win_percentage"] == 55.0
+    assert latest_payload["entries"][1]["entry_name"] == "Entry Two"
+    assert "game_outcome_sensitivity.csv" in latest_payload["artifacts"]
+    assert "pivotal_games.csv" in latest_payload["artifacts"]
+    cache_buster = Path(latest_payload["report_dir"]).name
+    assert latest_payload["history_plot"] is None or latest_payload["history_plot"]["url"].endswith(
+        f"?v={cache_buster}"
+    )
+    assert latest_payload["artifacts"]["pivotal_games.csv"]["url"].endswith(f"?v={cache_buster}")
+
+
+def test_run_pool_html_redirects_back_to_tracker_page_after_success(tmp_path: Path) -> None:
+    service = PoolService(_build_registry(tmp_path), runner=_successful_runner)
+
+    app = create_app(
+        config_path=tmp_path / "unused.toml",
+        service=service,
+        enable_scheduler=False,
+    )
+    with TestClient(app) as client:
+        response = client.post("/pools/alpha/run", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/#pool-tracker"
 
 
 def test_run_pool_api_rejects_busy_and_unknown_pool(tmp_path: Path) -> None:
@@ -114,6 +139,9 @@ def test_dashboard_renders_multiple_pools_and_request_local_error(tmp_path: Path
     assert "Alpha Pool" in dashboard.text
     assert "Beta Pool" in dashboard.text
     assert "Entry One" in dashboard.text
+    assert "Entry Two" in dashboard.text
+    assert "Entry Odds" in dashboard.text
+    assert "Top Champions" not in dashboard.text
     assert failed_run.status_code == 400
     assert "refresh failed" in failed_run.text
 
@@ -188,7 +216,7 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
         seed=7,
         engine="numpy",
         batch_size=50,
-        entry_count=1,
+        entry_count=2,
         team_count=1,
         top_entries=[
             EntryReportRow(
@@ -214,7 +242,11 @@ def _write_report_bundle(report_dir: Path, *, report_id: str) -> None:
     )
     (report_dir / "manifest.json").write_text("{}\n", encoding="utf-8")
     (report_dir / "entry_summary.csv").write_text(
-        "entry_id,win_percentage\nentry-1,55.0\n",
+        (
+            "rank,entry_id,entry_name,win_percentage,average_score\n"
+            "1,entry-1,Entry One,55.0,71.2\n"
+            "2,entry-2,Entry Two,45.0,68.4\n"
+        ),
         encoding="utf-8",
     )
     (report_dir / "team_advancement_odds.csv").write_text(

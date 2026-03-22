@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from bracket_sim import __version__
@@ -233,12 +233,11 @@ def create_app(
         return {"pools": _serialized_pools(request)}
 
     @app.post("/pools/{pool_id}/run", response_class=HTMLResponse)
-    def run_pool_html(pool_id: str, request: Request) -> HTMLResponse:
+    def run_pool_html(pool_id: str, request: Request) -> Response:
         """Run one tracker pool and re-render the integrated shell."""
 
         service = _pool_service_or_404(request, pool_id)
         try:
-            pool = service.get_pool(pool_id)
             service.run_pool(pool_id)
         except UnknownPoolError as exc:
             raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
@@ -249,11 +248,7 @@ def create_app(
         except Exception as exc:  # pragma: no cover - defensive guardrail
             return _render_home(request, error=f"Unexpected error: {exc}", status_code=500)
 
-        return _render_home(
-            request,
-            message=f"Ran {pool.name}.",
-            status_code=200,
-        )
+        return RedirectResponse(url="/#pool-tracker", status_code=303)
 
     @app.post("/api/pools/{pool_id}/run")
     def run_pool_api(pool_id: str, request: Request) -> dict[str, object]:
@@ -531,15 +526,24 @@ def _serialize_latest_report(
     return {
         "report_dir": str(latest_report.report_dir),
         "summary": latest_report.summary.model_dump(mode="json"),
+        "entries": [
+            {
+                "rank": entry.rank,
+                "entry_id": entry.entry_id,
+                "entry_name": entry.entry_name,
+                "win_percentage": entry.win_percentage,
+                "average_score": entry.average_score,
+            }
+            for entry in latest_report.entries
+        ],
         "history_plot": (
             {
                 "name": latest_report.history_plot_path.name,
-                "url": str(
-                    request.url_for(
-                        "download_latest_artifact",
-                        pool_id=latest_report.pool_id,
-                        artifact_name=latest_report.history_plot_path.name,
-                    )
+                "url": _artifact_url(
+                    request,
+                    pool_id=latest_report.pool_id,
+                    artifact_name=latest_report.history_plot_path.name,
+                    version=latest_report.report_dir.name,
                 ),
             }
             if latest_report.history_plot_path is not None
@@ -548,17 +552,33 @@ def _serialize_latest_report(
         "artifacts": {
             filename: {
                 "name": filename,
-                "url": str(
-                    request.url_for(
-                        "download_latest_artifact",
-                        pool_id=latest_report.pool_id,
-                        artifact_name=filename,
-                    )
+                "url": _artifact_url(
+                    request,
+                    pool_id=latest_report.pool_id,
+                    artifact_name=filename,
+                    version=latest_report.report_dir.name,
                 ),
             }
             for filename in latest_report.artifact_paths
         },
     }
+
+
+def _artifact_url(
+    request: Request,
+    *,
+    pool_id: str,
+    artifact_name: str,
+    version: str,
+) -> str:
+    base_url = str(
+        request.url_for(
+            "download_latest_artifact",
+            pool_id=pool_id,
+            artifact_name=artifact_name,
+        )
+    )
+    return f"{base_url}?v={version}"
 
 
 app = create_app()

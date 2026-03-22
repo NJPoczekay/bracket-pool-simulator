@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -55,6 +56,7 @@ class LatestReport:
     report_dir: Path
     report_timestamp: datetime
     summary: ReportSummary
+    entries: tuple["TrackerEntryRow", ...]
     manifest: ReportBundleManifest | None = None
 
     @property
@@ -85,6 +87,17 @@ class LatestReport:
             if name.endswith("_win_percentage_history.png"):
                 return path
         return None
+
+
+@dataclass(frozen=True)
+class TrackerEntryRow:
+    """Entry-level odds row rendered in the Pool Tracker table."""
+
+    rank: int
+    entry_id: str
+    entry_name: str
+    win_percentage: float
+    average_score: float | None
 
 
 class PoolService:
@@ -207,6 +220,7 @@ def find_latest_report(pool: PoolProfile) -> LatestReport | None:
                     report_dir=child,
                     report_timestamp=report_timestamp,
                     summary=summary,
+                    entries=_load_tracker_entries(report_dir=child, summary=summary),
                     manifest=manifest,
                 ),
             )
@@ -217,6 +231,98 @@ def find_latest_report(pool: PoolProfile) -> LatestReport | None:
 
     candidates.sort(key=lambda item: (item[0], item[1]))
     return candidates[-1][2]
+
+
+def _load_tracker_entries(
+    *,
+    report_dir: Path,
+    summary: ReportSummary,
+) -> tuple[TrackerEntryRow, ...]:
+    """Load full entry rows from CSV, falling back to the compact summary."""
+
+    entry_summary_path = report_dir / "entry_summary.csv"
+    summary_entries_by_id = {entry.entry_id: entry for entry in summary.top_entries}
+    rows: list[TrackerEntryRow] = []
+    if entry_summary_path.exists():
+        with entry_summary_path.open(encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for index, row in enumerate(reader, start=1):
+                entry_id = (row.get("entry_id") or "").strip()
+                if not entry_id:
+                    continue
+                summary_entry = summary_entries_by_id.get(entry_id)
+                rows.append(
+                    TrackerEntryRow(
+                        rank=_csv_int(
+                            row.get("rank"),
+                            default=summary_entry.rank if summary_entry is not None else index,
+                        ),
+                        entry_id=entry_id,
+                        entry_name=((row.get("entry_name") or "").strip() or entry_id)
+                        if summary_entry is None
+                        else (row.get("entry_name") or "").strip() or summary_entry.entry_name,
+                        win_percentage=_csv_float(
+                            row.get("win_percentage"),
+                            default=(
+                                summary_entry.win_share * 100 if summary_entry is not None else 0.0
+                            ),
+                        ),
+                        average_score=_csv_optional_float(
+                            row.get("average_score"),
+                            default=(
+                                summary_entry.average_score if summary_entry is not None else None
+                            ),
+                        ),
+                    )
+                )
+
+    if not rows:
+        rows = [
+            TrackerEntryRow(
+                rank=entry.rank,
+                entry_id=entry.entry_id,
+                entry_name=entry.entry_name,
+                win_percentage=entry.win_share * 100,
+                average_score=entry.average_score,
+            )
+            for entry in summary.top_entries
+        ]
+
+    rows.sort(key=lambda row: (row.rank, row.entry_name.casefold(), row.entry_id))
+    return tuple(rows)
+
+
+def _csv_int(raw_value: str | None, *, default: int) -> int:
+    """Parse an integer cell, returning a fallback for missing legacy values."""
+
+    if raw_value is None or not raw_value.strip():
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
+
+
+def _csv_float(raw_value: str | None, *, default: float) -> float:
+    """Parse a float cell, returning a fallback for missing legacy values."""
+
+    if raw_value is None or not raw_value.strip():
+        return default
+    try:
+        return float(raw_value)
+    except ValueError:
+        return default
+
+
+def _csv_optional_float(raw_value: str | None, *, default: float | None) -> float | None:
+    """Parse a float cell that may be blank in older report bundles."""
+
+    if raw_value is None or not raw_value.strip():
+        return default
+    try:
+        return float(raw_value)
+    except ValueError:
+        return default
 
 
 def parse_report_dir_timestamp(dir_name: str) -> datetime | None:
