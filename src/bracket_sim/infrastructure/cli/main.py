@@ -12,6 +12,7 @@ from typing import Annotated
 import typer
 
 from bracket_sim.application.benchmark_hotspots import benchmark_hotspots
+from bracket_sim.application.entry_pivotal_outcomes import generate_entry_pivotal_outcomes
 from bracket_sim.application.generate_matchup_tables import generate_matchup_tables
 from bracket_sim.application.generate_reports import generate_reports
 from bracket_sim.application.prepare_bracket_lab_data import prepare_bracket_lab_data
@@ -30,6 +31,7 @@ from bracket_sim.domain.models import (
 from bracket_sim.domain.scoring_systems import ScoringSystemKey
 from bracket_sim.infrastructure.cli.presenter import (
     format_benchmark_report,
+    format_entry_pivotal_outcomes,
     format_matchup_tables,
     format_prepare_bracket_lab_summary,
     format_prepare_summary,
@@ -404,6 +406,73 @@ def matchup_table_command(
         return
 
     typer.echo(format_matchup_tables(result))
+
+
+@app.command("entry-pivotal-outcomes")
+def entry_pivotal_outcomes_command(
+    input_dir: Annotated[
+        Path,
+        typer.Option(
+            "--input",
+            help="Directory containing normalized simulation inputs",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    round_number: Annotated[
+        int,
+        typer.Option(
+            "--round",
+            help="Tournament round to inspect among unresolved games",
+            min=1,
+            max=6,
+        ),
+    ] = 2,
+    report_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--report-dir",
+            help=(
+                "Existing report bundle directory. Defaults to the inferred "
+                "reports/<season>/<workflow>/<dataset>/latest directory"
+            ),
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ] = None,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit structured JSON instead of table output"),
+    ] = False,
+) -> None:
+    """Show each entry's biggest win-odds swing among unresolved outcomes in one round."""
+
+    try:
+        resolved_report_dir = report_dir
+        if resolved_report_dir is None:
+            resolved_report_dir = report_publish_targets_for_input(
+                input_dir=input_dir,
+                base_dir=_DEFAULT_BASE_DIR,
+            ).latest_dir
+
+        result = generate_entry_pivotal_outcomes(
+            input_dir=input_dir,
+            report_dir=resolved_report_dir,
+            round_number=round_number,
+        )
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if as_json:
+        typer.echo(json.dumps(result.to_payload(), indent=2))
+        return
+
+    typer.echo(format_entry_pivotal_outcomes(result))
 
 
 @app.command("prepare-data")

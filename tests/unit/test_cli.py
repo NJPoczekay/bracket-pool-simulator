@@ -354,6 +354,101 @@ def test_report_command_defaults_out_dir_and_publishes_latest(
     assert (tmp_path / "reports/2026/tracker/main/latest/summary.json").exists()
 
 
+def test_entry_pivotal_outcomes_command_uses_latest_report_bundle(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    input_dir = tmp_path / "data" / "2026" / "tracker" / "main" / "prepared"
+    shutil.copytree(synthetic_input_dir, input_dir)
+    report_dir = tmp_path / "reports" / "2026" / "tracker" / "main" / "latest"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / "game_outcome_sensitivity.csv").write_text(
+        (
+            "game_id,round,round_game_number,game_label,outcome_team_id,outcome_team_name,"
+            "outcome_probability,outcome_simulations,entry_rank,entry_id,entry_name,"
+            "baseline_win_percentage,conditional_win_percentage,win_percentage_point_delta,"
+            "baseline_average_score,conditional_average_score,average_score_delta,"
+            "outcome_total_win_percentage_point_swing\n"
+            "g009,2,1,Round 2 Game 1,east-01,East Team 1,0.6,600,1,entry_chalk,"
+            "Chalk Strategy,20.0,23.5,3.5,100,103.5,3.5,9.0\n"
+            "g009,2,1,Round 2 Game 1,east-08,East Team 8,0.4,400,1,entry_chalk,"
+            "Chalk Strategy,20.0,18.0,-2.0,100,98.0,-2.0,9.0\n"
+            "g009,2,1,Round 2 Game 1,east-01,East Team 1,0.6,600,2,entry_balanced,"
+            "Balanced Strategy,15.0,16.2,1.2,95,96.2,1.2,9.0\n"
+            "g010,2,2,Round 2 Game 2,east-04,East Team 4,0.55,550,2,entry_balanced,"
+            "Balanced Strategy,15.0,11.0,-4.0,95,91.0,-4.0,10.5\n"
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "entry-pivotal-outcomes",
+            "--input",
+            str(input_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Win % Change" in result.stdout
+    assert "Outcome Prob" in result.stdout
+    assert "Chalk Strategy" in result.stdout
+    assert "East Team 1 over East Team 8" in result.stdout
+    assert "+3.50 pp" in result.stdout
+    assert "60.00%" in result.stdout
+    assert "Balanced Strategy" in result.stdout
+    assert "East Team 4 over East Team 5" in result.stdout
+    assert "-4.00 pp" in result.stdout
+    assert "55.00%" in result.stdout
+
+
+def test_entry_pivotal_outcomes_command_emits_json(
+    synthetic_input_dir: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    report_dir = tmp_path / "report"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / "game_outcome_sensitivity.csv").write_text(
+        (
+            "game_id,round,round_game_number,game_label,outcome_team_id,outcome_team_name,"
+            "outcome_probability,outcome_simulations,entry_rank,entry_id,entry_name,"
+            "baseline_win_percentage,conditional_win_percentage,win_percentage_point_delta,"
+            "baseline_average_score,conditional_average_score,average_score_delta,"
+            "outcome_total_win_percentage_point_swing\n"
+            "g009,2,1,Round 2 Game 1,east-01,East Team 1,0.6,600,1,entry_chalk,"
+            "Chalk Strategy,20.0,23.5,3.5,100,103.5,3.5,9.0\n"
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "entry-pivotal-outcomes",
+            "--input",
+            str(synthetic_input_dir),
+            "--report-dir",
+            str(report_dir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["round"] == 2
+    assert payload["report_dir"] == str(report_dir)
+    assert len(payload["rows"]) == 1
+    assert payload["rows"][0]["entry_name"] == "Chalk Strategy"
+    assert payload["rows"][0]["outcome_label"] == "East Team 1 over East Team 8"
+    assert payload["rows"][0]["outcome_probability"] == 0.6
+    assert payload["rows"][0]["win_percentage_point_delta"] == 3.5
+
+
 def test_matchup_table_command_emits_json(
     prepared_bracket_lab_dir: Path,
 ) -> None:

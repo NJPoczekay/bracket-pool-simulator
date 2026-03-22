@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bracket_sim.application.entry_pivotal_outcomes import EntryPivotalOutcomesResult
 from bracket_sim.application.generate_matchup_tables import MatchupTablesResult
 from bracket_sim.application.prepare_bracket_lab_data import PrepareBracketLabDataSummary
 from bracket_sim.application.prepare_data import PrepareDataSummary
@@ -113,6 +114,28 @@ def format_matchup_tables(result: MatchupTablesResult) -> str:
             f"{_format_percent(row.win_probability):>10} "
             f"{_format_percent(row.public_pick_rate):>10} "
             f"{row.team_name[:20]:<20} {row.game_label[:34]:<34}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_entry_pivotal_outcomes(result: EntryPivotalOutcomesResult) -> str:
+    """Render per-entry pivotal outcomes as a compact table."""
+
+    lines = [
+        f"Input: {result.input_dir}",
+        f"Report: {result.report_dir}",
+        f"Round: {result.round_number}  Entries: {len(result.rows)}",
+        "",
+        f"{'Entry':<24} {'Outcome':<32} {'Win % Change':>14} {'Outcome Prob':>14}",
+        f"{'-' * 24} {'-' * 32} {'-' * 14} {'-' * 14}",
+    ]
+
+    for row in result.rows:
+        lines.append(
+            f"{row.entry_name[:24]:<24} {row.outcome_label[:32]:<32} "
+            f"{_format_signed_points(row.win_percentage_point_delta):>14} "
+            f"{_format_percent(row.outcome_probability):>14}"
         )
 
     return "\n".join(lines)
@@ -263,3 +286,7 @@ def _format_value(value: float | None) -> str:
     if value is None:
         return "n/a"
     return f"{value:.3f}"
+
+
+def _format_signed_points(value: float) -> str:
+    return f"{value:+.2f} pp"
