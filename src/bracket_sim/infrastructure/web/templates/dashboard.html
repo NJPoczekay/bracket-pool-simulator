@@ -340,6 +340,42 @@
         border: 1px solid var(--line);
       }
 
+      .guide-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      .guide-toolbar label {
+        color: var(--muted);
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .guide-toolbar select {
+        min-width: 220px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: #fffdf8;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .guide-note {
+        margin: 12px 0 0;
+      }
+
+      .secondary-detail {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
       .section-heading-row {
         display: flex;
         align-items: baseline;
@@ -1183,6 +1219,208 @@
                 </div>
               </section>
 
+              {% set guide = pool.latest_report.viewing_guide %}
+              {% if guide %}
+              <section class="summary-block" style="margin-top: 16px;">
+                <div class="section-heading-row">
+                  <h3>Tonight&apos;s Watchlist</h3>
+                  <p class="muted" style="margin: 0;">
+                    {{ guide.local_date }} · {{ guide.timezone }}
+                  </p>
+                </div>
+                {% if guide.watchlist %}
+                <div class="analysis-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Matchup</th>
+                        <th>Root For</th>
+                        <th class="numeric-cell">Pool Swing</th>
+                        <th>Top Gainer</th>
+                        <th>Top Loser</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in guide.watchlist %}
+                      <tr>
+                        <td>
+                          {{ item.tipoff_local_label }}
+                          <div class="secondary-detail">{{ item.game_label }}</div>
+                        </td>
+                        <td>{{ item.matchup }}</td>
+                        <td>
+                          {{ item.recommended_outcome_label }}
+                          <div class="secondary-detail">
+                            {{ "%.1f"|format(item.outcome_probability * 100) }}% likely
+                          </div>
+                        </td>
+                        <td class="numeric-cell">
+                          {{ "%.2f"|format(item.total_pool_swing) }}
+                        </td>
+                        <td>
+                          {{ item.top_gainer_entry_name }}
+                          <div class="secondary-detail">
+                            {{ "%+.2f"|format(item.top_gainer_win_percentage_point_delta) }} pts
+                          </div>
+                        </td>
+                        <td>
+                          {{ item.top_loser_entry_name }}
+                          <div class="secondary-detail">
+                            {{ "%+.2f"|format(item.top_loser_win_percentage_point_delta) }} pts
+                          </div>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% else %}
+                <p class="muted guide-note">
+                  No scheduled unresolved games with tracker sensitivity coverage tonight.
+                </p>
+                {% endif %}
+                {% if guide.unavailable_schedule_count %}
+                <p class="muted guide-note">
+                  {{ guide.unavailable_schedule_count }} unresolved games are missing tip times and
+                  are omitted from tonight&apos;s guide.
+                </p>
+                {% endif %}
+              </section>
+
+              <section
+                class="summary-block"
+                style="margin-top: 16px;"
+                data-viewing-guide-root
+                data-pool-id="{{ pool.id }}"
+              >
+                <div class="section-heading-row">
+                  <h3>My Rooting Guide</h3>
+                  <p class="muted" style="margin: 0;">One member at a time, plus a pool-wide summary</p>
+                </div>
+                <div class="guide-toolbar">
+                  <label for="viewing-guide-select-{{ pool.id }}">Member</label>
+                  <select
+                    id="viewing-guide-select-{{ pool.id }}"
+                    data-viewing-guide-select
+                    aria-label="Select a member for the rooting guide"
+                  >
+                    {% for entry in guide.entry_options %}
+                    <option
+                      value="{{ entry.entry_id }}"
+                      {% if entry.entry_id == guide.default_entry_id %}selected{% endif %}
+                    >
+                      {{ entry.rank }}. {{ entry.entry_name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <script type="application/json" data-viewing-guide-json>{{ guide | tojson }}</script>
+                {% set default_guide_rows = guide.guides_by_entry_id.get(guide.default_entry_id, []) %}
+                <div class="analysis-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Matchup</th>
+                        <th>Root For</th>
+                        <th class="numeric-cell">Current Win</th>
+                        <th class="numeric-cell">If It Hits</th>
+                        <th class="numeric-cell">Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody data-viewing-guide-body>
+                      {% if default_guide_rows %}
+                        {% for row in default_guide_rows %}
+                        <tr>
+                          <td>
+                            {{ row.tipoff_local_label }}
+                            <div class="secondary-detail">{{ row.game_label }}</div>
+                          </td>
+                          <td>{{ row.matchup }}</td>
+                          <td>
+                            {{ row.recommended_outcome_label }}
+                            <div class="secondary-detail">
+                              {{ "%.1f"|format(row.outcome_probability * 100) }}% likely
+                            </div>
+                          </td>
+                          <td class="numeric-cell">{{ "%.2f"|format(row.baseline_win_percentage) }}%</td>
+                          <td class="numeric-cell">
+                            {{ "%.2f"|format(row.conditional_win_percentage) }}%
+                          </td>
+                          <td class="numeric-cell">
+                            {{ "%+.2f"|format(row.win_percentage_point_delta) }} pts
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      {% else %}
+                      <tr>
+                        <td colspan="6" class="muted">
+                          No tonight game impact available for this entry.
+                        </td>
+                      </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="section-heading-row" style="margin-top: 18px;">
+                  <h3>Top Game Per Entry</h3>
+                  <p class="muted" style="margin: 0;">Fast scan of tonight&apos;s strongest recommendation for each member</p>
+                </div>
+                <div class="analysis-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="numeric-cell">Rank</th>
+                        <th>Entry</th>
+                        <th class="numeric-cell">Current Win</th>
+                        <th>Top Game</th>
+                        <th>Root For</th>
+                        <th class="numeric-cell">Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in guide.top_games_by_entry %}
+                      <tr>
+                        <td class="numeric-cell">{{ row.entry_rank }}</td>
+                        <td>{{ row.entry_name }}</td>
+                        <td class="numeric-cell">{{ "%.2f"|format(row.win_percentage) }}%</td>
+                        <td>
+                          {% if row.matchup %}
+                          {{ row.matchup }}
+                          <div class="secondary-detail">{{ row.tipoff_local_label }}</div>
+                          {% else %}
+                          <span class="muted">No tonight signal</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if row.recommended_outcome_label %}
+                          {{ row.recommended_outcome_label }}
+                          {% else %}
+                          <span class="muted">-</span>
+                          {% endif %}
+                        </td>
+                        <td class="numeric-cell">
+                          {% if row.win_percentage_point_delta is not none %}
+                          {{ "%+.2f"|format(row.win_percentage_point_delta) }} pts
+                          {% else %}
+                          -
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              {% else %}
+              <section class="summary-block" style="margin-top: 16px;">
+                <h3>Viewing Guide</h3>
+                <p class="muted guide-note">Viewing guide unavailable for this report bundle.</p>
+              </section>
+              {% endif %}
+
               {% if pool.latest_report.history_plot %}
               <section class="summary-block" style="margin-top: 16px;">
                 <h3>Win Percentage History</h3>
@@ -1306,6 +1544,84 @@
             }
           }
         });
+      });
+    </script>
+    <script>
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatPercent(value) {
+        return `${Number(value).toFixed(2)}%`;
+      }
+
+      function formatSignedPoints(value) {
+        const numericValue = Number(value);
+        const sign = numericValue >= 0 ? "+" : "";
+        return `${sign}${numericValue.toFixed(2)} pts`;
+      }
+
+      const viewingGuideRoots = [...document.querySelectorAll("[data-viewing-guide-root]")];
+      viewingGuideRoots.forEach((root) => {
+        const select = root.querySelector("[data-viewing-guide-select]");
+        const body = root.querySelector("[data-viewing-guide-body]");
+        const dataElement = root.querySelector("[data-viewing-guide-json]");
+        if (!select || !body || !dataElement) {
+          return;
+        }
+
+        let guide;
+        try {
+          guide = JSON.parse(dataElement.textContent || "null");
+        } catch (error) {
+          return;
+        }
+        if (!guide || typeof guide !== "object") {
+          return;
+        }
+
+        function renderEntry(entryId) {
+          const rows = guide.guides_by_entry_id?.[entryId] || [];
+          if (!rows.length) {
+            body.innerHTML = `
+              <tr>
+                <td colspan="6" class="muted">No tonight game impact available for this entry.</td>
+              </tr>
+            `;
+            return;
+          }
+
+          body.innerHTML = rows
+            .map(
+              (row) => `
+                <tr>
+                  <td>
+                    ${escapeHtml(row.tipoff_local_label)}
+                    <div class="secondary-detail">${escapeHtml(row.game_label)}</div>
+                  </td>
+                  <td>${escapeHtml(row.matchup)}</td>
+                  <td>
+                    ${escapeHtml(row.recommended_outcome_label)}
+                    <div class="secondary-detail">${Number(row.outcome_probability * 100).toFixed(1)}% likely</div>
+                  </td>
+                  <td class="numeric-cell">${formatPercent(row.baseline_win_percentage)}</td>
+                  <td class="numeric-cell">${formatPercent(row.conditional_win_percentage)}</td>
+                  <td class="numeric-cell">${formatSignedPoints(row.win_percentage_point_delta)}</td>
+                </tr>
+              `,
+            )
+            .join("");
+        }
+
+        select.addEventListener("change", () => {
+          renderEntry(select.value);
+        });
+        renderEntry(select.value || guide.default_entry_id);
       });
     </script>
     {% if bracket_lab_bootstrap %}

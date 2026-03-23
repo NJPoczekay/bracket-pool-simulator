@@ -6,6 +6,7 @@ import argparse
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -230,7 +231,7 @@ def create_app(
     def list_pools_api(request: Request) -> dict[str, object]:
         """Return configured tracker pools, or an empty list when tracking is not configured."""
 
-        return {"pools": _serialized_pools(request)}
+        return {"pools": _serialized_pools(request, now=datetime.now(UTC))}
 
     @app.post("/pools/{pool_id}/run", response_class=HTMLResponse)
     def run_pool_html(pool_id: str, request: Request) -> Response:
@@ -265,7 +266,7 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        latest_report = service.get_latest_report(pool_id)
+        latest_report = service.get_latest_report(pool_id, now=datetime.now(UTC))
         return {
             "pool": _serialize_pool(request, pool=pool, latest_report=latest_report),
             "report_dir": str(result.report_dir),
@@ -281,7 +282,7 @@ def create_app(
         except UnknownPoolError as exc:
             raise HTTPException(status_code=404, detail=f"Unknown pool {pool_id!r}") from exc
 
-        latest_report = service.get_latest_report(pool_id)
+        latest_report = service.get_latest_report(pool_id, now=datetime.now(UTC))
         if latest_report is None:
             raise HTTPException(
                 status_code=404,
@@ -477,7 +478,7 @@ def _render_home(
         "bracket_lab_editor_layout": bracket_lab_editor_layout,
         "tracker_configured": tracker_service is not None,
         "tracker_setup_path": "config/pools.example.toml",
-        "pools": _serialized_pools(request),
+        "pools": _serialized_pools(request, now=datetime.now(UTC)),
     }
     return _TEMPLATES.TemplateResponse(
         request=request,
@@ -487,7 +488,11 @@ def _render_home(
     )
 
 
-def _serialized_pools(request: Request) -> list[dict[str, object]]:
+def _serialized_pools(
+    request: Request,
+    *,
+    now: datetime,
+) -> list[dict[str, object]]:
     service = _pool_service(request)
     if service is None:
         return []
@@ -496,7 +501,7 @@ def _serialized_pools(request: Request) -> list[dict[str, object]]:
         _serialize_pool(
             request,
             pool=pool,
-            latest_report=service.get_latest_report(pool.id),
+            latest_report=service.get_latest_report(pool.id, now=now),
         )
         for pool in service.list_pools()
     ]
@@ -536,6 +541,11 @@ def _serialize_latest_report(
             }
             for entry in latest_report.entries
         ],
+        "viewing_guide": (
+            latest_report.viewing_guide.model_dump(mode="json")
+            if latest_report.viewing_guide is not None
+            else None
+        ),
         "history_plot": (
             {
                 "name": latest_report.history_plot_path.name,

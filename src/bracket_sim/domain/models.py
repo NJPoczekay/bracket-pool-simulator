@@ -448,6 +448,100 @@ class PivotalGameRow(BaseModel):
     top_loser_win_share_delta: float
 
 
+class ViewingGuideEntryOption(BaseModel):
+    """One selectable entry in the tracker viewing guide."""
+
+    model_config = ConfigDict(frozen=True)
+
+    rank: int = Field(ge=1)
+    entry_id: str = Field(min_length=1)
+    entry_name: str = Field(min_length=1)
+    win_percentage: float = Field(ge=0.0)
+
+
+class TonightWatchlistItem(BaseModel):
+    """One tonight watchlist row for the tracker viewing guide."""
+
+    model_config = ConfigDict(frozen=True)
+
+    rank: int = Field(ge=1)
+    game_id: str = Field(min_length=1)
+    round: int = Field(ge=1, le=6)
+    game_label: str = Field(min_length=1)
+    matchup: str = Field(min_length=1)
+    tipoff_local_iso: datetime
+    tipoff_local_label: str = Field(min_length=1)
+    recommended_outcome_team_id: str = Field(min_length=1)
+    recommended_outcome_team_name: str = Field(min_length=1)
+    recommended_outcome_label: str = Field(min_length=1)
+    outcome_probability: float = Field(ge=0.0, le=1.0)
+    total_pool_swing: float = Field(ge=0.0)
+    top_gainer_entry_id: str = Field(min_length=1)
+    top_gainer_entry_name: str = Field(min_length=1)
+    top_gainer_win_percentage_point_delta: float
+    top_loser_entry_id: str = Field(min_length=1)
+    top_loser_entry_name: str = Field(min_length=1)
+    top_loser_win_percentage_point_delta: float
+
+
+class EntryViewingGuideRow(BaseModel):
+    """One member-specific guide row for one tonight game."""
+
+    model_config = ConfigDict(frozen=True)
+
+    game_id: str = Field(min_length=1)
+    round: int = Field(ge=1, le=6)
+    game_label: str = Field(min_length=1)
+    matchup: str = Field(min_length=1)
+    tipoff_local_iso: datetime
+    tipoff_local_label: str = Field(min_length=1)
+    recommended_outcome_team_id: str = Field(min_length=1)
+    recommended_outcome_team_name: str = Field(min_length=1)
+    recommended_outcome_label: str = Field(min_length=1)
+    outcome_probability: float = Field(ge=0.0, le=1.0)
+    baseline_win_percentage: float = Field(ge=0.0)
+    conditional_win_percentage: float = Field(ge=0.0)
+    win_percentage_point_delta: float
+
+
+class EntryTopGameSummaryRow(BaseModel):
+    """One entry's highest-value tonight game summary."""
+
+    model_config = ConfigDict(frozen=True)
+
+    entry_rank: int = Field(ge=1)
+    entry_id: str = Field(min_length=1)
+    entry_name: str = Field(min_length=1)
+    win_percentage: float = Field(ge=0.0)
+    game_id: str | None = None
+    game_label: str | None = None
+    matchup: str | None = None
+    tipoff_local_iso: datetime | None = None
+    tipoff_local_label: str | None = None
+    recommended_outcome_team_id: str | None = None
+    recommended_outcome_team_name: str | None = None
+    recommended_outcome_label: str | None = None
+    outcome_probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    baseline_win_percentage: float | None = Field(default=None, ge=0.0)
+    conditional_win_percentage: float | None = Field(default=None, ge=0.0)
+    win_percentage_point_delta: float | None = None
+
+
+class TrackerViewingGuide(BaseModel):
+    """Tonight-focused tracker guide returned with the latest report payload."""
+
+    model_config = ConfigDict(frozen=True)
+
+    local_date: str = Field(min_length=1)
+    timezone: str = Field(min_length=1)
+    default_entry_id: str = Field(min_length=1)
+    unavailable_schedule_count: int = Field(ge=0)
+    watchlist: list[TonightWatchlistItem]
+    entry_options: list[ViewingGuideEntryOption]
+    guides_by_entry_id: dict[str, list[EntryViewingGuideRow]]
+    top_games_by_entry: list[EntryTopGameSummaryRow]
+
+
 class ReportSummary(BaseModel):
     """Compact JSON summary for a generated report bundle."""
 

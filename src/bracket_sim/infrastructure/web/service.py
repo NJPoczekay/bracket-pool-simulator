@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, tzinfo
 from pathlib import Path
 from threading import Lock
 from typing import Protocol
@@ -14,7 +14,8 @@ from bracket_sim.application.run_pool_pipeline import (
     PoolPipelineResult,
     run_pool_pipeline,
 )
-from bracket_sim.domain.models import ReportBundleManifest, ReportSummary
+from bracket_sim.application.tracker_viewing_guide import build_tracker_viewing_guide
+from bracket_sim.domain.models import ReportBundleManifest, ReportSummary, TrackerViewingGuide
 from bracket_sim.infrastructure.web.config import PoolProfile, PoolRegistry
 
 _LEGACY_REPORT_ARTIFACT_FILENAMES = (
@@ -56,8 +57,9 @@ class LatestReport:
     report_dir: Path
     report_timestamp: datetime
     summary: ReportSummary
-    entries: tuple["TrackerEntryRow", ...]
+    entries: tuple[TrackerEntryRow, ...]
     manifest: ReportBundleManifest | None = None
+    viewing_guide: TrackerViewingGuide | None = None
 
     @property
     def artifact_paths(self) -> dict[str, Path]:
@@ -151,10 +153,23 @@ class PoolService:
         finally:
             self._run_lock.release()
 
-    def get_latest_report(self, pool_id: str) -> LatestReport | None:
+    def get_latest_report(
+        self,
+        pool_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> LatestReport | None:
         """Return the newest successful report bundle for one pool."""
 
-        return find_latest_report(self.get_pool(pool_id))
+        pool = self.get_pool(pool_id)
+        latest_report = find_latest_report(pool)
+        if latest_report is None:
+            return None
+        return _attach_viewing_guide(
+            pool=pool,
+            latest_report=latest_report,
+            now=now or datetime.now(UTC),
+        )
 
     def run_due_pools(
         self,
@@ -373,3 +388,33 @@ def _pool_now(*, pool: PoolProfile, base_now: datetime) -> datetime:
     if zone is None:
         return base_now.astimezone(UTC)
     return base_now.astimezone(zone)
+
+
+def _attach_viewing_guide(
+    *,
+    pool: PoolProfile,
+    latest_report: LatestReport,
+    now: datetime,
+) -> LatestReport:
+    try:
+        viewing_guide = build_tracker_viewing_guide(
+            input_dir=(
+                latest_report.manifest.input_dir
+                if latest_report.manifest is not None
+                else pool.prepared_dir
+            ),
+            report_dir=latest_report.report_dir,
+            now=now,
+            timezone=_guide_timezone(pool=pool, now=now),
+        )
+    except (OSError, ValueError):
+        viewing_guide = None
+
+    return replace(latest_report, viewing_guide=viewing_guide)
+
+
+def _guide_timezone(*, pool: PoolProfile, now: datetime) -> tzinfo:
+    zone = pool.scheduler_zoneinfo()
+    if zone is not None:
+        return zone
+    return now.astimezone().tzinfo or UTC
