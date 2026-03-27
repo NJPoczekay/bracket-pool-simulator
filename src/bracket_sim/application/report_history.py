@@ -573,7 +573,7 @@ def _add_round_completion_markers(
             linewidth=1.0,
             linestyle=(0, (4, 4)),
             alpha=0.85,
-            zorder=0.5,
+            zorder=-1.0,
         )
         axis.text(
             marker.x_position,
